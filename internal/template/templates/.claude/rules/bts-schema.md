@@ -53,7 +53,7 @@ Required fields:
 - `documents` (object): keys are file paths, values are DocumentEntry objects
 
 DocumentEntry required fields:
-- `type` (string): one of "research", "draft", "debate", "simulation", "verification"
+- `type` (string): one of "research", "draft", "debate", "simulation", "verification", "implementation", "test-result", "deviation"
 - `created_at` (string): ISO 8601 timestamp
 
 DocumentEntry optional fields:
@@ -82,7 +82,7 @@ Required fields:
 - `id` (string): unique recipe identifier
 - `type` (string): "analyze", "design", or "blueprint"
 - `topic` (string): what the recipe is about
-- `phase` (string): current phase — "research", "draft", "assess", "improve", "verify", "debate", "simulate", "audit", "finalize", "cancelled"
+- `phase` (string): current phase — "research", "draft", "assess", "improve", "verify", "debate", "simulate", "audit", "finalize", "cancelled", "implement", "test", "sync", "status", "complete"
 - `iteration` (number): current verify iteration count
 - `draft_version` (number): current draft version number
 - `level` (number): assessed document level 0.0-3.0
@@ -105,7 +105,7 @@ Each line is a JSON object:
 
 Required fields:
 - `time` (string): ISO 8601 timestamp. **Key name is "time", not "timestamp".**
-- `action` (string): one of "research", "draft", "improve", "verify", "debate", "simulate", "audit", "assess", "sync-check", "finalize"
+- `action` (string): one of "research", "draft", "improve", "verify", "debate", "simulate", "audit", "assess", "sync-check", "finalize", "implement", "test", "sync", "status"
 
 Optional fields:
 - `input` (string): what was acted on
@@ -142,6 +142,165 @@ Required fields:
 
 Optional fields:
 - `conclusion` (string): the decision reached (plain text, not object)
+
+## tasks.json
+
+Located at `.bts/state/recipes/{id}/tasks.json`:
+
+```json
+{
+  "recipe_id": "r-1710720000000",
+  "started_at": "2026-03-18T10:00:00Z",
+  "updated_at": "2026-03-18T14:00:00Z",
+  "tasks": [
+    {
+      "id": "t-001",
+      "file": "src/auth/types.ts",
+      "action": "create",
+      "status": "done",
+      "description": "Auth type definitions",
+      "depends_on": [],
+      "retry_count": 0,
+      "last_error": ""
+    },
+    {
+      "id": "t-002",
+      "file": "src/auth/oauth.ts",
+      "action": "create",
+      "status": "in_progress",
+      "description": "OAuth2 implementation",
+      "depends_on": ["t-001"],
+      "retry_count": 2,
+      "last_error": "TS2345: Argument of type 'string' is not assignable"
+    }
+  ]
+}
+```
+
+Required fields:
+- `recipe_id` (string): recipe this task list belongs to
+- `started_at` (string): ISO 8601 timestamp
+- `updated_at` (string): ISO 8601 timestamp
+- `tasks` (array): list of task objects
+
+Task object required fields:
+- `id` (string): unique task identifier (e.g., "t-001")
+- `file` (string): target file path
+- `action` (string): "create" or "modify"
+- `status` (string): "pending", "in_progress", "done", "blocked", "skipped"
+- `description` (string): what this task does
+
+Task object optional fields:
+- `depends_on` (array of strings): task IDs this depends on
+- `retry_count` (number): build retry attempts so far (persisted across sessions)
+- `last_error` (string): last build error message (for stagnation detection)
+
+## test-results.json
+
+Located at `.bts/state/recipes/{id}/test-results.json`:
+
+```json
+{
+  "recipe_id": "r-1710720000000",
+  "run_at": "2026-03-18T15:00:00Z",
+  "framework": "jest",
+  "iterations": 2,
+  "status": "pass",
+  "total": 15,
+  "passed": 15,
+  "failed": 0,
+  "skipped": 0,
+  "test_files": [
+    "src/__tests__/auth.test.ts",
+    "src/__tests__/session.test.ts"
+  ],
+  "failures": [],
+  "notes": ["Fixed off-by-one in token expiry check"]
+}
+```
+
+Required fields:
+- `recipe_id` (string): recipe this test run belongs to
+- `run_at` (string): ISO 8601 timestamp
+- `framework` (string): test framework used (e.g., "jest", "go", "pytest")
+- `iterations` (number): how many fix-and-rerun iterations
+- `status` (string): "pass" or "fail"
+- `total` (number): total test count
+- `passed` (number): passing test count
+- `failed` (number): failing test count
+- `skipped` (number): skipped test count
+
+Optional fields:
+- `test_files` (array of strings): test file paths
+- `failures` (array of objects): failure details `{"test": "name", "error": "message"}`
+- `notes` (array of strings): observations for sync step
+
+## deviation.md
+
+Located at `.bts/state/recipes/{id}/deviation.md`. Markdown format:
+
+```markdown
+# Deviation Report: {topic}
+
+Generated: {ISO8601}
+Recipe: {id}
+
+## Summary
+- Matches: N
+- Not Implemented: N
+- Spec Additions Needed: N
+- Deviations: N
+
+## Not Implemented
+| Item | File | Reason |
+|------|------|--------|
+
+## Spec Additions
+| Item | File | Description |
+|------|------|-------------|
+
+## Deviations
+| Item | Spec Says | Code Has | Resolution |
+|------|-----------|----------|------------|
+```
+
+Required sections:
+- Summary with counts
+- Tables for each category (may be empty)
+
+## project-status.md
+
+Located at `.bts/state/project-status.md`. Markdown format:
+
+```markdown
+# Project Status
+
+Updated: {ISO8601}
+
+## Features
+
+| Recipe | Type | Topic | State | Tests | Deviations |
+|--------|------|-------|-------|-------|------------|
+
+## Architecture
+
+### Implemented Files
+(tree of implemented files with recipe attribution)
+
+## Deviations
+
+| Recipe | Item | Type | Status |
+|--------|------|------|--------|
+
+## Next Steps
+(recommendations based on current state)
+```
+
+Required sections:
+- Features table with state for each recipe
+- Architecture section
+- Deviations aggregate
+- Next steps recommendations
 
 ## IMPORTANT RULES
 

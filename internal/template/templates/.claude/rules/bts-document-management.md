@@ -21,7 +21,7 @@ Every action is logged to `changelog.jsonl`:
 ```
 bts recipe log {id} --action [type] --output [path]
 ```
-Actions: research, draft, improve, verify, debate, simulate, audit, assess, sync-check
+Actions: research, draft, improve, verify, debate, simulate, audit, assess, sync-check, finalize, implement, test, sync, status
 
 ## Manifest
 `manifest.json` tracks document relationships:
@@ -37,6 +37,33 @@ Before finalizing, run `/sync-check` to verify:
 - Current draft has been verified
 - Code (if exists) matches spec
 
+## Implementation Documents
+
+After implementation, additional artifacts are tracked:
+- `tasks.json` — implementation task decomposition (type: "implementation")
+- `test-results.json` — test execution results (type: "test-result")
+- `deviation.md` — spec↔code differences (type: "deviation")
+
+These MUST be registered in `manifest.json` with appropriate `based_on` references.
+
+## final.md Sync Policy
+
+`final.md` is the verified spec from the blueprint phase. When `/sync` updates it
+to reflect actual implementation:
+1. **Preserve the original**: Copy `final.md` → `final.pre-sync.md` before any modification
+2. **Update in place**: Modify `final.md` with implementation reality
+3. **Track in manifest**: Register `final.pre-sync.md` as type "draft" and update `final.md` entry
+4. **Record deviations**: All differences go to `deviation.md`
+
+This is the ONE exception to the "never overwrite" rule — `final.md` is a living
+document that bridges spec and implementation.
+
+## Global Documents
+
+`project-status.md` (at `.bts/state/project-status.md`) is a **derived global document**
+that aggregates state across all recipes. It is NOT tracked in per-recipe manifests
+because it spans multiple recipes.
+
 ## Naming Conventions
 ```
 research/v1.md                    # Research version 1
@@ -46,4 +73,8 @@ debates/001-topic-name/           # Debate by sequence + topic
 simulations/001-category.md       # Simulation by sequence + category
 verifications/draft-vN.md         # Verification for specific draft
 final.md                          # Final verified document
+final.pre-sync.md                 # Original final.md before sync
+tasks.json                        # Implementation tasks
+test-results.json                 # Test execution results
+deviation.md                      # Spec↔code deviation report
 ```

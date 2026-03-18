@@ -14,7 +14,7 @@ type Manifest struct {
 
 // DocumentEntry tracks one document's metadata and relationships.
 type DocumentEntry struct {
-	Type         string   `json:"type"`                    // research, draft, debate, simulation, verification
+	Type         string   `json:"type"`                    // research, draft, debate, simulation, verification, implementation, test-result, deviation
 	CreatedAt    string   `json:"created_at"`
 	BasedOn      []string `json:"based_on,omitempty"`      // parent documents
 	Incorporates []string `json:"incorporates,omitempty"`  // debates/simulations incorporated

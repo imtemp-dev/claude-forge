@@ -25,13 +25,33 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 
 	recipe, err := state.GetActiveRecipe(btsRoot)
 	if err != nil || recipe == nil {
-		return &HookOutput{}, nil
+		// Check for finalized recipes ready for implementation
+		recipe, err = state.GetFinalizedRecipe(btsRoot)
+		if err != nil || recipe == nil {
+			return &HookOutput{}, nil
+		}
+		msg := fmt.Sprintf(
+			"[bts] Recipe ready for implementation: %s \"%s\" (ID: %s)\n"+
+				"Run /implement %s to start coding.",
+			recipe.Type, recipe.Topic, recipe.ID, recipe.ID,
+		)
+		return &HookOutput{
+			HookSpecificOutput: &HookSpecificOutput{
+				AdditionalContext: msg,
+			},
+		}, nil
+	}
+
+	var hint string
+	if state.IsImplementPhase(recipe.Phase) {
+		hint = fmt.Sprintf("Run /implement %s to continue, or /recipe cancel to abort.", recipe.ID)
+	} else {
+		hint = "Run /recipe resume to continue, or /recipe cancel to abort."
 	}
 
 	msg := fmt.Sprintf(
-		"[bts] Active recipe: %s \"%s\" (Step: %s, Iteration: %d)\n"+
-			"Run /recipe resume to continue, or /recipe cancel to abort.",
-		recipe.Type, recipe.Topic, recipe.Phase, recipe.Iteration,
+		"[bts] Active recipe: %s \"%s\" (Step: %s, Iteration: %d)\n%s",
+		recipe.Type, recipe.Topic, recipe.Phase, recipe.Iteration, hint,
 	)
 
 	return &HookOutput{

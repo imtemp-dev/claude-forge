@@ -32,24 +32,36 @@ func (h *stopHandler) Handle(input *HookInput) (*HookOutput, error) {
 		return &HookOutput{}, nil
 	}
 
-	// Check if DONE marker is present in the stop content
-	if !strings.Contains(input.StopHookContent, "<bts>DONE</bts>") {
-		// No DONE marker — just remind about active recipe
-		return &HookOutput{
-			HookSpecificOutput: &HookSpecificOutput{
-				AdditionalContext: fmt.Sprintf(
-					"[bts] Recipe \"%s\" is still active (Step: %s). Continue or use /recipe cancel.",
-					recipe.Topic, recipe.Phase,
-				),
-			},
-		}, nil
+	// Check for implementation completion marker
+	if strings.Contains(input.StopHookContent, "<bts>IMPLEMENT DONE</bts>") {
+		return h.handleImplementDone(btsRoot, recipe)
 	}
 
-	// DONE marker found — verify the last iteration passed
+	// Check for spec completion marker
+	if strings.Contains(input.StopHookContent, "<bts>DONE</bts>") {
+		return h.handleSpecDone(btsRoot, recipe)
+	}
+
+	// No completion marker — remind about active recipe
+	hint := "Continue or use /recipe cancel."
+	if state.IsImplementPhase(recipe.Phase) {
+		hint = fmt.Sprintf("Run /implement %s to continue, or /recipe cancel to abort.", recipe.ID)
+	}
+	return &HookOutput{
+		HookSpecificOutput: &HookSpecificOutput{
+			AdditionalContext: fmt.Sprintf(
+				"[bts] Recipe \"%s\" is still active (Step: %s). %s",
+				recipe.Topic, recipe.Phase, hint,
+			),
+		},
+	}, nil
+}
+
+// handleSpecDone validates spec recipe completion via verify-log.
+func (h *stopHandler) handleSpecDone(btsRoot string, recipe *state.RecipeState) (*HookOutput, error) {
 	logPath := filepath.Join(state.RecipeDir(btsRoot, recipe.ID), "verify-log.jsonl")
 	lastEntry, err := readLastVerifyEntry(logPath)
 	if err != nil {
-		// No verify log — block
 		return blockOutput("No verification log found. Run verification before completing."), nil
 	}
 
@@ -62,6 +74,58 @@ func (h *stopHandler) Handle(input *HookInput) (*HookOutput, error) {
 
 	// All clear — allow completion
 	recipe.Phase = "finalize"
+	_ = state.SaveRecipeState(btsRoot, recipe)
+
+	return &HookOutput{}, nil
+}
+
+// handleImplementDone validates implementation completion via tasks.json + test-results.json.
+func (h *stopHandler) handleImplementDone(btsRoot string, recipe *state.RecipeState) (*HookOutput, error) {
+	// 1. Check tasks.json
+	tasks, err := state.LoadTaskState(btsRoot, recipe.ID)
+	if err != nil {
+		return blockOutput("No tasks.json found. Run /implement to decompose tasks before completing."), nil
+	}
+
+	var blocked, pending int
+	for _, t := range tasks.Tasks {
+		switch t.Status {
+		case "blocked":
+			blocked++
+		case "pending", "in_progress":
+			pending++
+		}
+	}
+
+	if blocked > 0 {
+		return blockOutput(fmt.Sprintf(
+			"Implementation incomplete: %d task(s) blocked. Resolve blocked tasks before completing.",
+			blocked,
+		)), nil
+	}
+
+	if pending > 0 {
+		return blockOutput(fmt.Sprintf(
+			"Implementation incomplete: %d task(s) still pending. Complete all tasks before finishing.",
+			pending,
+		)), nil
+	}
+
+	// 2. Check test-results.json
+	testResults, err := state.LoadTestResults(btsRoot, recipe.ID)
+	if err != nil {
+		return blockOutput("No test-results.json found. Run /test before completing implementation."), nil
+	}
+
+	if testResults.Status != "pass" {
+		return blockOutput(fmt.Sprintf(
+			"Tests not passing: %d failed out of %d. Fix failing tests before completing.",
+			testResults.Failed, testResults.Total,
+		)), nil
+	}
+
+	// All clear — mark as complete
+	recipe.Phase = "complete"
 	_ = state.SaveRecipeState(btsRoot, recipe)
 
 	return &HookOutput{}, nil

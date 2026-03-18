@@ -55,6 +55,18 @@ func ValidateRecipeDir(recipeDir string) ([]ValidationError, error) {
 		}
 	}
 
+	// 5. tasks.json (optional — only exists after /implement)
+	tasksPath := filepath.Join(recipeDir, "tasks.json")
+	if errs := validateTasksJSON(tasksPath); len(errs) > 0 {
+		errors = append(errors, errs...)
+	}
+
+	// 6. test-results.json (optional — only exists after /test)
+	testResultsPath := filepath.Join(recipeDir, "test-results.json")
+	if errs := validateTestResultsJSON(testResultsPath); len(errs) > 0 {
+		errors = append(errors, errs...)
+	}
+
 	return errors, nil
 }
 
@@ -89,6 +101,20 @@ func validateRecipeJSON(path string) []ValidationError {
 		valid := map[string]bool{"analyze": true, "design": true, "blueprint": true}
 		if !valid[t] {
 			errs = append(errs, ValidationError{File: "recipe.json", Field: "type", Message: fmt.Sprintf("invalid value '%s', must be analyze/design/blueprint", t)})
+		}
+	}
+
+	// Validate phase enum
+	if p, ok := raw["phase"].(string); ok {
+		valid := map[string]bool{
+			"research": true, "draft": true, "assess": true, "improve": true,
+			"verify": true, "debate": true, "simulate": true, "audit": true,
+			"finalize": true, "cancelled": true,
+			"implement": true, "test": true, "sync": true, "status": true,
+			"complete": true,
+		}
+		if !valid[p] {
+			errs = append(errs, ValidationError{File: "recipe.json", Field: "phase", Message: fmt.Sprintf("invalid value '%s', must be a valid phase", p)})
 		}
 	}
 
@@ -131,7 +157,16 @@ func validateManifestJSON(path string) []ValidationError {
 					errs = append(errs, ValidationError{File: "manifest.json", Field: "documents." + path, Message: "must be a DocumentEntry object with 'type' and 'created_at'"})
 					continue
 				}
-				if _, ok := entryMap["type"]; !ok {
+				if t, ok := entryMap["type"].(string); ok {
+					validTypes := map[string]bool{
+						"research": true, "draft": true, "debate": true,
+						"simulation": true, "verification": true,
+						"implementation": true, "test-result": true, "deviation": true,
+					}
+					if !validTypes[t] {
+						errs = append(errs, ValidationError{File: "manifest.json", Field: "documents." + path + ".type", Message: fmt.Sprintf("invalid type '%s'", t)})
+					}
+				} else if _, exists := entryMap["type"]; !exists {
 					errs = append(errs, ValidationError{File: "manifest.json", Field: "documents." + path + ".type", Message: "missing required field"})
 				}
 				if _, ok := entryMap["created_at"]; !ok {
@@ -181,7 +216,17 @@ func validateChangelogJSONL(path string) []ValidationError {
 			}
 		}
 
-		if _, ok := raw["action"]; !ok {
+		if action, ok := raw["action"].(string); ok {
+			validActions := map[string]bool{
+				"research": true, "draft": true, "improve": true, "verify": true,
+				"debate": true, "simulate": true, "audit": true, "assess": true,
+				"sync-check": true, "finalize": true,
+				"implement": true, "test": true, "sync": true, "status": true,
+			}
+			if !validActions[action] {
+				errs = append(errs, ValidationError{File: "changelog.jsonl", Field: fmt.Sprintf("line %d.action", lineNum), Message: fmt.Sprintf("invalid action '%s'", action)})
+			}
+		} else if _, exists := raw["action"]; !exists {
 			errs = append(errs, ValidationError{File: "changelog.jsonl", Field: fmt.Sprintf("line %d.action", lineNum), Message: "missing required field"})
 		}
 	}
@@ -229,6 +274,113 @@ func validateDebateMetaJSON(path string) []ValidationError {
 		if _, ok := raw[field]; !ok {
 			errs = append(errs, ValidationError{File: fileName, Field: field, Message: "missing required field"})
 		}
+	}
+
+	return errs
+}
+
+func validateTasksJSON(path string) []ValidationError {
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil // tasks.json is optional — only exists after /implement
+	}
+	if err != nil {
+		return []ValidationError{{File: "tasks.json", Field: "(file)", Message: err.Error()}}
+	}
+
+	var raw map[string]interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return []ValidationError{{File: "tasks.json", Field: "(parse)", Message: "invalid JSON: " + err.Error()}}
+	}
+
+	var errs []ValidationError
+
+	for _, field := range []string{"recipe_id", "started_at", "updated_at"} {
+		if _, ok := raw[field]; !ok {
+			errs = append(errs, ValidationError{File: "tasks.json", Field: field, Message: "missing required field"})
+		}
+	}
+
+	tasks, ok := raw["tasks"]
+	if !ok {
+		errs = append(errs, ValidationError{File: "tasks.json", Field: "tasks", Message: "missing required field"})
+		return errs
+	}
+
+	tasksList, isList := tasks.([]interface{})
+	if !isList {
+		errs = append(errs, ValidationError{File: "tasks.json", Field: "tasks", Message: "must be an array"})
+		return errs
+	}
+
+	validStatuses := map[string]bool{
+		"pending": true, "in_progress": true, "done": true, "blocked": true, "skipped": true,
+	}
+	validActions := map[string]bool{"create": true, "modify": true}
+
+	for i, task := range tasksList {
+		taskMap, isObj := task.(map[string]interface{})
+		if !isObj {
+			errs = append(errs, ValidationError{File: "tasks.json", Field: fmt.Sprintf("tasks[%d]", i), Message: "must be an object"})
+			continue
+		}
+
+		for _, field := range []string{"id", "file", "action", "status", "description"} {
+			if _, ok := taskMap[field]; !ok {
+				errs = append(errs, ValidationError{File: "tasks.json", Field: fmt.Sprintf("tasks[%d].%s", i, field), Message: "missing required field"})
+			}
+		}
+
+		if action, ok := taskMap["action"].(string); ok {
+			if !validActions[action] {
+				errs = append(errs, ValidationError{File: "tasks.json", Field: fmt.Sprintf("tasks[%d].action", i), Message: fmt.Sprintf("invalid value '%s', must be create/modify", action)})
+			}
+		}
+
+		if status, ok := taskMap["status"].(string); ok {
+			if !validStatuses[status] {
+				errs = append(errs, ValidationError{File: "tasks.json", Field: fmt.Sprintf("tasks[%d].status", i), Message: fmt.Sprintf("invalid value '%s', must be pending/in_progress/done/blocked/skipped", status)})
+			}
+		}
+	}
+
+	return errs
+}
+
+func validateTestResultsJSON(path string) []ValidationError {
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil // test-results.json is optional — only exists after /test
+	}
+	if err != nil {
+		return []ValidationError{{File: "test-results.json", Field: "(file)", Message: err.Error()}}
+	}
+
+	var raw map[string]interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return []ValidationError{{File: "test-results.json", Field: "(parse)", Message: "invalid JSON: " + err.Error()}}
+	}
+
+	var errs []ValidationError
+
+	for _, field := range []string{"recipe_id", "run_at", "framework"} {
+		if _, ok := raw[field]; !ok {
+			errs = append(errs, ValidationError{File: "test-results.json", Field: field, Message: "missing required field"})
+		}
+	}
+
+	for _, field := range []string{"iterations", "total", "passed", "failed", "skipped"} {
+		if _, ok := raw[field]; !ok {
+			errs = append(errs, ValidationError{File: "test-results.json", Field: field, Message: "missing required field"})
+		}
+	}
+
+	if status, ok := raw["status"].(string); ok {
+		if status != "pass" && status != "fail" {
+			errs = append(errs, ValidationError{File: "test-results.json", Field: "status", Message: fmt.Sprintf("invalid value '%s', must be pass/fail", status)})
+		}
+	} else if _, exists := raw["status"]; !exists {
+		errs = append(errs, ValidationError{File: "test-results.json", Field: "status", Message: "missing required field"})
 	}
 
 	return errs

@@ -34,7 +34,14 @@ The loop runs automatically. It pauses ONLY for:
 
 ## Completion
 
+### Spec Completion
 Output `<bts>DONE</bts>` only when:
 1. /assess declares Level 3
 2. /sync-check passes
 3. Last verify-log entry shows critical=0, major=0
+
+### Implementation Completion
+Output `<bts>IMPLEMENT DONE</bts>` only when:
+1. All tasks in tasks.json are `done` or `skipped` (no `blocked` or `pending`)
+2. test-results.json shows status=pass
+3. /sync has run (deviation.md exists)

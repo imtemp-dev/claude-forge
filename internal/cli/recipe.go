@@ -97,16 +97,33 @@ var recipeLogCmd = &cobra.Command{
 
 		recipeID := args[0]
 		action, _ := cmd.Flags().GetString("action")
+		phase, _ := cmd.Flags().GetString("phase")
+
+		// Update phase if specified (independent of action/iteration mode)
+		if phase != "" {
+			recipe, err := state.LoadRecipeState(btsRoot, recipeID)
+			if err != nil {
+				return fmt.Errorf("load recipe: %w", err)
+			}
+			recipe.Phase = phase
+			if err := state.SaveRecipeState(btsRoot, recipe); err != nil {
+				return fmt.Errorf("save recipe: %w", err)
+			}
+			fmt.Printf("Phase → %s\n", phase)
+		}
 
 		if action != "" {
-			// Changelog mode: log an action (research, improve, debate, simulate, etc.)
+			// Changelog mode: log an action
 			output, _ := cmd.Flags().GetString("output")
 			basedOn, _ := cmd.Flags().GetString("based-on")
+			docType, _ := cmd.Flags().GetString("doc-type")
+			result, _ := cmd.Flags().GetString("result")
 			gaps, _ := cmd.Flags().GetInt("gaps")
 
 			entry := &state.ChangelogEntry{
 				Action: action,
 				Output: output,
+				Result: result,
 			}
 			if basedOn != "" {
 				entry.BasedOn = []string{basedOn}
@@ -126,12 +143,17 @@ var recipeLogCmd = &cobra.Command{
 				if basedOn != "" {
 					deps = []string{basedOn}
 				}
-				manifest.AddDocument(output, action, deps)
+				// Use explicit doc-type if given, otherwise infer from action
+				manifestType := docType
+				if manifestType == "" {
+					manifestType = actionToDocType(action)
+				}
+				manifest.AddDocument(output, manifestType, deps)
 				_ = state.SaveManifest(btsRoot, recipeID, manifest)
 			}
 
 			fmt.Printf("Logged action: %s → %s\n", action, output)
-		} else {
+		} else if phase == "" {
 			// Verify-log mode: log an iteration result (backward compatible)
 			iteration, _ := cmd.Flags().GetInt("iteration")
 			critical, _ := cmd.Flags().GetInt("critical")
@@ -202,10 +224,38 @@ func init() {
 	recipeLogCmd.Flags().Int("major", 0, "Major error count")
 	recipeLogCmd.Flags().Int("minor", 0, "Minor error count")
 	// Changelog flags
-	recipeLogCmd.Flags().String("action", "", "Action type (research, improve, verify, debate, simulate, audit, assess)")
+	recipeLogCmd.Flags().String("action", "", "Action type (research, improve, verify, debate, simulate, audit, assess, implement, test, sync, status)")
 	recipeLogCmd.Flags().String("output", "", "Output file path")
 	recipeLogCmd.Flags().String("based-on", "", "Dependency document path")
+	recipeLogCmd.Flags().String("doc-type", "", "Manifest document type (overrides auto-detection from action)")
+	recipeLogCmd.Flags().String("result", "", "Summary of outcome")
 	recipeLogCmd.Flags().Int("gaps", 0, "Number of gaps found (for simulate)")
+	// Phase flag
+	recipeLogCmd.Flags().String("phase", "", "Update recipe phase (implement, test, sync, status, etc.)")
+}
+
+// actionToDocType maps changelog action names to manifest document types.
+func actionToDocType(action string) string {
+	switch action {
+	case "research":
+		return "research"
+	case "draft", "improve":
+		return "draft"
+	case "debate":
+		return "debate"
+	case "simulate":
+		return "simulation"
+	case "verify", "audit", "assess", "sync-check":
+		return "verification"
+	case "implement":
+		return "implementation"
+	case "test":
+		return "test-result"
+	case "sync":
+		return "deviation"
+	default:
+		return action
+	}
 }
 
 func truncate(s string, max int) string {
