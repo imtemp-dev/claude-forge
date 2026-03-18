@@ -34,8 +34,9 @@ type Summary struct {
 	Checked  int `json:"checked"`
 }
 
-// File path patterns to extract from markdown
-var filePathRe = regexp.MustCompile("`([a-zA-Z0-9_./-]+\\.[a-zA-Z0-9]+)`")
+// File path patterns: matches paths like src/auth/oauth.ts, internal/cli/root.go
+// Both in backticks and in plain text / code blocks
+var filePathRe = regexp.MustCompile(`(?:` + "`" + `)?([a-zA-Z0-9_][a-zA-Z0-9_./-]*\.[a-zA-Z0-9]{1,10})(?:` + "`" + `)?`)
 
 // Symbol patterns (function/type/class names)
 var symbolRe = regexp.MustCompile("`(?:function |class |type |interface |export (?:function |class |const |type ))([a-zA-Z_][a-zA-Z0-9_]*)`")
@@ -103,12 +104,24 @@ func extractFilePaths(content string) []string {
 
 	for _, m := range matches {
 		fp := m[1]
-		// Filter: must look like a real file path (has directory separator or known extension)
+		// Filter: must have directory separator (a/b.c pattern)
 		if !strings.Contains(fp, "/") {
 			continue
 		}
 		// Skip URLs
 		if strings.HasPrefix(fp, "http") {
+			continue
+		}
+		// Skip common non-file patterns
+		if strings.HasPrefix(fp, "v1.") || strings.HasPrefix(fp, "v2.") {
+			continue
+		}
+		// Skip Go module paths (contain domain-like patterns)
+		if strings.Contains(fp, ".com/") || strings.Contains(fp, ".io/") || strings.Contains(fp, ".in/") || strings.Contains(fp, ".org/") {
+			continue
+		}
+		// Skip markdown header patterns
+		if strings.HasSuffix(fp, ".md") && strings.HasPrefix(fp, "#") {
 			continue
 		}
 		if !seen[fp] {
