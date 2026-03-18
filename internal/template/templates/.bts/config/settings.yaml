@@ -1,0 +1,16 @@
+# bts — Bulletproof Technical Specification
+# Project settings
+
+# Maximum verification iterations per recipe step
+max_iterations: 3
+
+# Severity threshold for convergence (critical and major must be 0)
+convergence:
+  require_zero_critical: true
+  require_zero_major: true
+  allow_minor: true
+
+# Privacy
+privacy:
+  strip_private_tags: true
+  detect_secrets: true

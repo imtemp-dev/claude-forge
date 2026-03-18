@@ -1,0 +1,2 @@
+# bts state (per-session, not committed)
+.bts/state/
