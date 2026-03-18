@@ -41,12 +41,14 @@ var recipeStatusCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Active recipe: %s\n", recipe.ID)
-		fmt.Printf("  Type:      %s\n", recipe.Type)
-		fmt.Printf("  Topic:     %s\n", recipe.Topic)
-		fmt.Printf("  Phase:     %s\n", recipe.Phase)
-		fmt.Printf("  Iteration: %d\n", recipe.Iteration)
-		fmt.Printf("  Started:   %s\n", recipe.StartedAt)
-		fmt.Printf("  Updated:   %s\n", recipe.UpdatedAt)
+		fmt.Printf("  Type:         %s\n", recipe.Type)
+		fmt.Printf("  Topic:        %s\n", recipe.Topic)
+		fmt.Printf("  Phase:        %s\n", recipe.Phase)
+		fmt.Printf("  Iteration:    %d\n", recipe.Iteration)
+		fmt.Printf("  Draft:        v%d\n", recipe.DraftVersion)
+		fmt.Printf("  Level:        %.1f\n", recipe.Level)
+		fmt.Printf("  Started:      %s\n", recipe.StartedAt)
+		fmt.Printf("  Updated:      %s\n", recipe.UpdatedAt)
 		return nil
 	},
 }
@@ -84,7 +86,7 @@ var recipeListCmd = &cobra.Command{
 
 var recipeLogCmd = &cobra.Command{
 	Use:   "log <recipe-id>",
-	Short: "Record a verify iteration result (called by skills via Bash)",
+	Short: "Record an action or verify iteration (called by skills via Bash)",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cwd, _ := os.Getwd()
@@ -93,30 +95,76 @@ var recipeLogCmd = &cobra.Command{
 			return fmt.Errorf("not a bts project: %w", err)
 		}
 
-		iteration, _ := cmd.Flags().GetInt("iteration")
-		critical, _ := cmd.Flags().GetInt("critical")
-		major, _ := cmd.Flags().GetInt("major")
-		minor, _ := cmd.Flags().GetInt("minor")
+		recipeID := args[0]
+		action, _ := cmd.Flags().GetString("action")
 
-		status := "continue"
-		if critical == 0 && major == 0 {
-			status = "converged"
+		if action != "" {
+			// Changelog mode: log an action (research, improve, debate, simulate, etc.)
+			output, _ := cmd.Flags().GetString("output")
+			basedOn, _ := cmd.Flags().GetString("based-on")
+			gaps, _ := cmd.Flags().GetInt("gaps")
+
+			entry := &state.ChangelogEntry{
+				Action: action,
+				Output: output,
+			}
+			if basedOn != "" {
+				entry.BasedOn = []string{basedOn}
+			}
+			if gaps > 0 {
+				entry.Result = fmt.Sprintf("%d gaps found", gaps)
+			}
+
+			if err := state.AppendChangelog(btsRoot, recipeID, entry); err != nil {
+				return fmt.Errorf("changelog: %w", err)
+			}
+
+			// Update manifest if output specified
+			if output != "" {
+				manifest, _ := state.LoadManifest(btsRoot, recipeID)
+				var deps []string
+				if basedOn != "" {
+					deps = []string{basedOn}
+				}
+				manifest.AddDocument(output, action, deps)
+				_ = state.SaveManifest(btsRoot, recipeID, manifest)
+			}
+
+			fmt.Printf("Logged action: %s → %s\n", action, output)
+		} else {
+			// Verify-log mode: log an iteration result (backward compatible)
+			iteration, _ := cmd.Flags().GetInt("iteration")
+			critical, _ := cmd.Flags().GetInt("critical")
+			major, _ := cmd.Flags().GetInt("major")
+			minor, _ := cmd.Flags().GetInt("minor")
+
+			status := "continue"
+			if critical == 0 && major == 0 {
+				status = "converged"
+			}
+
+			entry := &state.VerifyLogEntry{
+				Iteration: iteration,
+				Critical:  critical,
+				Major:     major,
+				Minor:     minor,
+				Status:    status,
+			}
+
+			if err := state.AppendVerifyLog(btsRoot, recipeID, entry); err != nil {
+				return fmt.Errorf("log: %w", err)
+			}
+
+			// Also log to changelog
+			_ = state.AppendChangelog(btsRoot, recipeID, &state.ChangelogEntry{
+				Action: "verify",
+				Result: fmt.Sprintf("critical=%d major=%d minor=%d → %s", critical, major, minor, status),
+			})
+
+			fmt.Printf("Logged iteration %d: critical=%d major=%d minor=%d → %s\n",
+				iteration, critical, major, minor, status)
 		}
 
-		entry := &state.VerifyLogEntry{
-			Iteration: iteration,
-			Critical:  critical,
-			Major:     major,
-			Minor:     minor,
-			Status:    status,
-		}
-
-		if err := state.AppendVerifyLog(btsRoot, args[0], entry); err != nil {
-			return fmt.Errorf("log: %w", err)
-		}
-
-		fmt.Printf("Logged iteration %d: critical=%d major=%d minor=%d → %s\n",
-			iteration, critical, major, minor, status)
 		return nil
 	},
 }
@@ -148,10 +196,16 @@ var recipeCancelCmd = &cobra.Command{
 }
 
 func init() {
+	// Verify-log flags (backward compatible)
 	recipeLogCmd.Flags().Int("iteration", 0, "Iteration number")
 	recipeLogCmd.Flags().Int("critical", 0, "Critical error count")
 	recipeLogCmd.Flags().Int("major", 0, "Major error count")
 	recipeLogCmd.Flags().Int("minor", 0, "Minor error count")
+	// Changelog flags
+	recipeLogCmd.Flags().String("action", "", "Action type (research, improve, verify, debate, simulate, audit, assess)")
+	recipeLogCmd.Flags().String("output", "", "Output file path")
+	recipeLogCmd.Flags().String("based-on", "", "Dependency document path")
+	recipeLogCmd.Flags().Int("gaps", 0, "Number of gaps found (for simulate)")
 }
 
 func truncate(s string, max int) string {
