@@ -34,11 +34,23 @@ ASSESS determines what to do next based on the document's current state.
 
 ### Loop Protocol
 
+**At recipe start (MANDATORY):**
+1. Create `recipe.json` following the schema in bts-schema rules
+2. Create `manifest.json` following the schema in bts-schema rules
+3. Run `bts validate` to confirm both files are schema-compliant
+
+**ALWAYS after modifying any JSON file in .bts/:**
+1. Run `bts validate` to verify schema compliance. Fix any errors before continuing.
+
 **ALWAYS after modifying the document:**
 1. Save as new version: `drafts/vN.md` (never overwrite previous versions)
-2. Run /verify on the new version
-3. Log the change: `bts recipe log {id} --action [action] --output drafts/vN.md`
-4. Run /assess to determine the next action
+2. Update `manifest.json` (add document entry with type, created_at, based_on)
+3. Append to `changelog.jsonl` (use key `"time"`, not `"timestamp"`)
+4. Run `bts validate` to verify
+5. Run /verify on the new version
+6. Run /assess to determine the next action
+
+**Refer to `.claude/rules/bts-schema.md` for exact JSON field names, types, and structures.**
 
 **Starting from scratch (no existing code):**
 1. /research — investigate the technology, best practices, libraries
