@@ -18,41 +18,18 @@ Spec → verify → fix → verify → ... → bulletproof spec → AI codes →
 
 Iterate on the **document**, not the code. Documents are free to change — no builds, no tests, no side effects. When the spec is bulletproof, AI generates code with minimal iteration.
 
-## How It Works
-
-bts is a Go binary + Claude Code plugin. It deploys skills, agents, hooks, and rules that automate spec verification.
-
-### Verification Loop
+## Full Lifecycle
 
 ```
-You write a spec
-  → /cross-check   facts against source code (deterministic, bts binary)
-  → /verify        logical consistency (independent subagent)
-  → /audit         missing scenarios, edge cases (independent subagent)
-  → errors found?  → fix spec → re-verify (max N iterations)
-  → all clear?     → spec is bulletproof
+/recipe blueprint "feature"
+  → Scoping → Research → Draft → Verify Loop → Simulate → Debate → Finalize
+  → /implement → Build Loop → /test → /sync → Complete
+
+/recipe fix "bug description"
+  → Diagnose → Fix Spec → Simulate → Expert Review → Verify → Implement → Test → Complete
 ```
 
-### Recipes
-
-Recipes compose skills into end-to-end workflows:
-
-```
-/recipe analyze    "auth system"        → verified analysis doc
-/recipe design     "OAuth2 login"       → verified design doc
-/recipe blueprint  "API endpoints"      → implementation-ready spec (Level 3)
-```
-
-The **blueprint** recipe produces a spec with exact file paths, function signatures, types, connection points, edge cases, and scaffolding — detailed enough for Opus to implement directly.
-
-### Expert Debate
-
-```
-/debate "OAuth2 vs JWT vs custom tokens"
-  → 3 expert personas discuss across multiple rounds
-  → state saved, resumable across sessions
-  → deadlock? → asks you to decide
-```
+bts covers **Planning → Build → Verify** as a single automated pipeline.
 
 ## Install
 
@@ -76,6 +53,12 @@ export PATH="$HOME/.local/bin:$PATH"
 git pull && make install
 ```
 
+버전 확인:
+```bash
+bts --version
+# bts v0.1.0 (commit: abc1234, date: 2026-03-20T10:00:00Z)
+```
+
 ## Quick Start
 
 ```bash
@@ -85,51 +68,115 @@ bts init .
 # Start Claude Code
 claude
 
-# Run a recipe
+# Create a bulletproof spec
 /recipe blueprint "add OAuth2 authentication"
 
+# Fix a bug (lightweight)
+/recipe fix "login bcrypt hash comparison fails"
+
 # Or use individual skills
-/verify docs/design.md
-/cross-check docs/spec.md
-/audit docs/spec.md
-/debate "Redis vs Memcached for session store"
+/bts-verify docs/spec.md
+/bts-simulate docs/spec.md
+/bts-debate "Redis vs Memcached for session store"
 ```
+
+## Recipes
+
+| Recipe | Purpose | Output |
+|--------|---------|--------|
+| `/recipe analyze` | Understand existing system | Level 1 analysis doc |
+| `/recipe design` | Design a feature | Level 2 design doc |
+| `/recipe blueprint` | Full implementation spec | Level 3 spec → code → tests |
+| `/recipe fix` | Bug diagnosis and fix | Fix spec → code → tests |
+
+### Blueprint Flow
+
+```
+Scoping (user alignment)
+  → Research (codebase + Context7 + web)
+  → Draft + Self-Check
+  → Verify Loop (max 3 cycles)
+  → Simulate (scenarios, early after first critical=0)
+  → Debate + Adjudicate (if uncertain decisions)
+  → Finalize (Level 3 spec)
+  → Implement (task decomposition + build loop)
+  → Test (generate + run + fix loop)
+  → Sync (spec ↔ code comparison)
+  → Complete
+```
+
+### Fix Flow
+
+```
+Diagnose (root cause analysis)
+  → Fix Spec (document-first change description)
+  → Simulate (impact analysis)
+  → Expert Review (1-round debate)
+  → Verify Loop
+  → Implement (direct code fix)
+  → Test (existing + regression)
+  → Complete
+```
+
+## Skills (17)
+
+| Category | Skills |
+|----------|--------|
+| **Recipes** | blueprint, design, analyze, fix |
+| **Verification** | verify, cross-check, audit, assess, sync-check |
+| **Analysis** | research, simulate, debate, adjudicate |
+| **Implementation** | implement, test, sync, status |
 
 ## Architecture
 
 ```
 Go binary (bts)                    Claude Code
-├── bts init        deploy →       .claude/skills/bts/     (8 skills)
-├── bts verify      fact-check     .claude/agents/bts/     (3 agents)
-├── bts hook        lifecycle      .claude/commands/bts/   (6 commands)
-├── bts recipe      state mgmt    .claude/rules/bts/      (2 rules)
-└── bts debate      state mgmt    .claude/hooks/bts/      (4 hooks)
+├── bts init        deploy →       .claude/skills/     (17 skills)
+├── bts validate    schema →       .claude/agents/     (3 agents)
+├── bts hook        lifecycle      .claude/hooks/      (6 hooks)
+├── bts recipe      state mgmt    .claude/rules/      (6 rules)
+├── bts statusline  display       .claude/commands/    (1 dispatcher)
+└── bts debate      state mgmt    .mcp.json           (Context7)
 ```
 
-**Key principle**: Facts are checked by the binary (deterministic). Judgment is done by isolated subagents (independent context). The main Claude session never verifies its own output.
+### Hooks
 
-## Orchestration
+| Hook | Purpose |
+|------|---------|
+| session-start | Context injection (source-aware: resume/compact/startup) |
+| pre-compact | Work state snapshot before context compaction |
+| session-end | Work state persistence for cross-session resume |
+| stop | Completion gates (DONE / IMPLEMENT DONE / FIX DONE) |
+| subagent-start/stop | 🟡 indicator on statusline during agent execution |
 
-Claude follows the recipe protocol (SKILL.md). The binary provides checkpoints:
+### Statusline
 
-- **Soft gate**: Claude checks verification results per the recipe protocol
-- **Hard gate**: Stop hook reads `verify-log.jsonl` — blocks completion if critical/major > 0
+```
+bts v0.1.0 │ JWT auth │ 🟡 verify │ ctx 45%
+bts v0.1.0 │ JWT auth │ implement 3/5 │ ctx 60%
+bts v0.1.0 │ bcrypt fix │ test │ ctx 30%
+```
 
-Sessions can be interrupted and resumed. Recipe state persists in `.bts/state/`.
+## Key Principles
+
+- **Document first**: Iterate on the spec, not the code
+- **Never verify your own output**: Verification uses separate agent contexts
+- **Context as glue**: Skills provide situational awareness, not rigid rules
+- **Deviation = follow-up**: Spec-code differences are reports, not gates
+- **Crash resilient**: Work state persists via tasks.json + work-state.json
 
 ## CLI
 
 ```
 bts init [dir]              Initialize project
-bts verify <file>           Deterministic fact-check
+bts validate [recipe-id]    Check JSON schema compliance
 bts recipe status           Show active recipe
 bts recipe list             All recipes
-bts recipe log <id>         Record verify iteration
+bts recipe log <id>         Record action/phase/iteration
 bts recipe cancel           Cancel active recipe
 bts debate list             All debates
-bts debate export <id>      Export as markdown
-bts doctor                  System diagnostics
-bts config set/get          Configuration
+bts statusline              Render status for Claude Code (internal)
+bts hook <event>            Handle lifecycle events (internal)
 ```
 
 ## Document Levels
@@ -139,26 +186,6 @@ bts config set/get          Configuration
 | 1 | Understanding | System structure, files, dependencies | Not possible |
 | 2 | Design | Components, data flow, tech choices | ~60-70% |
 | 3 | Implementation-ready | File paths, signatures, types, edge cases, scaffolding | **Very high** |
-
-bts takes your spec from wherever it is to Level 3.
-
-## Verification Severity
-
-| Severity | Meaning | Blocks completion? |
-|----------|---------|-------------------|
-| critical | References non-existent file/function | Yes |
-| major | Logical inconsistency, missing error handling | Yes |
-| minor | Imprecise but not wrong | No |
-| info | Style suggestion | No |
-
-## Relationship with moai-adk
-
-```
-bts:   requirements → bulletproof spec (Level 3)
-moai:  spec → code (TRUST 5, TDD/DDD)
-```
-
-bts produces the document. moai produces the code. They complement each other.
 
 ## License
 
