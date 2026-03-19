@@ -197,20 +197,9 @@ func getContextPercentage(data *StdinData) float64 {
 	return -1
 }
 
-// renderContextBar renders a 10-segment progress bar with percentage.
+// renderContextBar renders context usage as a short label.
 func renderContextBar(pct float64) string {
-	if pct < 0 {
-		pct = 0
-	}
-	if pct > 100 {
-		pct = 100
-	}
-
-	filled := int(pct / 10)
-	empty := 10 - filled
-
-	bar := strings.Repeat("━", filled) + strings.Repeat("─", empty)
-	return fmt.Sprintf("%s %d%%", bar, int(pct))
+	return fmt.Sprintf("ctx %d%%", int(pct))
 }
 
 func truncate(s string, max int) string {
