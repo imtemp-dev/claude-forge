@@ -83,10 +83,10 @@ For each item, classify as one of:
 ### Match
 Spec and code agree. No action needed.
 
-### Not Implemented
+### Not Implemented (recorded for follow-up)
 Spec defines it but code doesn't have it.
 - Record in deviation report
-- Severity: major (if core functionality) or minor (if optional)
+- Does NOT block recipe completion — becomes follow-up work
 
 ### Spec Addition Needed (non-blocking)
 Code has it but spec doesn't mention it.
@@ -95,12 +95,13 @@ Code has it but spec doesn't mention it.
 - Add to final.md — once added, this is resolved
 - These do NOT block completion (sync already updated the spec)
 
-### Deviation
+### Deviation (recorded for follow-up)
 Both exist but differ (different signature, different behavior).
 - Record exact difference
 - Determine which is correct (usually the code, since it passed tests)
 - Update final.md to match code if code is correct
 - Flag for user review if unclear
+- Does NOT block recipe completion — becomes follow-up work
 
 ## Step 4: Preserve and Update final.md
 

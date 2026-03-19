@@ -58,6 +58,16 @@ to reflect actual implementation:
 This is the ONE exception to the "never overwrite" rule — `final.md` is a living
 document that bridges spec and implementation.
 
+## Follow-up Lifecycle
+
+After a recipe reaches `complete`, its documents stay alive:
+- `deviation.md` lists items for follow-up (not-implemented, deviations)
+- `final.md` is the living spec — it can be updated through follow-up work
+- A new recipe can reference the completed one's deviation.md as input
+- project-status.md shows follow-up items in "Next Steps"
+
+Deviations do NOT block completion. They are a report, not a gate.
+
 ## Global Documents
 
 `project-status.md` (at `.bts/state/project-status.md`) is a **derived global document**

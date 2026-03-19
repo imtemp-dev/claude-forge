@@ -198,8 +198,8 @@ Use Skill("bts-test") with arguments: {id}
 
 ## Step 6: Sync
 
-Check if deviation.md already exists:
-- If yes → skip sync, go to Step 7
+Always run sync (even if deviation.md exists from a previous run — code may have
+changed since then, and sync is idempotent).
 
 After tests pass, update phase and sync:
 ```bash

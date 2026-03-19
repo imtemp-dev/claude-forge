@@ -46,3 +46,12 @@ Output `<bts>IMPLEMENT DONE</bts>` only when:
 1. All tasks in tasks.json are `done` or `skipped` (no `blocked` or `pending`)
 2. test-results.json shows status=pass
 3. /sync has run (deviation.md exists)
+
+deviation.md is a **report**, not a gate. Deviations and not-implemented items
+are recorded for follow-up but do NOT block completion.
+
+### Follow-up After Completion
+After a recipe reaches `complete`, its deviation.md feeds the next cycle:
+- Not-implemented items → new recipe or manual fix
+- Deviations → bug fix or spec update
+- The spec (final.md) stays alive — it evolves through follow-up work

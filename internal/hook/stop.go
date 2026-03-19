@@ -45,7 +45,7 @@ func (h *stopHandler) Handle(input *HookInput) (*HookOutput, error) {
 	// No completion marker — remind about active recipe
 	hint := "Continue or use /recipe cancel."
 	if state.IsImplementPhase(recipe.Phase) {
-		hint = fmt.Sprintf("Run /implement %s to continue, or /recipe cancel to abort.", recipe.ID)
+		hint = fmt.Sprintf("Run /bts-implement %s to continue, or /recipe cancel to abort.", recipe.ID)
 	}
 	return &HookOutput{
 		HookSpecificOutput: &HookSpecificOutput{
@@ -124,64 +124,20 @@ func (h *stopHandler) handleImplementDone(btsRoot string, recipe *state.RecipeSt
 		)), nil
 	}
 
-	// 3. Check deviation.md for blocking issues
+	// 3. Check that sync has run (deviation.md exists)
 	deviationPath := filepath.Join(state.RecipeDir(btsRoot, recipe.ID), "deviation.md")
 	if _, err := os.Stat(deviationPath); os.IsNotExist(err) {
 		return blockOutput("No deviation.md found. Run /sync before completing implementation."), nil
 	}
-	// Check for "Not Implemented" items in deviation report
-	deviationData, err := os.ReadFile(deviationPath)
-	if err == nil {
-		content := string(deviationData)
-		notImplCount := countDeviationItems(content, "## Not Implemented")
-		deviationCount := countDeviationItems(content, "## Deviations")
-		if notImplCount > 0 {
-			return blockOutput(fmt.Sprintf(
-				"Sync report has %d not-implemented item(s). Implement them or update the spec before completing.",
-				notImplCount,
-			)), nil
-		}
-		if deviationCount > 0 {
-			return blockOutput(fmt.Sprintf(
-				"Sync report has %d unresolved deviation(s). Review and resolve before completing.",
-				deviationCount,
-			)), nil
-		}
-	}
+	// deviation.md content is a REPORT, not a gate.
+	// Deviations and not-implemented items become follow-up work,
+	// not blockers for the current recipe's completion.
 
 	// All clear — mark as complete
 	recipe.Phase = "complete"
 	_ = state.SaveRecipeState(btsRoot, recipe)
 
 	return &HookOutput{}, nil
-}
-
-// countDeviationItems counts non-header rows in a markdown table after the given section header.
-func countDeviationItems(content, sectionHeader string) int {
-	idx := strings.Index(content, sectionHeader)
-	if idx < 0 {
-		return 0
-	}
-	section := content[idx+len(sectionHeader):]
-	// Find the next ## section or end of content
-	nextSection := strings.Index(section[1:], "\n## ")
-	if nextSection >= 0 {
-		section = section[:nextSection+1]
-	}
-	count := 0
-	for _, line := range strings.Split(section, "\n") {
-		line = strings.TrimSpace(line)
-		// Count table rows: starts with | but not header separator (|---|)
-		if strings.HasPrefix(line, "|") && !strings.HasPrefix(line, "| Item") && !strings.HasPrefix(line, "|--") && !strings.HasPrefix(line, "| -") && len(line) > 3 {
-			// Check it's not the header row
-			if !strings.Contains(line, "File") || !strings.Contains(line, "Reason") {
-				if strings.Count(line, "|") >= 3 {
-					count++
-				}
-			}
-		}
-	}
-	return count
 }
 
 func blockOutput(reason string) *HookOutput {

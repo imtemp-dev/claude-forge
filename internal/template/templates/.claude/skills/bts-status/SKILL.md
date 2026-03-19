@@ -41,7 +41,7 @@ For each recipe, determine its state:
 | `implemented` | tasks.json exists, all tasks done |
 | `tested` | test-results.json exists, status=pass |
 | `synced` | deviation.md exists |
-| `complete` | tested + synced + no blocking deviations |
+| `complete` | tested + synced |
 
 ## Step 3: Generate project-status.md
 
@@ -89,7 +89,7 @@ Based on current state, recommend what to do next:
 - Recipes in `implementing` state → "Resume /implement {id}"
 - Recipes in `implemented` state → "Run /test {id}"
 - Recipes with failing tests → "Fix failures in ..."
-- Recipes with deviations → "Review deviations in ..."
+- Complete recipes with deviations → "Follow-up: review deviation.md for improvements"
 ```
 
 **Note**: `project-status.md` is a global derived document at `.bts/state/` level.
