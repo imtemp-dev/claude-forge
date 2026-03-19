@@ -19,8 +19,18 @@ Before starting, check for an existing recipe:
 ```bash
 bts recipe status
 ```
-If active, read `.bts/state/{id}/manifest.json` and `changelog.jsonl` to understand
-what has been done. Resume from where it left off.
+If active, resume with **minimum reads** to preserve context budget:
+
+1. `changelog.jsonl` — last 5 entries only (determine current position in the loop)
+2. `manifest.json` — find `current_draft` path
+3. Read the **current draft only** (e.g., `drafts/v3.md`) — do NOT read previous versions
+4. Read the **last verification** for that draft only — do NOT read older verifications
+5. `scope.md` — confirm scope is still valid
+
+Do NOT read on resume: previous draft versions (v1, v2...), previous verifications,
+research documents (already incorporated into the current draft).
+
+Then run `/bts-assess` on the current draft to determine the next action.
 
 ## Adaptive Loop
 

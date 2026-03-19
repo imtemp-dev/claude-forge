@@ -2,7 +2,6 @@ package hook
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/jlim/bts/internal/state"
@@ -37,13 +36,13 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 		}
 
 		msg := fmt.Sprintf(
-			"[bts] Recipe ready for implementation: %s \"%s\" (ID: %s)\nRun /implement %s to start coding.",
+			"[bts] Recipe ready for implementation: %s \"%s\" (ID: %s)\nRun /bts-implement %s to start coding.",
 			recipe.Type, recipe.Topic, recipe.ID, recipe.ID,
 		)
 
 		// Enrich with work state if resuming
 		if ws != nil && (source == "compact" || source == "resume") {
-			msg = fmt.Sprintf("[bts] Resuming. %s\nRun /implement %s to start coding.", ws.Summary, recipe.ID)
+			msg = fmt.Sprintf("[bts] Resuming. %s\nRun /bts-implement %s to start coding.", ws.Summary, recipe.ID)
 		}
 
 		return &HookOutput{
@@ -53,25 +52,41 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 		}, nil
 	}
 
-	// Build hint based on phase
+	// Build hint based on phase and source
 	var hint string
 	if recipe.Phase == "scoping" {
 		hint = fmt.Sprintf("Scope alignment in progress. Read .bts/state/recipes/%s/scope.md and confirm or adjust.", recipe.ID)
 	} else if state.IsImplementPhase(recipe.Phase) {
-		hint = fmt.Sprintf("Run /implement %s to continue, or /recipe cancel to abort.", recipe.ID)
+		hint = fmt.Sprintf("Run /bts-implement %s to continue, or /recipe cancel to abort.", recipe.ID)
 	} else {
-		hint = "Run /recipe resume to continue, or /recipe cancel to abort."
+		// Source-aware hints for spec phases (research, draft, verify, debate, etc.)
+		switch source {
+		case "resume":
+			hint = "Session restored. Continue where you left off."
+		case "compact":
+			hint = "Context compacted. Continue where you left off."
+		default:
+			// startup or clear — no context, need to re-invoke skill
+			hint = fmt.Sprintf("Run /bts-recipe-%s to re-enter the recipe, or /recipe cancel to abort.", recipe.Type)
+		}
 	}
 
-	// Build message based on session source
+	// Build message
 	var msg string
-	if ws != nil && (source == "compact" || source == "resume") {
-		prefix := "[bts] Resuming after compaction. "
-		if source == "resume" {
-			prefix = "[bts] Resuming from previous session. "
+	switch source {
+	case "resume":
+		msg = fmt.Sprintf("[bts] Session restored. %s \"%s\" (Step: %s)\n%s",
+			recipe.Type, recipe.Topic, recipe.Phase, hint)
+		if ws != nil {
+			msg = fmt.Sprintf("[bts] Session restored. %s\n%s", ws.Summary, hint)
 		}
-		msg = prefix + ws.Summary + "\n" + hint
-	} else {
+	case "compact":
+		msg = fmt.Sprintf("[bts] Context compacted. %s \"%s\" (Step: %s)\n%s",
+			recipe.Type, recipe.Topic, recipe.Phase, hint)
+		if ws != nil {
+			msg = fmt.Sprintf("[bts] Context compacted. %s\n%s", ws.Summary, hint)
+		}
+	default:
 		msg = fmt.Sprintf(
 			"[bts] Active recipe: %s \"%s\" (Step: %s, Iteration: %d)\n%s",
 			recipe.Type, recipe.Topic, recipe.Phase, recipe.Iteration, hint,
@@ -110,8 +125,3 @@ func detectSource(input *HookInput, ws *state.WorkState) string {
 	return "resume"
 }
 
-// init registers the Source field — ensure types.go has it
-func init() {
-	// Verify os import is used (for potential future stat calls)
-	_ = os.IsNotExist
-}
