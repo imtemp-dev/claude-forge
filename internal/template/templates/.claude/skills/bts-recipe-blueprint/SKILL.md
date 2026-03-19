@@ -145,13 +145,39 @@ or any user statement that contradicts the confirmed scope.
 
 **Starting from scratch (no existing code):**
 1. /research — investigate technology, best practices, libraries (guided by scope)
-2. Write initial draft (Level 1) → drafts/v1.md → /verify
+2. Write initial draft (Level 1) → **Draft Self-Check** → drafts/v1.md → /verify
 3. /assess → loop begins
 
 **Starting with existing code:**
 1. /research — explore existing codebase (focused by scope constraints)
-2. Write initial draft referencing existing code → drafts/v1.md → /verify
+2. Write initial draft referencing existing code → **Draft Self-Check** → drafts/v1.md → /verify
 3. /assess → loop begins
+
+### Draft Self-Check (before /verify)
+
+After writing a draft, run through this checklist BEFORE saving and running /verify.
+This catches obvious errors that would waste a verify cycle (~5 min each).
+
+Every function/method in the draft must pass:
+- [ ] **Defined**: Body is specified (no `...` or `pass` placeholders)
+- [ ] **Callable**: All functions it calls are also defined in the draft
+- [ ] **Importable**: All imports reference real packages (verified in research)
+- [ ] **Typed**: Parameters and return types are explicit, not inferred
+- [ ] **Connected**: Every function has at least one caller or is a public API entry
+
+Every file in the draft must pass:
+- [ ] **Path valid**: File path is consistent with project structure
+- [ ] **Dependencies listed**: All external packages in pyproject.toml / package.json / go.mod
+
+Cross-section consistency:
+- [ ] **No contradictions**: Error handling strategy is the same across all sections
+- [ ] **Naming consistent**: Same concept uses same name everywhere
+- [ ] **Config matches usage**: Config fields defined match how they're accessed in code
+
+If any check fails → fix it in the draft before saving. This is proofreading,
+not verification (which requires a separate context).
+
+Also apply this checklist after every IMPROVE step, before /verify.
 
 ### ASSESS Decision Tree
 
@@ -182,7 +208,12 @@ This keeps session-start hints accurate if session breaks mid-loop.
    and ask the user for guidance. Check verify-log.jsonl iteration count.
 2. **Every debate conclusion → /adjudicate → if accepted → update draft → /verify.**
 3. **Every simulation gap found → update draft → /verify.**
-4. **/simulate at least once** before declaring Level 3.
+4. **/simulate early**: Run after the FIRST verify cycle that produces critical=0.
+   Simulation catches scenario-level gaps (failure modes, race conditions, edge cases)
+   that structural verification cannot find. Running it early prevents late-stage rework.
+   - First verify has critical=0 → run /simulate immediately (before more IMPROVE cycles)
+   - First verify has critical>0 → fix criticals first, then /simulate
+   - Run /simulate again before finalization if major structural changes were made
 5. **/debate for every uncertain technical choice.** Don't guess.
 6. **/sync-check before finalizing.** All documents must be in sync.
 

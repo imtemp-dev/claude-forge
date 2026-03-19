@@ -23,30 +23,60 @@ Synchronize spec and implementation for recipe: $ARGUMENTS
 2. Check test status: should be `"pass"`.
    If `"fail"` → "Tests are failing. Fix tests before syncing."
 
-## Step 1: Extract Spec Definitions
+## Step 1: Extract Spec Definitions (grouped by file)
 
-Read `.bts/state/recipes/{id}/final.md` and extract:
-- All file paths mentioned
-- All function/method signatures (name, params, return type)
-- All type/interface/struct definitions
-- All API endpoints (if applicable)
-- All configuration values
-- All error handling behaviors
+Read `.bts/state/recipes/{id}/final.md` and group all definitions by file:
 
-## Step 2: Scan Actual Code
+```
+{
+  "src/config.py": {
+    functions: [name, params, return_type, error_handling],
+    types: [name, fields],
+    exports: [public API items]
+  },
+  "src/agent.py": { ... },
+  ...
+}
+```
 
-For each file path from the spec:
-1. Check if the file exists
-2. If it exists, read it and extract:
-   - Actual function signatures
-   - Actual type definitions
-   - Actual error handling
-   - Any additional functions/types not in spec
+This creates one group per file, containing ALL items for that file.
+
+## Step 2: File-by-File Comparison
+
+For EACH file group (not each individual item):
+
+1. Read the spec's definitions for this file (all functions, types, exports)
+2. Read the actual code file
+3. Compare ALL items in ONE pass:
+   - List every function/type in spec → check it exists in code with correct signature
+   - List every function/type in code → check if spec mentions it
+   - This is a full comparison — nothing is skipped
+
+This reduces comparison rounds from N-items to N-files while checking
+every single item within each file.
 
 Also scan for code files NOT mentioned in the spec that appear related
 (same directory, similar naming).
 
-## Step 3: Compare and Classify
+## Step 3: Classify Results
+
+### Cosmetic vs Functional
+
+Automatically classify as **cosmetic** (non-blocking, one-line note each):
+- Import ordering differences
+- Docstring length/format differences
+- Whitespace or formatting differences
+- Lint suppression comments (# noqa, // nolint, //nolint)
+- Language-conventional naming (spec: `max_retries`, JS code: `maxRetries`)
+
+These are recorded under "Spec Additions" but do NOT require detailed analysis.
+
+**Functional** differences require full analysis:
+- Missing functions/methods
+- Different parameter types or counts
+- Different return types
+- Different error handling behavior
+- Missing error cases
 
 For each item, classify as one of:
 

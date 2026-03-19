@@ -63,6 +63,17 @@ Assess the document and decide the next action.
    [Why this action is needed now]
    ```
 
+## Simulate Timing
+
+**Priority rule**: If verify-log shows critical=0 has been achieved AND no simulation
+has run yet (check changelog.jsonl for "simulate" action), strongly recommend /simulate
+BEFORE further IMPROVE cycles.
+
+Rationale: structural verification (critical=0) means the spec is internally consistent.
+Now is the best time to test scenarios — simulation catches behavioral gaps (failure modes,
+race conditions, edge cases) that verification cannot find. Running simulation early
+prevents discovering these gaps late and needing additional rework iterations.
+
 ## Important
 
 - Always be specific. Not "needs more detail" but "add function signatures for auth module."
