@@ -4,10 +4,12 @@ package hook
 type EventType string
 
 const (
-	EventSessionStart EventType = "session-start"
-	EventPreCompact   EventType = "pre-compact"
-	EventStop         EventType = "stop"
-	EventSessionEnd   EventType = "session-end"
+	EventSessionStart  EventType = "session-start"
+	EventPreCompact    EventType = "pre-compact"
+	EventStop          EventType = "stop"
+	EventSessionEnd    EventType = "session-end"
+	EventSubagentStart EventType = "subagent-start"
+	EventSubagentStop  EventType = "subagent-stop"
 )
 
 // HookInput is the JSON received via stdin from Claude Code.
@@ -21,6 +23,9 @@ type HookInput struct {
 
 	// Stop hook fields
 	StopHookContent string `json:"content,omitempty"`
+
+	// Subagent fields
+	AgentID string `json:"agent_id,omitempty"`
 
 	// Tool fields (for future use)
 	ToolName  string                 `json:"tool_name,omitempty"`

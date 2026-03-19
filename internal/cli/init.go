@@ -81,7 +81,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// mergeStatusLineSettings adds statusLine config to .claude/settings.local.json.
+// mergeStatusLineSettings adds statusLine and hook configs to .claude/settings.local.json.
 func mergeStatusLineSettings(projectRoot string) error {
 	settingsPath := filepath.Join(projectRoot, ".claude", "settings.local.json")
 
@@ -96,14 +96,52 @@ func mergeStatusLineSettings(projectRoot string) error {
 		settings = make(map[string]interface{})
 	}
 
-	// Only add if not already configured
-	if _, exists := settings["statusLine"]; exists {
-		return nil
+	changed := false
+
+	// StatusLine
+	if _, exists := settings["statusLine"]; !exists {
+		settings["statusLine"] = map[string]interface{}{
+			"type":    "command",
+			"command": ".bts/status_line.sh",
+		}
+		changed = true
 	}
 
-	settings["statusLine"] = map[string]interface{}{
-		"type":    "command",
-		"command": ".bts/status_line.sh",
+	// Hooks for SubagentStart/Stop
+	hooks, _ := settings["hooks"].(map[string]interface{})
+	if hooks == nil {
+		hooks = make(map[string]interface{})
+	}
+
+	hookEntry := func(script string) []interface{} {
+		return []interface{}{
+			map[string]interface{}{
+				"hooks": []interface{}{
+					map[string]interface{}{
+						"type":    "command",
+						"command": script,
+						"timeout": 5,
+					},
+				},
+			},
+		}
+	}
+
+	if _, exists := hooks["SubagentStart"]; !exists {
+		hooks["SubagentStart"] = hookEntry(".claude/hooks/bts-handle-subagent-start.sh")
+		changed = true
+	}
+	if _, exists := hooks["SubagentStop"]; !exists {
+		hooks["SubagentStop"] = hookEntry(".claude/hooks/bts-handle-subagent-stop.sh")
+		changed = true
+	}
+
+	if len(hooks) > 0 {
+		settings["hooks"] = hooks
+	}
+
+	if !changed {
+		return nil
 	}
 
 	out, err := json.MarshalIndent(settings, "", "  ")

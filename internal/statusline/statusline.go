@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/jlim/bts/internal/state"
@@ -63,14 +65,21 @@ func Render(stdin io.Reader, btsRoot string) string {
 	return strings.Join(segments, " │ ")
 }
 
-// renderRecipeSegment returns "topic │ phase detail" or empty string.
+// renderRecipeSegment returns "topic │ [🟡] phase detail" or empty string.
 func renderRecipeSegment(btsRoot string) string {
+	// Check if a subagent is running
+	agentDot := ""
+	agentFile := filepath.Join(state.StatePath(btsRoot), "active-agent.json")
+	if _, err := os.Stat(agentFile); err == nil {
+		agentDot = "🟡 "
+	}
+
 	// Try work state first (richer info)
 	ws, _ := state.LoadWorkState(btsRoot)
 	if ws != nil && ws.RecipeID != "" {
 		topic := truncate(ws.Topic, 20)
 		detail := renderPhaseFromWorkState(ws, btsRoot)
-		return topic + " │ " + detail
+		return topic + " │ " + agentDot + detail
 	}
 
 	// Fall back to recipe state
@@ -83,7 +92,7 @@ func renderRecipeSegment(btsRoot string) string {
 	}
 
 	topic := truncate(recipe.Topic, 20)
-	return topic + " │ " + recipe.Phase
+	return topic + " │ " + agentDot + recipe.Phase
 }
 
 // renderPhaseFromWorkState builds a detailed phase string.
