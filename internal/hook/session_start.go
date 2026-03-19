@@ -57,13 +57,18 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 	if recipe.Phase == "scoping" {
 		hint = fmt.Sprintf("Scope alignment in progress. Read .bts/state/recipes/%s/scope.md and confirm or adjust.", recipe.ID)
 	} else if state.IsImplementPhase(recipe.Phase) {
+		// Fix recipes use /bts-recipe-fix, not /bts-implement
+		implCmd := fmt.Sprintf("/bts-implement %s", recipe.ID)
+		if recipe.Type == "fix" {
+			implCmd = fmt.Sprintf("/bts-recipe-fix %s", recipe.ID)
+		}
 		switch source {
 		case "resume":
 			hint = "Session restored. Continue where you left off."
 		case "compact":
-			hint = fmt.Sprintf("Context compacted. Run /bts-implement %s to continue.", recipe.ID)
+			hint = fmt.Sprintf("Context compacted. Run %s to continue.", implCmd)
 		default:
-			hint = fmt.Sprintf("Run /bts-implement %s to continue, or /recipe cancel to abort.", recipe.ID)
+			hint = fmt.Sprintf("Run %s to continue, or /recipe cancel to abort.", implCmd)
 		}
 	} else {
 		// Source-aware hints for spec phases (research, draft, verify, debate, etc.)
