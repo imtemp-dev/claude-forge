@@ -15,10 +15,14 @@ Evaluate the debate conclusion for: $ARGUMENTS
 
 ## Step 1: Read Debate Output
 
-Read the debate document and meta.json:
-- `.bts/state/recipes/{id}/debates/{debate-id}/`
-- Read all rounds + conclusion
-- Read the current draft to understand the context
+Find the debate artifacts:
+- List `.bts/state/recipes/{id}/debates/` to find the latest debate
+  (highest sequence number, or matching the argument)
+- Read meta.json for topic, conclusion, decided status
+- Read all round files for full expert arguments
+- Read the current draft (check manifest.json `current_draft`)
+  to understand the context the debate was about
+- Read scope.md to check scope boundaries
 
 ## Step 2: Evaluate on 6 Dimensions
 

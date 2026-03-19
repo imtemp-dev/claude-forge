@@ -36,6 +36,10 @@ Implement the spec for recipe: $ARGUMENTS
    - If phase is "sync" → skip to Step 6
    - If phase is "status" → skip to Step 7
 
+4. **Load design context**: Read scope.md for tech stack constraints
+   and assumptions. These guide build tool detection, dependency
+   installation, and implementation patterns.
+
 ## Resume Protocol
 
 If tasks.json exists in the recipe directory:
@@ -72,7 +76,7 @@ If tasks.json exists in the recipe directory:
          "file": "src/auth/types.ts",
          "action": "create",
          "status": "pending",
-         "description": "Auth type definitions",
+         "description": "Auth type definitions — see final.md Section 3.1",
          "depends_on": [],
          "retry_count": 0,
          "last_error": ""
@@ -190,6 +194,8 @@ bts recipe log {id} --phase test
 ```
 
 Use Skill("bts-test") with arguments: {id}
+The test skill will read final.md for test scenarios and tasks.json
+for the list of implemented files.
 
 **If tests fail** (bts-test does not output `<bts>TESTS PASS</bts>`):
 - Do NOT proceed to sync. Stop here.

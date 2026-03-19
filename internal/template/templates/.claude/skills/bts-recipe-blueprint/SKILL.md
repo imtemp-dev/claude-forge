@@ -76,10 +76,15 @@ bts recipe log {id} --phase scoping
 
 **1. Analyze the request**: Parse the feature description. Identify ambiguities.
 
-**2. Scan existing context**: Quick codebase scan to understand:
+**2. Scan existing context**: Quick codebase scan AND recipe history:
    - Current tech stack (language, framework, dependencies)
    - Existing patterns and conventions
    - Related code that already exists
+   - **Previous recipes**: List `.bts/state/recipes/` directories.
+     For each completed recipe, read its scope.md to understand what
+     was already built. Previous final.md files contain design decisions
+     that should inform this new feature's scope. If deviation.md has
+     follow-up items relevant to this feature, note them.
 
 **3. Propose scope**: Present to the user:
    ```
@@ -155,12 +160,13 @@ or any user statement that contradicts the confirmed scope.
 ### Entering the Adaptive Loop
 
 **Starting from scratch (no existing code):**
-1. /research — investigate technology, best practices, libraries (guided by scope)
+1. /research — investigate technology, best practices, libraries.
+   Research is scoped by `.bts/state/recipes/{id}/scope.md`.
 2. Write initial draft (Level 1) → **Draft Self-Check** → drafts/v1.md → /verify
 3. /assess → loop begins
 
 **Starting with existing code:**
-1. /research — explore existing codebase (focused by scope constraints)
+1. /research — explore existing codebase, scoped by scope.md constraints.
 2. Write initial draft referencing existing code → **Draft Self-Check** → drafts/v1.md → /verify
 3. /assess → loop begins
 
@@ -198,7 +204,7 @@ After each /assess, update phase and execute the recommended action:
 |------------|-------|--------|---------|
 | "Scope issue found" | scoping | Scope Re-opening | Research flagged infeasible/missing scope items |
 | "Information insufficient" | research | /research | Investigate docs, APIs, libraries |
-| "Technical decision needed" | debate | /debate → /adjudicate | 3 experts, then evaluate conclusion |
+| "Technical decision needed" | debate | /debate → /adjudicate | 3 experts, then evaluate. Pass current draft path for expert reference |
 | "Gaps may exist" | simulate | /simulate | Design 5+ scenarios. Walk through spec |
 | "Content missing for next level" | draft | IMPROVE | Add specific items. Save as new draft |
 | "Contradictions suspected" | verify | /verify | Check internal consistency |

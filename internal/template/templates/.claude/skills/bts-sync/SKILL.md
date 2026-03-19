@@ -25,7 +25,9 @@ Synchronize spec and implementation for recipe: $ARGUMENTS
 
 ## Step 1: Extract Spec Definitions (grouped by file)
 
-Read `.bts/state/recipes/{id}/final.md` and group all definitions by file:
+Read `.bts/state/recipes/{id}/final.md` and group all definitions by file.
+Also read `tasks.json` to know which files were created vs modified —
+this helps focus the comparison on files that actually changed.
 
 ```
 {

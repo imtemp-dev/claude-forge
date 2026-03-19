@@ -25,6 +25,9 @@ Research the given topic and produce a structured document.
    - Existing patterns and conventions
    - Configuration and environment requirements
    ```
+   If `.bts/state/recipes/` contains completed recipes, read their
+   final.md to understand existing design decisions, patterns, and
+   known issues that may affect this research.
 
 2. For library/framework documentation, use Context7 MCP:
    - `mcp__context7__resolve-library-id` to find the library

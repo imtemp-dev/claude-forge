@@ -20,14 +20,20 @@ Assess the document and decide the next action.
    ```
    This returns the current level score and missing criteria.
 
-2. Read the document fully yourself and evaluate:
+2. Build situational awareness:
+   - Read changelog.jsonl (last 5 entries) to know what was just done
+   - Check if simulation has run (look for "simulate" action in changelog)
+   - Check if debates exist and whether conclusions are reflected in the draft
+   - Read scope.md to keep boundaries in mind
+
+3. Read the document fully yourself and evaluate:
    - What level is this document at? (1=understanding, 2=design, 3=implementation-ready)
    - What specific content is missing to reach the next level?
    - Are there uncertain technical decisions that need debate?
    - Are there scenarios that haven't been walked through?
    - Are there internal contradictions?
 
-3. Decide the next action based on assessment:
+4. Decide the next action based on assessment:
 
    **If information is insufficient** → recommend `/research`
    "Need to investigate [specific topic] before proceeding."
@@ -50,7 +56,7 @@ Assess the document and decide the next action.
    **If Level 3 criteria all met** → recommend `/sync-check` then finalize
    "Document appears complete. Run sync-check before finalizing."
 
-4. Output your assessment:
+5. Output your assessment:
    ```
    ## Assessment
    Current Level: [X.Y]
