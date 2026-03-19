@@ -104,7 +104,13 @@ Both exist but differ (different signature, different behavior).
 
 ## Step 4: Preserve and Update final.md
 
-1. **Preserve the original**: Copy `final.md` → `final.pre-sync.md`
+1. **Preserve the original** (crash-safe):
+   - If `final.pre-sync.md` already exists → do NOT overwrite it.
+     The existing backup is the true original from the blueprint phase.
+     A previous sync may have crashed mid-update, leaving final.md corrupted.
+     In this case, RESTORE: copy `final.pre-sync.md` back to `final.md` first,
+     then proceed with a clean sync.
+   - If `final.pre-sync.md` does NOT exist → copy `final.md` → `final.pre-sync.md`
 2. **Update final.md** to reflect actual implementation:
    - Fix incorrect file paths
    - Update function signatures to match code

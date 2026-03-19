@@ -153,6 +153,11 @@ Run the project's build command:
 - Update tasks.json `updated_at`
 - Move to next task
 
+**Crash safety**: tasks.json is the source of truth for implementation progress.
+It is written to disk (via Write tool) after every task status change. If the session
+crashes, the next resume reads tasks.json and knows exactly where to continue.
+No separate work-state save is needed during the loop — tasks.json IS the checkpoint.
+
 ### Log Each Task
 ```bash
 bts recipe log {id} --action implement --result "task {task-id} done"
