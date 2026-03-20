@@ -1,5 +1,7 @@
 # bts — Bulletproof Technical Specification
 
+[English](README.md) | [한국어](README.ko.md) | [中文](README.zh.md) | [日本語](README.ja.md)
+
 Make your implementation spec so detailed that AI generates working code on the first try.
 
 ## The Problem
