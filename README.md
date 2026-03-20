@@ -2,23 +2,30 @@
 
 [한국어](README.ko.md) | [中文](README.zh.md) | [日本語](README.ja.md)
 
-Make your implementation spec so detailed that AI generates working code on the first try.
-
-## The Problem
-
 ```
-Rough plan → AI codes → bugs → fix → bugs → fix → ... (repeat N times)
+  ╔══════════════════════════════════════════════════════════════════╗
+  ║                                                                  ║
+  ║   🔄 Ralph Mode              📋 Lisa Mode                       ║
+  ║                                                                  ║
+  ║   code → fail                spec → verify                      ║
+  ║     → code → fail              → spec → verify                  ║
+  ║       → code → fail              → spec → verify                ║
+  ║         → code → fail              → bulletproof spec           ║
+  ║           → ...                      → code                    ║
+  ║             → works?                   → works. first try.     ║
+  ║                                                                  ║
+  ║   Loop the CODE (expensive)   Loop the DOCS (free)              ║
+  ║   builds, tests, side effects   no builds, no tests, no cost    ║
+  ║                                                                  ║
+  ║                  bts is Lisa Mode.                               ║
+  ║                                                                  ║
+  ╚══════════════════════════════════════════════════════════════════╝
 ```
 
-Most time is spent debugging AI-generated code. The root cause: the spec was vague, so the AI guessed.
-
-## The Solution
-
-```
-Spec → verify → fix → verify → ... → bulletproof spec → AI codes → done
-```
-
-Iterate on the **document**, not the code. Documents are free to change — no builds, no tests, no side effects. When the spec is bulletproof, AI generates code with minimal iteration.
+> **Ralph loops code. Lisa loops documents.**
+> Both iterate until it works — but documents are free to change.
+> No builds, no tests, no side effects. When the spec is bulletproof,
+> AI generates working code on the first try.
 
 ## Full Lifecycle
 
