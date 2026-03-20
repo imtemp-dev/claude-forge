@@ -14,8 +14,8 @@
 ║           -> ...                        -> code                ║
 ║             -> works?                     -> works. first try. ║
 ║                                                                ║
-║   Loop the CODE (expensive)     Loop the DOCS (free)           ║
-║   builds, tests, side effects   no builds, no tests, no cost   ║
+║   Loop the CODE (expensive)     Loop the DOCS (safe to fail)   ║
+║   builds, tests, side effects   no builds, no tests, no breakage║
 ║                                                                ║
 ║                    bts is Lisa Mode.                           ║
 ║                                                                ║
@@ -23,7 +23,7 @@
 ```
 
 > **Ralph 循环代码。Lisa 循环文档。**
-> 两者都迭代直到成功——但文档修改零成本。
+> 两者都迭代直到成功——但文档修改是安全的。
 > 无构建、无测试、无副作用。当规范完美时，
 > AI 一次生成可运行的代码。
 

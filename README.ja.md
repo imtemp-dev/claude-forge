@@ -14,8 +14,8 @@
 ║           -> ...                        -> code                ║
 ║             -> works?                     -> works. first try. ║
 ║                                                                ║
-║   Loop the CODE (expensive)     Loop the DOCS (free)           ║
-║   builds, tests, side effects   no builds, no tests, no cost   ║
+║   Loop the CODE (expensive)     Loop the DOCS (safe to fail)   ║
+║   builds, tests, side effects   no builds, no tests, no breakage║
 ║                                                                ║
 ║                    bts is Lisa Mode.                           ║
 ║                                                                ║

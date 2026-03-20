@@ -14,8 +14,8 @@
 ║           -> ...                        -> code                ║
 ║             -> works?                     -> works. first try. ║
 ║                                                                ║
-║   Loop the CODE (expensive)     Loop the DOCS (free)           ║
-║   builds, tests, side effects   no builds, no tests, no cost   ║
+║   Loop the CODE (expensive)     Loop the DOCS (safe to fail)   ║
+║   builds, tests, side effects   no builds, no tests, no breakage║
 ║                                                                ║
 ║                    bts is Lisa Mode.                           ║
 ║                                                                ║
@@ -23,7 +23,7 @@
 ```
 
 > **Ralph loops code. Lisa loops documents.**
-> Both iterate until it works — but documents are free to change.
+> Both iterate until it works — but documents are safe to change.
 > No builds, no tests, no side effects. When the spec is bulletproof,
 > AI generates working code on the first try.
 
