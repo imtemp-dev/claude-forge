@@ -49,10 +49,12 @@ Map all modules/functions involved in the failing path:
 - Identify any recently changed dependencies
 
 ### 1.3 Design Intent
-Read `.bts/state/architecture.md` for the system-wide view (how modules
-connect, overall structure). Then read the specific recipe's final.md
-(via ref_recipe) for the detailed design of the affected feature.
-- architecture.md: overall structure, module relationships
+Read `.bts/state/project-map.md` for the layer overview.
+Load the affected layer's detail from `.bts/state/layers/{name}.md`.
+Then read the specific recipe's final.md (via ref_recipe) for
+detailed design of the affected feature.
+- project-map.md: what layers exist, how they connect
+- layers/{name}.md: specific layer's structure, models, APIs
 - final.md: specific feature's intended behavior
 - Where does actual behavior diverge from the design?
 

@@ -91,5 +91,6 @@ diagnosis.md                      # Bug fix: symptom, root cause, impact
 fix-spec.md                       # Bug fix: change specification
 review.md                         # Code review findings report
 perspectives.md                   # Debug: multi-perspective analysis
-architecture.md                   # System architecture (auto-synced by /status)
+project-map.md                    # Level 0: layer overview (auto-synced)
+layers/{name}.md                  # Level 1: layer detail (on-demand)
 ```

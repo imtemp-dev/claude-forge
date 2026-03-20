@@ -77,16 +77,16 @@ bts recipe log {id} --phase scoping
 **1. Analyze the request**: Parse the feature description. Identify ambiguities.
 
 **2. Scan existing context**:
-   - **Read architecture.md** (at `.bts/state/architecture.md`) for the
-     current system overview: tech stack, file structure, data model,
-     API endpoints, key patterns. This is the single-document view of
-     the entire project — read this instead of N individual final.md files.
-   - If architecture.md is stale (completed recipes not in its synced list)
-     → update it first by running `/bts-status`.
-   - If architecture.md doesn't exist but code exists → create it via `/bts-status`.
-   - Scan codebase for anything architecture.md might have missed
-     (manual changes outside bts)
-   - Check recent deviation.md files for follow-up items relevant to this feature
+   - **Read project-map.md** (at `.bts/state/project-map.md`) for the
+     project layer overview: what layers exist, how to build/test each.
+     If it doesn't exist but code exists, scan root to create it.
+     If it exists, verify layer paths still exist (quick check).
+   - **Identify affected layers** for this feature
+   - **Load affected layers' detail** from `.bts/state/layers/{name}.md`.
+     If detail doesn't exist for a layer, scan that layer's code to create it.
+     Only load layers relevant to this feature — skip unrelated ones.
+   - Scan codebase for anything layers might have missed (recent changes)
+   - Check recent deviation.md files for follow-up items
 
 **3. Propose scope**: Present to the user:
    ```

@@ -95,50 +95,44 @@ Based on current state, recommend what to do next:
 **Note**: `project-status.md` is a global derived document at `.bts/state/` level.
 It is NOT tracked in per-recipe manifests because it spans multiple recipes.
 
-## Step 4: Architecture Sync
+## Step 4: Project Map Sync
 
-Update `.bts/state/architecture.md` with current system state.
+Two-level map: Level 0 (lightweight overview) + Level 1 (on-demand detail).
 
-**If architecture.md doesn't exist** and codebase has source files → create it
-by scanning the codebase (file structure, data models, API endpoints, key patterns).
+### Level 0: project-map.md
 
-**If architecture.md exists** → incrementally update based on this recipe's
-tasks.json (which files were created/modified). Read each changed file and
-update the relevant section:
-- File Structure: add/update file entry with one-line role description
-- Data Model: if schema file changed, update models
-- API Endpoints: if routes changed, update endpoints
-- Key Patterns: if new patterns introduced, add them
+Update `.bts/state/project-map.md`:
 
-**If no code exists** (first recipe, still in spec phase) → skip.
+**If it doesn't exist** and codebase has source files → scan root directory
+for layer directories (look for package.json, go.mod, Cargo.toml, pyproject.toml,
+or similar build markers). For single-directory projects, one layer at root (./).
 
-Update the `Synced recipes` list to include this recipe's ID.
+**If it exists** → verify layer paths still exist. Remove stale layers,
+add newly discovered ones.
 
-Format:
+Format (~300 tokens):
 ```markdown
-# System Architecture
+# Project Map
 
-Updated: {ISO8601}
-Synced recipes: [r-1001, r-1002, r-fix-1003]
-
-## Tech Stack
-[language, framework, ORM, database, key libraries]
-
-## File Structure
-[tree with one-line role description per file]
-
-## Data Model
-[models with fields and relationships]
-
-## API Endpoints
-[method, path, description, auth requirement]
-
-## Key Patterns
-[auth approach, error handling, validation, etc.]
+## Layers
+services/api/      — NestJS API, npm run build, npm test
+services/web/      — React SPA, npm run build, npm run test
+packages/shared/   — Shared types, npm run build
 ```
 
-architecture.md is a derived document — regenerated from code, not recipe docs.
-If it becomes inconsistent, delete it and let the next status call recreate it.
+### Level 1: layers/ (incremental)
+
+For layers changed by this recipe (check tasks.json file paths):
+- Determine which layer each changed file belongs to
+- Scan that layer's source files
+- Update `.bts/state/layers/{layer-name}.md` with:
+  - File structure (tree with one-line role descriptions)
+  - Data models (if schema/model files exist)
+  - API endpoints (if route files exist)
+  - Key patterns observed
+- Don't touch layers that weren't changed
+
+Both are derived documents — delete and re-scan if inconsistent.
 
 ## Step 5: Log
 

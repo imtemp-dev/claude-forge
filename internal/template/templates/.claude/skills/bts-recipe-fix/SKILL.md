@@ -171,7 +171,7 @@ bts recipe log {id} --phase test --action test --output test-results.json --resu
 
 When tests pass:
 1. Run Skill("bts-status") with arguments: {id}
-   This updates project-status.md and architecture.md with the fix changes.
+   This updates project-status.md and project-map with the fix changes.
 2. Verify fix-spec.md exists
 3. Verify test-results.json shows pass
 4. Output `<bts>FIX DONE</bts>`
