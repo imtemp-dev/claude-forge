@@ -328,6 +328,7 @@ Lightweight project overview, auto-synced on recipe completion:
 - **Deviation = follow-up**: Spec-code differences are reports, not gates
 - **Crash resilient**: Work state persists via tasks.json + work-state.json
 - **Hierarchical map**: Lightweight project overview, detail on demand
+- **Fast**: Single Go binary, zero runtime dependencies, ~5ms startup
 
 ## CLI
 
