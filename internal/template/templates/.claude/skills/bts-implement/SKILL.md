@@ -4,7 +4,7 @@ description: >
   Implement code from a finalized Level 3 spec (final.md). Uses an adaptive loop
   with build verification — the same ASSESS→action→VERIFY pattern as spec creation.
 user-invocable: true
-allowed-tools: Read Write Edit Grep Glob Bash Agent mcp__context7__resolve-library-id mcp__context7__get-library-docs
+allowed-tools: Read Write Edit Grep Glob Bash Agent AskUserQuestion mcp__context7__resolve-library-id mcp__context7__get-library-docs
 argument-hint: "[recipe-id]"
 ---
 

@@ -6,7 +6,7 @@ description: >
   cross-references them to find root cause, then produces a verified fix spec
   implementable via /bts-implement.
 user-invocable: true
-allowed-tools: Read Write Edit Grep Glob Bash Agent WebSearch WebFetch mcp__context7__resolve-library-id mcp__context7__get-library-docs
+allowed-tools: Read Write Edit Grep Glob Bash Agent AskUserQuestion WebSearch WebFetch mcp__context7__resolve-library-id mcp__context7__get-library-docs
 argument-hint: "\"symptom description\""
 ---
 

@@ -5,7 +5,7 @@ description: >
   drafting, debate, simulation, and verification. The loop continues until
   the document is bulletproof.
 user-invocable: true
-allowed-tools: Read Write Edit Grep Glob Bash Agent mcp__context7__resolve-library-id mcp__context7__get-library-docs
+allowed-tools: Read Write Edit Grep Glob Bash Agent AskUserQuestion mcp__context7__resolve-library-id mcp__context7__get-library-docs
 argument-hint: "\"feature description\""
 ---
 
@@ -126,12 +126,10 @@ bts recipe log {id} --phase scoping
    even before user confirms. This persists the conversation state so it
    survives compaction or session breaks.
 
-**5. Wait for user response**:
-   - User adjusts → update scope.md → present updated scope → wait again
-   - User confirms → mark `### Status: CONFIRMED` in scope.md → exit loop
-   - User asks unrelated question → answer it, then remind:
-     "[bts] Scope alignment in progress for recipe {id}. Current scope is at
-     .bts/state/recipes/{id}/scope.md. Ready to continue?"
+**5. Ask user for confirmation** using AskUserQuestion:
+   - "Confirm scope and proceed (Recommended)" → mark Status: CONFIRMED → exit loop
+   - "Adjust scope" → user provides feedback → update scope.md → ask again
+   - "Cancel recipe" → set phase to cancelled
 
 **6. On resume** (session restart or compaction):
    - Read scope.md

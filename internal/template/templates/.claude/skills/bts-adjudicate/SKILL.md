@@ -5,7 +5,7 @@ description: >
   Decides whether to accept the conclusion or drive another debate round with
   targeted preparation (web search, code analysis, repo exploration).
 user-invocable: true
-allowed-tools: Read Write Edit Grep Glob Bash Agent WebSearch WebFetch mcp__context7__resolve-library-id mcp__context7__get-library-docs
+allowed-tools: Read Write Edit Grep Glob Bash Agent AskUserQuestion WebSearch WebFetch mcp__context7__resolve-library-id mcp__context7__get-library-docs
 argument-hint: "[debate-id or recipe-id]"
 ---
 
