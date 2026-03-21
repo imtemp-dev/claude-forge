@@ -30,7 +30,9 @@ If inside a recipe (tasks.json exists):
 
 If standalone (no recipe):
 - If file scope given → review those files/directories
-- If no scope → ask user which files to review
+- If no scope → try `git diff --name-only HEAD~1` to detect recently changed files.
+  If changes found, propose reviewing those files.
+  If no git or no changes, ask user which files to review.
 
 **Architecture context:**
 - Read `.bts/state/project-map.md` for layer structure

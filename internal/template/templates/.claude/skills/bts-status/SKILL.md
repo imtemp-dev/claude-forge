@@ -27,6 +27,7 @@ For each recipe directory, read:
 - `tasks.json` → implementation progress (if exists)
 - `test-results.json` → test status (if exists)
 - `deviation.md` → sync status (if exists)
+- `review.md` → code review findings (if exists)
 - `final.md` → spec exists? (if exists)
 
 ## Step 2: Determine Recipe States
@@ -81,6 +82,12 @@ Aggregate all deviation.md findings:
 | Recipe | Item | Type | Status |
 |--------|------|------|--------|
 | r-xxx | getUserById | signature | resolved |
+
+## Reviews (if any recipe has review.md)
+
+| Recipe | Mode | Critical | Actionable |
+|--------|------|----------|-----------|
+| r-xxx | full | 0 | 2 |
 
 ## Next Steps
 

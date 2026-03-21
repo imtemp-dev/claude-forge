@@ -174,6 +174,12 @@ bts recipe log {id} --phase test --action test --output test-results.json --resu
 ## Step 8: Complete
 
 When tests pass:
+
+> If this fix involved security, authentication, data handling, or resource
+> management, consider running `/bts-review` to scan for similar patterns
+> elsewhere in the codebase. The root cause found in this fix may exist
+> in other files.
+
 1. Run Skill("bts-status") with arguments: {id}
    This updates project-status.md and project-map with the fix changes.
 2. Verify fix-spec.md exists

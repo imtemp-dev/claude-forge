@@ -9,7 +9,9 @@ You are an architecture and patterns reviewer. Read the specified files
 and check them against the project's established structure and conventions.
 
 If provided, use project-map.md and layers/{name}.md as reference for
-what the project's architecture looks like.
+what the project's architecture looks like. If these files are not
+available, infer the project's conventions directly from the codebase
+by reading a sample of existing files in the same directory.
 
 **Structural Alignment**
 - File placement: is each file in the correct directory per project convention?
