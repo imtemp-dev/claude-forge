@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"text/tabwriter"
 
 	"github.com/jlim/bts/internal/state"
@@ -107,6 +109,10 @@ var recipeLogCmd = &cobra.Command{
 			if err != nil {
 				return fmt.Errorf("load recipe: %w", err)
 			}
+
+			// Pre-condition warnings for phase transition
+			checkPhasePreConditions(btsRoot, recipe, phase)
+
 			recipe.Phase = phase
 			if err := state.SaveRecipeState(btsRoot, recipe); err != nil {
 				return fmt.Errorf("save recipe: %w", err)
@@ -259,6 +265,59 @@ func actionToDocType(action string) string {
 		return "verification"
 	default:
 		return action
+	}
+}
+
+// checkPhasePreConditions warns about missing prerequisites for a phase transition.
+// Warnings go to stderr; phase transition always proceeds (warn, not block).
+func checkPhasePreConditions(btsRoot string, recipe *state.RecipeState, newPhase string) {
+	recipeDir := state.RecipeDir(btsRoot, recipe.ID)
+	exists := func(name string) bool {
+		_, err := os.Stat(filepath.Join(recipeDir, name))
+		return err == nil
+	}
+	stateExists := func(name string) bool {
+		_, err := os.Stat(filepath.Join(state.StatePath(btsRoot), name))
+		return err == nil
+	}
+	warn := func(msg string) {
+		fmt.Fprintf(os.Stderr, "⚠ %s\n", msg)
+	}
+
+	switch newPhase {
+	case "research":
+		if recipe.Type == "blueprint" && !stateExists("project-map.md") {
+			warn("project-map.md not found — scan codebase to create it")
+		}
+
+	case "implement":
+		if !exists("final.md") {
+			warn("final.md not found — complete spec before implementing")
+		}
+
+	case "test":
+		if recipe.Type != "fix" && !exists("tasks.json") {
+			warn("tasks.json not found — run /bts-implement to decompose tasks")
+		}
+
+	case "review":
+		if exists("test-results.json") {
+			data, _ := os.ReadFile(filepath.Join(recipeDir, "test-results.json"))
+			var tr state.TestResults
+			if json.Unmarshal(data, &tr) == nil && tr.Status != "pass" {
+				warn("tests not passing — fix before review")
+			}
+		}
+
+	case "sync":
+		if !exists("review.md") {
+			warn("review.md not found — run /bts-review first")
+		}
+
+	case "status":
+		if !exists("deviation.md") {
+			warn("deviation.md not found — run /bts-sync first")
+		}
 	}
 }
 
