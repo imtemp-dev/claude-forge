@@ -14,7 +14,7 @@ echo ""
 
 # 1. Init
 $BTS init . > /dev/null
-[ -f .claude/skills/bts/verify/SKILL.md ] && echo "✓ 1. init" || { echo "✗ 1. init"; exit 1; }
+[ -f .claude/skills/bts-verify/SKILL.md ] && echo "✓ 1. init" || { echo "✗ 1. init"; exit 1; }
 
 # 2. Verify (no code, from-scratch spec)
 printf "# OAuth2 Design\n\n**Auth component** handles user login.\n**Session manager** stores tokens.\nUses **Express** framework with **Passport.js**.\nData flows from **login form** to **OAuth provider** to **callback handler**.\nOn error, returns **401 Unauthorized**.\n" > spec.md
@@ -22,19 +22,19 @@ $BTS verify --no-code spec.md | grep -q '"level"' && echo "✓ 2. verify --no-co
 
 # 3. Recipe log (verify iteration — backward compatible)
 mkdir -p .bts/state/recipes/test-001
-echo '{"id":"test-001","type":"blueprint","topic":"OAuth2","phase":"verify","iteration":1,"draft_version":1,"level":1.5,"started_at":"2026-03-18T00:00:00Z","updated_at":"2026-03-18T00:00:00Z"}' > .bts/state/recipes/test-001/recipe.json
+echo '{"id":"test-001","type":"blueprint","topic":"OAuth2","phase":"verify","iteration":1,"level":1.5,"started_at":"2026-03-18T00:00:00Z","updated_at":"2026-03-18T00:00:00Z"}' > .bts/state/recipes/test-001/recipe.json
 $BTS recipe log test-001 --iteration 1 --critical 2 --major 1 > /dev/null
 [ -f .bts/state/recipes/test-001/verify-log.jsonl ] && echo "✓ 3. recipe log (verify-log)" || { echo "✗ 3. verify-log"; exit 1; }
 
 # 4. Recipe log (changelog action)
-$BTS recipe log test-001 --action improve --output drafts/v2.md > /dev/null
+$BTS recipe log test-001 --action improve --output draft.md > /dev/null
 [ -f .bts/state/recipes/test-001/changelog.jsonl ] && echo "✓ 4. recipe log (changelog)" || { echo "✗ 4. changelog"; exit 1; }
 
 # 5. Recipe log (manifest update)
 $BTS recipe log test-001 --action research --output research/v1.md --based-on "topic" > /dev/null
 [ -f .bts/state/recipes/test-001/manifest.json ] && echo "✓ 5. recipe log (manifest)" || { echo "✗ 5. manifest"; exit 1; }
 
-# 6. Recipe status (with Level and DraftVersion)
+# 6. Recipe status (with Level)
 $BTS recipe status | grep -q "Level" && echo "✓ 6. recipe status (Level shown)" || { echo "✗ 6. status"; exit 1; }
 
 # 7. Debate log (create new)

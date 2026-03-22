@@ -221,8 +221,8 @@ stateDiagram-v2
 flowchart TD
     subgraph Spec Phase
         SC["scope.md"] --> RS["research/v1.md"]
-        RS --> DR["drafts/v1..vN.md"]
-        DR --> VF["verifications/"]
+        RS --> DR["draft.md"]
+        DR --> VF["verification.md"]
         DR --> SM["simulations/"]
         DR --> DB["debates/"]
         DR --> FM["final.md"]

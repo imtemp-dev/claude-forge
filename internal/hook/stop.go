@@ -129,7 +129,13 @@ func (h *stopHandler) handleImplementDone(btsRoot string, recipe *state.RecipeSt
 		)), nil
 	}
 
-	// 3. Check that sync has run (deviation.md exists)
+	// 3. Check that review has run (review.md exists)
+	reviewPath := filepath.Join(state.RecipeDir(btsRoot, recipe.ID), "review.md")
+	if _, err := os.Stat(reviewPath); os.IsNotExist(err) {
+		return blockOutput("No review.md found. Run /bts-review before completing implementation."), nil
+	}
+
+	// 4. Check that sync has run (deviation.md exists)
 	deviationPath := filepath.Join(state.RecipeDir(btsRoot, recipe.ID), "deviation.md")
 	if _, err := os.Stat(deviationPath); os.IsNotExist(err) {
 		return blockOutput("No deviation.md found. Run /sync before completing implementation."), nil

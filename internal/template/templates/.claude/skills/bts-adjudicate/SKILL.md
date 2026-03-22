@@ -20,7 +20,7 @@ Find the debate artifacts:
   (highest sequence number, or matching the argument)
 - Read meta.json for topic, conclusion, decided status
 - Read all round files for full expert arguments
-- Read the current draft (check manifest.json `current_draft`)
+- Read `draft.md` (the current draft)
   to understand the context the debate was about
 - Read scope.md to check scope boundaries
 

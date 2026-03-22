@@ -28,6 +28,10 @@ If inside a recipe (tasks.json exists):
 - If file scope given → filter to matching files
 - If no scope → review all files from tasks.json
 
+If inside a recipe but no tasks.json (fix recipe):
+- Read fix-spec.md "Changes" section for file paths
+- If no fix-spec.md → fall back to git diff
+
 If standalone (no recipe):
 - If file scope given → review those files/directories
 - If no scope → try `git diff --name-only HEAD~1` to detect recently changed files.
@@ -122,4 +126,5 @@ Log if inside recipe:
 bts recipe log {id} --action review --output review.md --result "N critical, N major (N actionable)"
 ```
 
-Review is a **report**, not a gate. Findings are recommendations.
+Review is a **mandatory step** in implement and fix flows.
+[ACTIONABLE] critical/major items should be fixed before proceeding.

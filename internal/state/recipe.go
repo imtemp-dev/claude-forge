@@ -14,7 +14,7 @@ type RecipeState struct {
 	Topic        string  `json:"topic"`         // user's description
 	Phase        string  `json:"phase"`         // scoping, research, draft, assess, improve, verify, debate, simulate, audit, finalize, cancelled, implement, test, sync, status, complete
 	Iteration    int     `json:"iteration"`     // current verify iteration
-	DraftVersion int     `json:"draft_version"` // current draft version number (v1, v2, ...)
+	DraftVersion int     `json:"draft_version,omitempty"` // deprecated: single draft.md, no versioning
 	Level        float64 `json:"level"`         // assessed document level (0.0 ~ 3.0)
 	StartedAt    string  `json:"started_at"`
 	UpdatedAt    string  `json:"updated_at"`
@@ -78,7 +78,7 @@ func LoadTestResults(btsRoot, recipeID string) (*TestResults, error) {
 // IsImplementPhase returns true if the phase is part of the implementation lifecycle.
 func IsImplementPhase(phase string) bool {
 	switch phase {
-	case "implement", "test", "sync", "status":
+	case "implement", "test", "review", "sync", "status":
 		return true
 	}
 	return false

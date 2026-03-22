@@ -90,7 +90,7 @@ func validateRecipeJSON(path string) []ValidationError {
 			errs = append(errs, ValidationError{File: "recipe.json", Field: field, Message: "missing required field"})
 		}
 	}
-	for _, field := range []string{"iteration", "draft_version", "level"} {
+	for _, field := range []string{"iteration", "level"} {
 		if _, ok := raw[field]; !ok {
 			errs = append(errs, ValidationError{File: "recipe.json", Field: field, Message: "missing required field"})
 		}
@@ -111,7 +111,7 @@ func validateRecipeJSON(path string) []ValidationError {
 			"research": true, "draft": true, "assess": true, "improve": true,
 			"verify": true, "debate": true, "simulate": true, "audit": true,
 			"finalize": true, "cancelled": true,
-			"implement": true, "test": true, "sync": true, "status": true,
+			"implement": true, "test": true, "review": true, "sync": true, "status": true,
 			"complete": true,
 		}
 		if !valid[p] {
@@ -163,6 +163,7 @@ func validateManifestJSON(path string) []ValidationError {
 						"research": true, "draft": true, "debate": true,
 						"simulation": true, "verification": true,
 						"implementation": true, "test-result": true, "deviation": true,
+						"review": true,
 					}
 					if !validTypes[t] {
 						errs = append(errs, ValidationError{File: "manifest.json", Field: "documents." + path + ".type", Message: fmt.Sprintf("invalid type '%s'", t)})

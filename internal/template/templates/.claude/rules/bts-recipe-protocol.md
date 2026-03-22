@@ -18,7 +18,7 @@ ASSESS → decide action → execute → VERIFY (mandatory) → ASSESS → ...
 ## Mandatory Rules
 
 1. **Check for resume first**: `bts recipe status` before starting any recipe.
-2. **Never overwrite drafts**: Save as `drafts/vN+1.md`, preserve all versions.
+2. **Edit draft.md in place**: Use Edit tool for incremental modifications, not full rewrites.
 3. **VERIFY after every modification**: No exceptions. This includes post-debate and post-simulation fixes.
 4. **Log every action**: `bts recipe log {id}` after every step.
 5. **Simulate at least once**: Before declaring Level 3, run /simulate with 5+ scenarios.
@@ -45,7 +45,8 @@ Output `<bts>DONE</bts>` only when:
 Output `<bts>IMPLEMENT DONE</bts>` only when:
 1. All tasks in tasks.json are `done` or `skipped` (no `blocked` or `pending`)
 2. test-results.json shows status=pass
-3. /sync has run (deviation.md exists)
+3. /review has run (review.md exists)
+4. /sync has run (deviation.md exists)
 
 deviation.md is a **report**, not a gate. Deviations and not-implemented items
 are recorded for follow-up but do NOT block completion.

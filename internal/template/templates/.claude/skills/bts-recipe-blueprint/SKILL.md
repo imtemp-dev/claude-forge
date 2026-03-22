@@ -24,16 +24,18 @@ Before starting, check for an existing recipe:
 ```bash
 bts recipe status
 ```
-If active, resume with **minimum reads** to preserve context budget:
+If active, check the phase to determine resume strategy:
 
+**If phase is `scoping`:** Follow the Scoping Loop "On resume" protocol below —
+read `scope.md` and re-present if Status is DRAFT, or skip to adaptive loop if CONFIRMED.
+
+**If phase is any other (research, draft, verify, debate, etc.):** Resume with **minimum reads**:
 1. `changelog.jsonl` — last 5 entries only (determine current position in the loop)
-2. `manifest.json` — find `current_draft` path
-3. Read the **current draft only** (e.g., `drafts/v3.md`) — do NOT read previous versions
-4. Read the **last verification** for that draft only — do NOT read older verifications
-5. `scope.md` — confirm scope is still valid
+2. `draft.md` — the current draft (if not found, check `manifest.json` `current_draft` for legacy path)
+3. `verification.md` — latest verification findings
+4. `scope.md` — confirm scope is still valid
 
-Do NOT read on resume: previous draft versions (v1, v2...), previous verifications,
-research documents (already incorporated into the current draft).
+Do NOT read on resume: research documents (already incorporated into the draft).
 
 Then run `/bts-assess` on the current draft to determine the next action.
 
@@ -57,18 +59,25 @@ ASSESS determines what to do next based on the document's current state.
 **ALWAYS after modifying any JSON file in .bts/:**
 1. Run `bts validate` to verify schema compliance. Fix any errors before continuing.
 
-**ALWAYS after modifying the document:**
-1. Save as new version: `drafts/vN.md` (never overwrite previous versions)
-2. Update `manifest.json` (add document entry with type, created_at, based_on)
-3. Append to `changelog.jsonl` (use key `"time"`, not `"timestamp"`)
-4. Run `bts validate` to verify
-5. Run /verify on the new version
-6. Record verify results to verify-log:
+**ALWAYS after modifying draft.md:**
+1. Edit `draft.md` in place (Write for initial creation, Edit for improvements)
+2. Log the action to changelog:
+   ```bash
+   bts recipe log {id} --action [draft|improve] --output draft.md
+   ```
+3. Update `manifest.json` directly (Edit tool on the JSON file):
+   - Add to `incorporates` array if a debate conclusion was applied
+   - Add to `resolves` array if a simulation gap was addressed
+   - Clear `verified_by` to `""` (draft changed, not yet re-verified)
+4. Run `bts validate` to verify schema compliance
+5. Run /verify on draft.md → save findings to `verification.md` (overwrite previous)
+6. After /verify, update manifest: set draft.md `verified_by` to `"verification.md"`
+7. Record verify results to verify-log:
    ```bash
    bts recipe log {id} --iteration N --critical X --major Y --minor Z
    ```
    This writes to verify-log.jsonl which the stop hook checks at completion.
-7. Run /assess to determine the next action
+8. Run /assess to determine the next action
 
 **Refer to `.claude/rules/bts-schema.md` for exact JSON field names, types, and structures.**
 
@@ -100,6 +109,7 @@ bts recipe log {id} --phase scoping
      Only load layers relevant to this feature — skip unrelated ones.
    - Scan codebase for anything layers might have missed (recent changes)
    - Check recent deviation.md files for follow-up items
+   - Check recent review.md files for recurring quality/security patterns
 
 **3. Propose scope**: Present to the user:
    ```
@@ -162,9 +172,9 @@ If the user requests a fundamental direction change during the adaptive loop
 3. Read current scope.md, apply the user's change, set Status: DRAFT
 4. Present updated scope for confirmation
 5. After re-confirmation (Status: CONFIRMED):
-   - Assess impact on existing drafts
-   - If draft is invalidated → start fresh draft (new vN based on new scope)
-   - If draft is partially valid → IMPROVE to align with new scope
+   - Assess impact on draft.md
+   - If draft is invalidated → rewrite draft.md based on new scope
+   - If draft is partially valid → IMPROVE draft.md to align with new scope
 6. Resume adaptive loop
 
 **Trigger words**: "바꾸자", "변경", "pivot", "다른 방향", "scope change",
@@ -175,12 +185,12 @@ or any user statement that contradicts the confirmed scope.
 **Starting from scratch (no existing code):**
 1. /research — investigate technology, best practices, libraries.
    Research is scoped by `.bts/state/recipes/{id}/scope.md`.
-2. Write initial draft (Level 1) → **Draft Self-Check** → drafts/v1.md → /verify
+2. Write initial draft (Level 1) → **Draft Self-Check** → draft.md → /verify
 3. /assess → loop begins
 
 **Starting with existing code:**
 1. /research — explore existing codebase, scoped by scope.md constraints.
-2. Write initial draft referencing existing code → **Draft Self-Check** → drafts/v1.md → /verify
+2. Write initial draft referencing existing code → **Draft Self-Check** → draft.md → /verify
 3. /assess → loop begins
 
 ### Draft Self-Check (before /verify)
@@ -219,7 +229,7 @@ After each /assess, update phase and execute the recommended action:
 | "Information insufficient" | research | /research | Investigate docs, APIs, libraries |
 | "Technical decision needed" | debate | /debate → /adjudicate | 3 experts, then evaluate. Pass current draft path for expert reference |
 | "Gaps may exist" | simulate | /simulate | Design 5+ scenarios. Walk through spec |
-| "Content missing for next level" | draft | IMPROVE | Add specific items. Save as new draft |
+| "Content missing for next level" | draft | IMPROVE | Add specific items. Edit draft.md |
 | "Contradictions suspected" | verify | /verify | Check internal consistency |
 | "Completeness uncertain" | audit | /audit | Review for missing cases |
 | "Level 3 achieved" | verify | /sync-check | Final cross-document verification |
@@ -255,7 +265,7 @@ When /assess recommends "Technical decision needed":
 /debate "topic"
   → conclusion
   → /adjudicate (evaluate feasibility, over-engineering, evidence quality)
-    → ACCEPT → update draft with conclusion → /verify
+    → ACCEPT → Edit draft.md with conclusion → /verify
     → EXTEND N/3 → preparation brief → research → /debate (next round)
                     → /adjudicate again (loop, max 3 extensions)
     → ACCEPT WITH RESERVATIONS → update draft + list caveats → /verify
@@ -272,37 +282,35 @@ If /debate reports [DEBATE DEADLOCK] instead of a conclusion:
 4. Run /adjudicate on the USER's decision (verify feasibility, scope, etc.)
 5. If adjudicate rejects → present feedback to user, ask to reconsider
 
-### Version Management
+### File Structure
 
-Every draft version is preserved. Never overwrite.
 ```
 .bts/state/{id}/
-├── manifest.json            # Document relationships
-├── changelog.jsonl           # Every action logged
+├── recipe.json
+├── manifest.json
+├── changelog.jsonl
+├── verify-log.jsonl
+├── scope.md
 ├── research/v1.md
-├── drafts/
-│   ├── v1.md                # Initial draft
-│   ├── v2.md                # After debate-001
-│   ├── v3.md                # After simulation gaps
-│   └── v4.md                # After audit items
+├── draft.md                  # Single file, Edit-based
+├── verification.md            # Single file, overwritten each cycle
 ├── debates/001-topic/
 │   ├── meta.json
 │   ├── round-1.md
 │   └── round-2.md
 ├── simulations/001-scenarios.md
-├── verifications/draft-v1.md
 └── final.md
 ```
 
-After each action, update manifest.json:
-```bash
-bts recipe log {id} --action [type] --output [path] --based-on [deps]
-```
+After each action:
+- **Changelog**: `bts recipe log {id} --action [type] --output [path]`
+- **Manifest relationships** (incorporates, resolves, verified_by): Edit `manifest.json` directly.
+  The CLI creates/updates document entries but cannot set relationship fields.
 
 ### Finalization
 
 When /assess declares Level 3 achieved AND /sync-check passes:
-1. Copy current draft to `final.md`
+1. Copy `draft.md` to `final.md`
 2. Output `<bts>DONE</bts>`
 3. Stop hook will verify:
    - verify-log last entry: critical=0, major=0

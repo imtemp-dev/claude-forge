@@ -5,10 +5,10 @@ paths:
 
 # BTS Document Management
 
-## Version Rule
-**Never overwrite a draft.** Always create a new version:
-- `drafts/v1.md` → `drafts/v2.md` → `drafts/v3.md` → ...
-- Previous versions are preserved for reference and traceability.
+## Draft File
+A single `draft.md` is maintained at the recipe root. Use Edit-based
+incremental modifications instead of rewriting the full file. The draft
+is written once (Write), then edited in place (Edit) for each improvement cycle.
 
 ## Mandatory Verification
 **Every document modification triggers /verify.** No exceptions.
@@ -28,7 +28,7 @@ Actions: research, draft, improve, verify, debate, simulate, audit, assess, sync
 - `based_on`: which documents this was derived from
 - `incorporates`: which debate conclusions are included
 - `resolves`: which simulation gaps are addressed
-- `verified_by`: which verification document confirmed this
+- `verified_by`: verification document path (always `verification.md`)
 
 ## Sync Rule
 Before finalizing, run `/sync-check` to verify:
@@ -55,8 +55,7 @@ to reflect actual implementation:
 3. **Track in manifest**: Register `final.pre-sync.md` as type "draft" and update `final.md` entry
 4. **Record deviations**: All differences go to `deviation.md`
 
-This is the ONE exception to the "never overwrite" rule — `final.md` is a living
-document that bridges spec and implementation.
+This is consistent with `draft.md` — both are edited in place as living documents.
 
 ## Follow-up Lifecycle
 
@@ -76,12 +75,12 @@ because it spans multiple recipes.
 
 ## Naming Conventions
 ```
-research/v1.md                    # Research version 1
-drafts/v1.md ~ vN.md             # Draft versions
+research/v1.md                    # Research document
+draft.md                          # Single draft, Edit-based
+verification.md                   # Single verification, overwritten each cycle
 debates/001-topic-name/           # Debate by sequence + topic
   round-1.md, round-2.md, ...
 simulations/001-category.md       # Simulation by sequence + category
-verifications/draft-vN.md         # Verification for specific draft
 final.md                          # Final verified document
 final.pre-sync.md                 # Original final.md before sync
 tasks.json                        # Implementation tasks

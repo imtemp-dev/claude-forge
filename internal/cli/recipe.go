@@ -45,7 +45,9 @@ var recipeStatusCmd = &cobra.Command{
 		fmt.Printf("  Topic:        %s\n", recipe.Topic)
 		fmt.Printf("  Phase:        %s\n", recipe.Phase)
 		fmt.Printf("  Iteration:    %d\n", recipe.Iteration)
-		fmt.Printf("  Draft:        v%d\n", recipe.DraftVersion)
+		if recipe.DraftVersion > 0 {
+			fmt.Printf("  Draft:        v%d\n", recipe.DraftVersion)
+		}
 		fmt.Printf("  Level:        %.1f\n", recipe.Level)
 		fmt.Printf("  Started:      %s\n", recipe.StartedAt)
 		fmt.Printf("  Updated:      %s\n", recipe.UpdatedAt)

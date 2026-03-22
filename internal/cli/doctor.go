@@ -301,6 +301,7 @@ func checkManifestConsistency(recipeDir string, manifest *state.Manifest) []doct
 	knownFiles := []string{
 		"scope.md", "final.md", "tasks.json", "test-results.json",
 		"deviation.md", "diagnosis.md", "fix-spec.md", "perspectives.md", "review.md",
+		"draft.md", "verification.md",
 	}
 	for _, name := range knownFiles {
 		fullPath := filepath.Join(recipeDir, name)

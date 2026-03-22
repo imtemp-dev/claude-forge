@@ -37,7 +37,8 @@ Use settings values if present, otherwise use defaults noted in each step.
    ```
    - If phase is "finalize" → fresh start, go to Step 1
    - If phase is "implement" → resume from tasks.json (Step 3)
-   - If phase is "test" → skip to Step 5 (test already started, check results)
+   - If phase is "test" → skip to Step 5 (check test results, then review)
+   - If phase is "review" → skip to Step 5.5 (review)
    - If phase is "sync" → skip to Step 6
    - If phase is "status" → skip to Step 7
 
@@ -193,7 +194,7 @@ Review task status:
 ## Step 5: Test
 
 Check if test-results.json already exists with status `"pass"`:
-- If yes → skip testing, go to Step 6
+- If yes → skip testing, go to Step 5.5 (Review)
 
 Update phase and run tests:
 ```bash
@@ -205,12 +206,31 @@ The test skill will read final.md for test scenarios and tasks.json
 for the list of implemented files.
 
 **If tests fail** (bts-test does not output `<bts>TESTS PASS</bts>`):
-- Do NOT proceed to sync. Stop here.
+- Do NOT proceed to review. Stop here.
 - Report: "Tests failed. Fix implementation and re-run /implement {id} to retry from Step 5."
 - The recipe stays in phase "test" for resume.
 
-> After tests pass, consider running `/bts-review` for code quality check.
-> Optional but recommended. Use `/bts-review security` for security-focused review.
+## Step 5.5: Review
+
+Update phase:
+```bash
+bts recipe log {id} --phase review
+```
+
+Run /bts-review (full mode, no arguments — uses tasks.json for scope).
+
+After review.md is generated, read it and fix all [ACTIONABLE] critical
+and major items:
+- For each [ACTIONABLE] finding, modify the code to address it
+- After all fixes, re-run tests (Step 5 test command)
+- If tests fail after review fixes → fix tests → re-test
+- Do NOT re-run /review after fixes (review runs once per implementation)
+
+If no actionable items → proceed directly to Step 6.
+
+```bash
+bts recipe log {id} --action review --output review.md --result "N critical, N major (N actionable)"
+```
 
 ## Step 6: Sync
 
@@ -238,6 +258,7 @@ Use Skill("bts-status") with arguments: {id}
 When all steps are done:
 - Verify tasks.json shows all tasks as `done` or `skipped`
 - Verify no `blocked` tasks remain (all resolved or skipped)
+- Verify review.md exists (review has run)
 - Output `<bts>IMPLEMENT DONE</bts>`
 
 If unresolved blocked tasks remain:

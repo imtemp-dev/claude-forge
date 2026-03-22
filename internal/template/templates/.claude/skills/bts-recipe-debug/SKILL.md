@@ -22,14 +22,15 @@ Before starting:
 2. Set `ref_recipe` in recipe.json to the most relevant recipe ID
 3. Read related recipe's final.md → original design intent
 4. Check deviation.md → known spec-code differences
-5. Scan codebase for files likely related to the symptom
+5. Check review.md from related recipes → quality issues that may be related
+6. Scan codebase for files likely related to the symptom
 
 ## Resume Check
 
 ```bash
 bts recipe status
 ```
-If active debug recipe found, read perspectives.md and current draft to resume.
+If active debug recipe found, read perspectives.md and draft.md to resume.
 
 ## Step 1: Collect Perspectives
 
@@ -112,7 +113,7 @@ Produce ranked hypotheses:
 
 ## Step 3: Draft Fix Spec
 
-Based on the top hypothesis, create `.bts/state/recipes/{id}/drafts/v1.md`:
+Based on the top hypothesis, create `.bts/state/recipes/{id}/draft.md`:
 
 ```markdown
 # Debug Fix: {symptom}
@@ -148,21 +149,21 @@ For each file to modify:
 Apply **Draft Self-Check** before saving (same checklist as blueprint).
 
 ```bash
-bts recipe log {id} --phase draft --action draft --output drafts/v1.md
+bts recipe log {id} --phase draft --action draft --output draft.md
 ```
 
 ## Step 4: Simulate
 
-Use Skill("bts-simulate") on drafts/v1.md:
+Use Skill("bts-simulate") on draft.md:
 - Does the fix resolve the original symptom?
 - Does it handle all evidence from perspectives?
 - Does it break anything identified in the impact map (perspective 1.6)?
 
-If gaps found → update draft → re-simulate.
+If gaps found → Edit draft.md → /verify → re-simulate.
 
 ## Step 5: Expert Review (1 round)
 
-Run a focused 1-round debate on drafts/v1.md.
+Run a focused 1-round debate on draft.md.
 Choose 3 experts matching the relevant perspectives:
 - e.g., Security Expert (if auth-related), Data Expert (if DB-related),
   Ops Expert (if config/runtime-related)
@@ -186,7 +187,7 @@ Run /bts-verify on the current draft:
 - Are edge cases covered?
 - Does the evidence support the conclusion?
 
-If issues found → update draft (new version) → re-verify.
+If issues found → Edit draft.md → re-verify.
 Max `verify.max_iterations` (default: 3) → [CONVERGENCE FAILED] → ask user.
 
 ```bash
@@ -201,7 +202,7 @@ bts recipe log {id} --iteration N --critical X --major Y --minor Z
 ## Step 7: Finalize
 
 When verify shows critical=0, major=0:
-1. Copy current draft to `final.md`
+1. Copy `draft.md` to `final.md`
 2. Output `<bts>DONE</bts>`
 
 Stop hook validates verify-log → phase=finalize.

@@ -20,7 +20,7 @@ Verify all documents are consistent with each other.
    ```
    This checks manifest.json for unverified drafts, unincorporated debates, unresolved gaps.
 
-2. Additionally, read the current draft and manually check:
+2. Additionally, read `draft.md` and manually check:
    - Do debate conclusions match what's written in the draft?
    - Are simulation-found gaps actually addressed (not just mentioned)?
    - If code exists, does the spec match the code?
@@ -31,15 +31,15 @@ Verify all documents are consistent with each other.
    ## Sync Check Results
 
    ### Debates
-   - debate-001 "OAuth2 vs JWT": ✓ reflected in draft/v3
-   - debate-002 "Session store": ✗ NOT in current draft
+   - debate-001 "OAuth2 vs JWT": ✓ reflected in draft.md
+   - debate-002 "Session store": ✗ NOT in draft.md
 
    ### Simulations
-   - simulation-001 gap #1: ✓ resolved in draft/v4
+   - simulation-001 gap #1: ✓ resolved in draft.md
    - simulation-001 gap #3: ✗ STILL OPEN
 
    ### Verifications
-   - draft/v5: ✗ NOT VERIFIED (verify was not run after last change)
+   - draft.md: ✗ NOT VERIFIED (verify was not run after last change)
 
    ### Code (if exists)
    - src/auth/oauth.ts: ✓ matches spec

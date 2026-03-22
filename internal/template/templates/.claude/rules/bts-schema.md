@@ -12,48 +12,45 @@ After creating or modifying any JSON file, run `bts validate` to verify complian
 
 ```json
 {
-  "current_draft": "drafts/v3.md",
+  "current_draft": "draft.md",
   "level": 2.5,
   "documents": {
     "research/v1.md": {
       "type": "research",
-      "created_at": "2026-03-18T10:00:00Z",
-      "based_on": [],
-      "verified_by": ""
+      "created_at": "2026-03-18T10:00:00Z"
     },
-    "drafts/v1.md": {
+    "draft.md": {
       "type": "draft",
       "created_at": "2026-03-18T10:30:00Z",
       "based_on": ["research/v1.md"],
       "incorporates": ["debates/001-auth-strategy"],
-      "verified_by": "verifications/draft-v1.md"
+      "verified_by": "verification.md"
+    },
+    "verification.md": {
+      "type": "verification",
+      "created_at": "2026-03-18T10:35:00Z"
     },
     "debates/001-auth-strategy": {
       "type": "debate",
       "created_at": "2026-03-18T11:00:00Z",
-      "based_on": ["drafts/v1.md"]
+      "based_on": ["draft.md"]
     },
     "simulations/001-scenarios.md": {
       "type": "simulation",
       "created_at": "2026-03-18T12:00:00Z",
-      "based_on": ["drafts/v2.md"],
-      "resolves": []
-    },
-    "verifications/draft-v1.md": {
-      "type": "verification",
-      "created_at": "2026-03-18T10:35:00Z"
+      "based_on": ["draft.md"]
     }
   }
 }
 ```
 
 Required fields:
-- `current_draft` (string): path to current draft version
+- `current_draft` (string): path to the draft file (always `"draft.md"`)
 - `level` (number): document level 0.0-3.0
 - `documents` (object): keys are file paths, values are DocumentEntry objects
 
 DocumentEntry required fields:
-- `type` (string): one of "research", "draft", "debate", "simulation", "verification", "implementation", "test-result", "deviation"
+- `type` (string): one of "research", "draft", "debate", "simulation", "verification", "implementation", "test-result", "deviation", "review"
 - `created_at` (string): ISO 8601 timestamp
 
 DocumentEntry optional fields:
@@ -71,7 +68,6 @@ DocumentEntry optional fields:
   "topic": "OAuth2 authentication",
   "phase": "verify",
   "iteration": 2,
-  "draft_version": 3,
   "level": 2.5,
   "started_at": "2026-03-18T10:00:00Z",
   "updated_at": "2026-03-18T12:00:00Z"
@@ -82,9 +78,8 @@ Required fields:
 - `id` (string): unique recipe identifier
 - `type` (string): "analyze", "design", "blueprint", "fix", or "debug"
 - `topic` (string): what the recipe is about
-- `phase` (string): current phase — "scoping", "research", "draft", "assess", "improve", "verify", "debate", "simulate", "audit", "finalize", "cancelled", "implement", "test", "sync", "status", "complete"
+- `phase` (string): current phase — "scoping", "research", "draft", "assess", "improve", "verify", "debate", "simulate", "audit", "finalize", "cancelled", "implement", "test", "review", "sync", "status", "complete"
 - `iteration` (number): current verify iteration count
-- `draft_version` (number): current draft version number
 - `level` (number): assessed document level 0.0-3.0
 - `started_at` (string): ISO 8601 timestamp
 - `updated_at` (string): ISO 8601 timestamp
@@ -109,9 +104,9 @@ Each line is a JSON object:
 
 ```json
 {"time":"2026-03-18T10:00:00Z","action":"research","output":"research/v1.md"}
-{"time":"2026-03-18T10:30:00Z","action":"draft","output":"drafts/v1.md","based_on":["research/v1.md"]}
-{"time":"2026-03-18T10:35:00Z","action":"verify","input":"drafts/v1.md","result":"2 critical, 3 major"}
-{"time":"2026-03-18T11:00:00Z","action":"improve","output":"drafts/v2.md","based_on":["drafts/v1.md"],"incorporates":["debates/001"]}
+{"time":"2026-03-18T10:30:00Z","action":"draft","output":"draft.md","based_on":["research/v1.md"]}
+{"time":"2026-03-18T10:35:00Z","action":"verify","input":"draft.md","result":"2 critical, 3 major"}
+{"time":"2026-03-18T11:00:00Z","action":"improve","output":"draft.md","incorporates":["debates/001"]}
 {"time":"2026-03-18T11:30:00Z","action":"debate","output":"debates/001-auth","result":"concluded: OAuth2"}
 {"time":"2026-03-18T12:00:00Z","action":"simulate","output":"simulations/001.md","result":"4 gaps found"}
 {"time":"2026-03-18T12:30:00Z","action":"assess","result":"Level 2.5","level":2.5}

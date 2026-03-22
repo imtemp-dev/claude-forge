@@ -20,7 +20,8 @@ Before starting, build situational awareness:
 2. Set `ref_recipe` in recipe.json to the most relevant recipe ID
 3. For each related recipe, read its final.md → understand design intent
 4. Check deviation.md → known issues that may be relevant
-5. Scan codebase for files mentioned in the bug report
+5. Check review.md from related recipes → known quality/security issues
+6. Scan codebase for files mentioned in the bug report
 
 ## Resume Check
 
@@ -172,14 +173,29 @@ Run existing test suite + add regression test from fix-spec.md's
 bts recipe log {id} --phase test --action test --output test-results.json --result "N/N passed"
 ```
 
+## Step 7.5: Review
+
+Update phase:
+```bash
+bts recipe log {id} --phase review
+```
+
+Run /bts-review with the files from fix-spec.md's "Changes" section:
+```bash
+# Extract file paths from fix-spec.md Changes section and pass as arguments
+/bts-review [file1] [file2] ...
+```
+
+After review.md is generated, fix [ACTIONABLE] critical and major items.
+Re-test if code was modified.
+
+```bash
+bts recipe log {id} --action review --output review.md --result "N critical, N major"
+```
+
 ## Step 8: Complete
 
-When tests pass:
-
-> If this fix involved security, authentication, data handling, or resource
-> management, consider running `/bts-review` to scan for similar patterns
-> elsewhere in the codebase. The root cause found in this fix may exist
-> in other files.
+When tests pass and review is done:
 
 1. Run Skill("bts-status") with arguments: {id}
    This updates project-status.md and project-map with the fix changes.

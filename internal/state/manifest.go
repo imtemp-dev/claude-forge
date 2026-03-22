@@ -46,10 +46,21 @@ func SaveManifest(btsRoot, recipeID string, m *Manifest) error {
 	return WriteJSON(path, m)
 }
 
-// AddDocument registers a new document in the manifest.
+// AddDocument registers a new document or updates an existing one (upsert).
+// If the document already exists, relationship fields (Incorporates, Resolves,
+// VerifiedBy) are preserved. This is critical for single-file documents like
+// draft.md that are edited in place across multiple iterations.
 func (m *Manifest) AddDocument(path string, docType string, basedOn []string) {
 	if m.Documents == nil {
 		m.Documents = make(map[string]DocumentEntry)
+	}
+	if existing, ok := m.Documents[path]; ok {
+		// Preserve relationship fields; only update basedOn if provided
+		if len(basedOn) > 0 {
+			existing.BasedOn = basedOn
+		}
+		m.Documents[path] = existing
+		return
 	}
 	m.Documents[path] = DocumentEntry{
 		Type:      docType,
