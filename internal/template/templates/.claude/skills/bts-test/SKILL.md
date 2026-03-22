@@ -30,8 +30,11 @@ Read `.bts/config/settings.yaml` for project-specific limits.
 ## Resume
 
 If test-results.json already exists:
-- If status is `"pass"` → tests already passed, output `<bts>TESTS PASS</bts>` and exit
-- If status is `"fail"` → previous run failed. Read failures and continue from Step 3
+- Skip Steps 1-2 (test scenarios already extracted, test code already generated)
+- Go directly to Step 3 (always re-run tests — code may have changed since last run)
+- If status was `"fail"` → read previous failures for context before re-running
+
+If test-results.json does not exist → start from Step 1
 
 ## Step 1: Extract Test Scenarios
 
@@ -55,6 +58,24 @@ For each test scenario from final.md:
 4. Include setup/teardown as needed
 
 Test files go in the project's test directory (not in `.bts/`).
+
+## Step 2.5: Test Coverage Check
+
+Before running tests, verify that generated tests cover the spec:
+
+1. For each test scenario in final.md, confirm a test case exists:
+   - Match scenario name/description to test case name
+   - If scenario has no matching test → generate the missing test
+
+2. For each test case, verify assertions are meaningful:
+   - Tests with no assertions → add assertions
+   - Tests that only check "no error" → add value assertions
+   - Tests that always pass (trivial) → fix to test actual behavior
+
+3. Cross-check: do test edge cases match spec edge cases?
+
+This step runs only on first invocation (when Steps 1-2 also run).
+On resume (Steps 1-2 skipped), this step is also skipped.
 
 ## Step 3: Execution Loop
 

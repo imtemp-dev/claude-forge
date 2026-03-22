@@ -61,5 +61,62 @@ echo '{"iteration":2,"critical":0,"major":0,"minor":1,"status":"converged","time
 RESULT=$(echo '{"session_id":"t","cwd":"'"$TEST_DIR"'","hook_event_name":"stop","content":"<bts>DONE</bts>"}' | $BTS hook stop 2>&1; echo "EXIT:$?")
 echo "$RESULT" | grep -q "EXIT:0" && echo "✓ 12. stop hook allows (converged)" || { echo "✗ 12. stop allow"; exit 1; }
 
+# --- IMPLEMENT DONE stop hook tests ---
+# Setup: impl-001 recipe with all artifacts except review.md
+mkdir -p .bts/state/recipes/impl-001
+echo '{"id":"impl-001","type":"blueprint","topic":"Auth","phase":"status","iteration":1,"level":3.0,"started_at":"2026-03-18T00:00:00Z","updated_at":"2026-03-18T00:00:00Z"}' > .bts/state/recipes/impl-001/recipe.json
+echo '{"recipe_id":"impl-001","started_at":"2026-03-18T00:00:00Z","updated_at":"2026-03-18T00:00:00Z","tasks":[{"id":"t-001","file":"src/auth.ts","action":"create","status":"done","description":"auth","depends_on":[],"retry_count":0,"last_error":""}]}' > .bts/state/recipes/impl-001/tasks.json
+echo '{"recipe_id":"impl-001","run_at":"2026-03-18T00:00:00Z","framework":"jest","iterations":1,"status":"pass","total":5,"passed":5,"failed":0,"skipped":0}' > .bts/state/recipes/impl-001/test-results.json
+echo "# Deviation Report" > .bts/state/recipes/impl-001/deviation.md
+
+# 13. IMPLEMENT DONE — BLOCK (no review.md)
+RESULT=$(echo '{"session_id":"t","cwd":"'"$TEST_DIR"'","hook_event_name":"stop","content":"<bts>IMPLEMENT DONE</bts>"}' | $BTS hook stop 2>&1; echo "EXIT:$?")
+echo "$RESULT" | grep -q "EXIT:2" && echo "✓ 13. IMPLEMENT DONE blocks (no review.md)" || { echo "✗ 13. IMPL DONE no review"; exit 1; }
+
+# 14. IMPLEMENT DONE — ALLOW (add review.md)
+echo "# Code Review" > .bts/state/recipes/impl-001/review.md
+RESULT=$(echo '{"session_id":"t","cwd":"'"$TEST_DIR"'","hook_event_name":"stop","content":"<bts>IMPLEMENT DONE</bts>"}' | $BTS hook stop 2>&1; echo "EXIT:$?")
+echo "$RESULT" | grep -q "EXIT:0" && echo "✓ 14. IMPLEMENT DONE allows (all present)" || { echo "✗ 14. IMPL DONE allow"; exit 1; }
+
+# --- FIX DONE stop hook tests ---
+# Setup: fix-001 recipe
+mkdir -p .bts/state/recipes/fix-001
+echo '{"id":"fix-001","type":"fix","topic":"Login bug","phase":"test","iteration":1,"level":0,"started_at":"2026-03-18T00:00:00Z","updated_at":"2026-03-18T00:00:00Z","ref_recipe":"test-001"}' > .bts/state/recipes/fix-001/recipe.json
+
+# 15. FIX DONE — BLOCK (no fix-spec.md)
+echo '{"recipe_id":"fix-001","run_at":"2026-03-18T00:00:00Z","framework":"jest","iterations":1,"status":"pass","total":3,"passed":3,"failed":0,"skipped":0}' > .bts/state/recipes/fix-001/test-results.json
+RESULT=$(echo '{"session_id":"t","cwd":"'"$TEST_DIR"'","hook_event_name":"stop","content":"<bts>FIX DONE</bts>"}' | $BTS hook stop 2>&1; echo "EXIT:$?")
+echo "$RESULT" | grep -q "EXIT:2" && echo "✓ 15. FIX DONE blocks (no fix-spec.md)" || { echo "✗ 15. FIX DONE no spec"; exit 1; }
+
+# 16. FIX DONE — ALLOW (add fix-spec.md)
+echo "# Fix Spec" > .bts/state/recipes/fix-001/fix-spec.md
+RESULT=$(echo '{"session_id":"t","cwd":"'"$TEST_DIR"'","hook_event_name":"stop","content":"<bts>FIX DONE</bts>"}' | $BTS hook stop 2>&1; echo "EXIT:$?")
+echo "$RESULT" | grep -q "EXIT:0" && echo "✓ 16. FIX DONE allows (spec + tests pass)" || { echo "✗ 16. FIX DONE allow"; exit 1; }
+
+# --- Session-start hook tests ---
+# Cancel completed recipes so they don't interfere
+echo '{"id":"impl-001","type":"blueprint","topic":"Auth","phase":"complete","iteration":1,"level":3.0,"started_at":"2026-03-18T00:00:00Z","updated_at":"2026-03-18T00:00:00Z"}' > .bts/state/recipes/impl-001/recipe.json
+echo '{"id":"fix-001","type":"fix","topic":"Login bug","phase":"complete","iteration":1,"level":0,"started_at":"2026-03-18T00:00:00Z","updated_at":"2026-03-18T00:00:00Z"}' > .bts/state/recipes/fix-001/recipe.json
+
+# 17. Session-start — review phase → /bts-implement hint
+mkdir -p .bts/state/recipes/ss-001
+echo '{"id":"ss-001","type":"blueprint","topic":"API","phase":"review","iteration":1,"level":3.0,"started_at":"2026-03-18T00:00:00Z","updated_at":"2026-03-18T00:00:00Z"}' > .bts/state/recipes/ss-001/recipe.json
+RESULT=$(echo '{"session_id":"t","cwd":"'"$TEST_DIR"'","hook_event_name":"session_start"}' | $BTS hook session-start 2>&1)
+echo "$RESULT" | grep -q "bts-implement" && echo "✓ 17. session-start (review phase → /bts-implement)" || { echo "✗ 17. session-start review"; exit 1; }
+
+# 18. Session-start — finalized recipe → /bts-implement hint
+echo '{"id":"ss-001","type":"blueprint","topic":"API","phase":"finalize","iteration":1,"level":3.0,"started_at":"2026-03-18T00:00:00Z","updated_at":"2026-03-18T00:00:00Z"}' > .bts/state/recipes/ss-001/recipe.json
+RESULT=$(echo '{"session_id":"t","cwd":"'"$TEST_DIR"'","hook_event_name":"session_start"}' | $BTS hook session-start 2>&1)
+echo "$RESULT" | grep -q "bts-implement" && echo "✓ 18. session-start (finalized → /bts-implement)" || { echo "✗ 18. session-start finalize"; exit 1; }
+
+# --- Validation tests ---
+# 19. Validate — review phase accepted
+echo '{"id":"ss-001","type":"blueprint","topic":"API","phase":"review","iteration":1,"level":3.0,"started_at":"2026-03-18T00:00:00Z","updated_at":"2026-03-18T00:00:00Z"}' > .bts/state/recipes/ss-001/recipe.json
+$BTS validate 2>&1 | grep -qv "invalid.*phase" && echo "✓ 19. validate accepts phase=review" || { echo "✗ 19. validate review phase"; exit 1; }
+
+# 20. Validate — review document type accepted
+echo '{"current_draft":"draft.md","level":2.0,"documents":{"review.md":{"type":"review","created_at":"2026-03-18T00:00:00Z"}}}' > .bts/state/recipes/ss-001/manifest.json
+$BTS validate 2>&1 | grep -qv "invalid.*type" && echo "✓ 20. validate accepts type=review" || { echo "✗ 20. validate review type"; exit 1; }
+
 echo ""
-echo "=== All 12 tests passed ==="
+echo "=== All 20 tests passed ==="

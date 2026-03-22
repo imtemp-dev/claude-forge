@@ -25,8 +25,10 @@ Parse $ARGUMENTS:
 **File scope:**
 If inside a recipe (tasks.json exists):
 - Read tasks.json for the list of implemented files
+- If test-results.json exists, also include files from `test_files` in scope.
+  Test code quality matters: correct assertions, realistic mocks, test isolation.
 - If file scope given → filter to matching files
-- If no scope → review all files from tasks.json
+- If no scope → review all files from tasks.json + test files
 
 If inside a recipe but no tasks.json (fix recipe):
 - Read fix-spec.md "Changes" section for file paths

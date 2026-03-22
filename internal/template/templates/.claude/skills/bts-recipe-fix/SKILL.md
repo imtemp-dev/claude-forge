@@ -166,11 +166,28 @@ bts recipe log {id} --phase implement --action implement --result "N files modif
 
 Run existing test suite + add regression test from fix-spec.md's
 "Regression Test" section:
-- If all pass → Step 8
+- If all pass → Step 7.3 (Simulate)
 - If fail → re-examine fix-spec.md (back to Step 5)
 
 ```bash
 bts recipe log {id} --phase test --action test --output test-results.json --result "N/N passed"
+```
+
+## Step 7.3: Simulate
+
+Run /bts-simulate code to verify the fix covers all paths:
+```bash
+/bts-simulate code
+```
+
+Focus on: does the fix handle all edge cases from fix-spec.md?
+Are there code paths where the original bug could still occur?
+
+If gaps found → fix code → re-test.
+If tests fail after simulate fixes → fix tests → re-test.
+
+```bash
+bts recipe log {id} --action simulate --result "N scenarios, N gaps"
 ```
 
 ## Step 7.5: Review

@@ -1,18 +1,113 @@
 ---
 name: bts-simulate
 description: >
-  Walk through scenarios against a spec document to find gaps, unconsidered
-  cases, and incorrect assumptions. Like testing code, but testing the document.
+  Walk through scenarios to find gaps and incorrect assumptions.
+  Document mode: test a spec document. Code mode: test implemented code
+  against its spec. Both use scenario-based walkthrough.
 user-invocable: true
-allowed-tools: Read Write Agent
-argument-hint: "[file-path]"
+allowed-tools: Read Write Agent Grep Glob
+argument-hint: "[file-path] or code"
 ---
 
-# Document Simulation
+# Simulation
+
+Run scenarios to find what's missing or wrong: $ARGUMENTS
+
+## Mode Detection
+
+Parse $ARGUMENTS:
+- If first word is `code` → **Code Simulation** (see below)
+- Otherwise → **Document Simulation** (spec walkthrough)
+
+---
+
+## Code Simulation
+
+Simulate against implemented code to verify all paths are covered.
+
+### Step 1: Identify Code Files and Spec
+
+If tasks.json exists (implement recipe):
+- Read tasks.json for implemented file list
+- Read final.md for expected behavior and test scenarios
+
+If no tasks.json (fix recipe):
+- Read fix-spec.md "Changes" section for file paths
+- Read fix-spec.md for expected behavior
+
+### Step 2: Read Code
+
+Read each implemented code file completely. Build a mental model of:
+- All functions and their call graph
+- All branches (if/else, switch, error returns)
+- All error handling paths
+- All external calls (DB, API, file I/O)
+
+### Step 3: Design Scenarios
+
+Design `simulate.min_scenarios` (default: 5) scenarios from the spec:
+- **Happy path**: Normal flow through the code end-to-end
+- **Error paths**: Each error return, exception, failure mode
+- **Edge cases**: Boundary values, empty input, null, concurrent access
+- **Security**: Injection, auth bypass, data exposure
+- **Integration**: Cross-file interactions, dependency failures
+
+### Step 4: Walk Through Code
+
+For each scenario, trace the actual code path:
+```
+Scenario: [name]
+Entry: [function/handler]
+Step 1: [input] → code path: [function:line] → result: [X] ✓
+Step 2: [action] → code path: [function:line] → **GAP: no handling for [Y]**
+Step 3: [action] → code path: [function:line] → **ISSUE: spec says [A], code does [B]**
+```
+
+Additionally, for each scenario:
+- Check if a test exists that exercises this code path
+- If no test found → flag as **COVERAGE GAP**: "No test for scenario: [name]"
+- Coverage gaps should be addressed by adding tests before re-running
+
+Spawn Agent(simulator) for deeper analysis:
+```
+Read the code files [list] and spec at [final.md/fix-spec.md].
+For each scenario [list], trace through the actual code paths.
+At each step, check:
+- Does the code handle this case?
+- If handled, does it match the spec's expected behavior?
+- If not handled, this is a GAP.
+- Is there a test that covers this scenario? If not, flag COVERAGE GAP.
+Report all GAPs, ISSUEs, and COVERAGE GAPs with severity and file:line references.
+```
+
+### Step 5: Classify and Report
+
+- **critical**: Code path leads to crash, data loss, or security issue
+- **major**: Important scenario not handled in code
+- **minor**: Edge case missing but unlikely in practice
+
+Save to `.bts/state/recipes/{id}/simulations/NNN-code.md`
+
+Log:
+```bash
+bts recipe log {id} --action simulate --result "N scenarios, N gaps (N critical)"
+```
+
+### After Code Simulation
+
+The implement/fix flow should:
+1. Fix the code to address GAPs and ISSUEs
+2. Add tests for any COVERAGE GAPs found
+3. Re-run tests: use Skill("bts-test") (mandatory after fixes)
+4. Do NOT re-run simulation (runs once per implementation)
+
+---
+
+## Document Simulation
 
 Run scenarios against the spec to find what's missing or wrong.
 
-## Protocol
+### Protocol
 
 1. Read the target document fully.
 
@@ -54,7 +149,7 @@ Run scenarios against the spec to find what's missing or wrong.
    bts recipe log {id} --action simulate --gaps N
    ```
 
-## Output Format
+### Output Format
 
 ```markdown
 # Simulation: [document name]
@@ -78,7 +173,7 @@ Total scenarios: 5
 GAPs found: 4 (critical: 1, major: 2, minor: 1)
 ```
 
-## After Simulation
+### After Document Simulation
 
 The recipe's adaptive loop should:
 1. IMPROVE the spec to fill the gaps

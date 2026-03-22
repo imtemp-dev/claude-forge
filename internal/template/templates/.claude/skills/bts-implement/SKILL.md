@@ -37,7 +37,7 @@ Use settings values if present, otherwise use defaults noted in each step.
    ```
    - If phase is "finalize" → fresh start, go to Step 1
    - If phase is "implement" → resume from tasks.json (Step 3)
-   - If phase is "test" → skip to Step 5 (check test results, then review)
+   - If phase is "test" → skip to Step 5 (test)
    - If phase is "review" → skip to Step 5.5 (review)
    - If phase is "sync" → skip to Step 6
    - If phase is "status" → skip to Step 7
@@ -193,9 +193,6 @@ Review task status:
 
 ## Step 5: Test
 
-Check if test-results.json already exists with status `"pass"`:
-- If yes → skip testing, go to Step 5.5 (Review)
-
 Update phase and run tests:
 ```bash
 bts recipe log {id} --phase test
@@ -210,6 +207,30 @@ for the list of implemented files.
 - Report: "Tests failed. Fix implementation and re-run /implement {id} to retry from Step 5."
 - The recipe stays in phase "test" for resume.
 
+## Step 5.3: Simulate
+
+Run /bts-simulate code to verify all code paths are covered:
+```bash
+/bts-simulate code
+```
+
+This reads tasks.json for implemented files and final.md for expected
+scenarios, then walks through each scenario against the actual code.
+
+If simulation finds GAPs or ISSUEs:
+- Fix the code to address each finding
+- Add tests for any COVERAGE GAPs (missing test scenarios)
+- Re-run tests: use Skill("bts-test") with arguments: {id}
+  (bts-test skips generation, re-runs tests, updates test-results.json)
+- If tests fail → fix and let bts-test retry loop handle it
+- Do NOT re-run simulation (runs once per implementation)
+
+If no gaps → proceed to Step 5.5 (Review).
+
+```bash
+bts recipe log {id} --action simulate --result "N scenarios, N gaps"
+```
+
 ## Step 5.5: Review
 
 Update phase:
@@ -222,8 +243,9 @@ Run /bts-review (full mode, no arguments — uses tasks.json for scope).
 After review.md is generated, read it and fix all [ACTIONABLE] critical
 and major items:
 - For each [ACTIONABLE] finding, modify the code to address it
-- After all fixes, re-run tests (Step 5 test command)
-- If tests fail after review fixes → fix tests → re-test
+- After all fixes, re-run tests: use Skill("bts-test") with arguments: {id}
+  (bts-test skips generation, re-runs tests, updates test-results.json)
+- If tests fail → fix and let bts-test retry loop handle it
 - Do NOT re-run /review after fixes (review runs once per implementation)
 
 If no actionable items → proceed directly to Step 6.
