@@ -31,8 +31,15 @@ bts recipe status
 ```
 If active, check the phase to determine resume strategy:
 
-**If phase is `scoping`:** Follow the Scoping Loop "On resume" protocol below —
-read `scope.md` and re-present if Status is DRAFT, or skip to adaptive loop if CONFIRMED.
+**If phase is `scoping`:** Check vision/roadmap state first (in order):
+1. If `.bts/state/vision.md` exists with Status: DRAFT → re-present vision for confirmation.
+   After vision confirmed, check roadmap below.
+2. If `.bts/state/vision.md` CONFIRMED but `.bts/state/roadmap.md` missing →
+   go to Vision & Roadmap Check step 3b (create roadmap from confirmed vision).
+3. If `.bts/state/roadmap.md` exists with Status: DRAFT → re-present roadmap for confirmation.
+4. If scope.md exists → follow the Scoping Loop "On resume" protocol below —
+   re-present if Status is DRAFT, or skip to adaptive loop if CONFIRMED.
+5. If scope.md does not exist → go to Scoping Loop step 1 (start scoping with roadmap context).
 
 **If phase is any other (research, draft, verify, debate, etc.):** Resume with **minimum reads**:
 1. `changelog.jsonl` — last 5 entries only (determine current position in the loop)
@@ -85,6 +92,48 @@ ASSESS determines what to do next based on the document's current state.
 8. Run /assess to determine the next action
 
 **Refer to `.claude/rules/bts-schema.md` for exact JSON field names, types, and structures.**
+
+### Vision & Roadmap Check (before scoping)
+
+Before scoping, check for project-level planning documents:
+
+**1. Read existing vision/roadmap:**
+   - `.bts/state/vision.md` exists? → Read it.
+     - Status CONFIRMED → check roadmap.
+     - Status DRAFT → present vision for confirmation before proceeding.
+   - `.bts/state/roadmap.md` exists? → Read it. Find next pending `- [ ]` item.
+     - Both exist and CONFIRMED → set scope target from roadmap's next pending item.
+       Skip to Scoping Loop step 1 with context: "Roadmap item {N}/{total}: {description}"
+     - No pending items → all done. Ask user: "Roadmap complete. Add new items or start fresh?"
+   - Vision exists but no roadmap → go to step 3b (create roadmap from existing vision).
+
+**2. ASSESS_SIZE (only if no vision.md):**
+   Analyze the user's request **based on the description alone** (no codebase scan yet):
+   - Estimated files to create/modify
+   - Number of distinct independent subsystems
+   - Greenfield project? (check if project root has source files)
+
+   **Decision:**
+   | Condition | Action |
+   |-----------|--------|
+   | Greenfield + (files > `vision.size_threshold` (default: 15) OR 2+ independent subsystems) | Vision/Roadmap mandatory → step 3 |
+   | Existing project + small addition (files ≤ threshold, single subsystem) | SKIP → Scoping Loop |
+   | Ambiguous | Ask user: "This looks like a multi-recipe project. Create a vision/roadmap to decompose, or proceed as single recipe?" |
+
+**3. Create Vision & Roadmap:**
+   a. **Vision**: Draft purpose, users, core components, constraints, success criteria.
+      Write to `.bts/state/vision.md` with Status: DRAFT.
+      Present to user → confirm/adjust loop → Status: CONFIRMED.
+   b. **Roadmap**: Decompose vision into `vision.min_roadmap_items`~`vision.max_roadmap_items`
+      (default: 3~8) ordered items. Each item should be:
+      - Implementable in one recipe session
+      - Affecting a bounded set of files
+      - Independently testable
+      Write to `.bts/state/roadmap.md` with Status: DRAFT.
+      Present to user → confirm/adjust loop → Status: CONFIRMED.
+   c. Select first pending roadmap item as this recipe's scope target.
+
+**4. Proceed to Scoping Loop** with roadmap context (if any).
 
 ### Scoping (MANDATORY before adaptive loop)
 
@@ -139,6 +188,11 @@ bts recipe log {id} --phase scoping
    - Files to create/modify: ~N
    - Key challenges: [list]
 
+   ### Roadmap Reference (if roadmap exists)
+   - Item: {N} of {total} — "{description}"
+   - Prerequisites: {completed items or "none"}
+   - Next: "{next item description}"
+
    ### Status: DRAFT
    ```
 
@@ -156,7 +210,13 @@ bts recipe log {id} --phase scoping
    - If Status is DRAFT → present current scope and ask user to confirm/adjust
    - If Status is CONFIRMED → skip to adaptive loop
 
-**7. Log confirmation and transition phase**:
+**7. Register with roadmap** (if roadmap exists):
+   If this recipe's scope targets a roadmap item, annotate that item with the recipe ID.
+   Read `.bts/state/roadmap.md`, find the matching pending item, and add `(recipe: {id})`
+   if not already present. This links the recipe to its roadmap item so completion
+   tracking works correctly. Save roadmap.md.
+
+**8. Log confirmation and transition phase**:
    ```bash
    bts recipe log {id} --phase research --action research --output scope.md --result "scope confirmed"
    ```
@@ -181,8 +241,14 @@ If the user requests a fundamental direction change during the adaptive loop
    - If draft is partially valid → IMPROVE draft.md to align with new scope
 6. Resume adaptive loop
 
-**Trigger words**: "바꾸자", "변경", "pivot", "다른 방향", "scope change",
-or any user statement that contradicts the confirmed scope.
+If the direction change affects the vision:
+- Update `.bts/state/vision.md` with changes, set Status: DRAFT, re-confirm
+- Assess roadmap impact: which items are affected?
+- Update `.bts/state/roadmap.md` if items changed/added/removed
+
+**When to re-open**: Any user statement whose intent contradicts the confirmed
+scope — different technology, different boundaries, added/removed features,
+or a fundamental shift in approach. Judge by intent, not by keywords.
 
 ### Entering the Adaptive Loop
 

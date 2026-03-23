@@ -69,6 +69,13 @@ Deviations do NOT block completion. They are a report, not a gate.
 
 ## Global Documents
 
+`vision.md` (at `.bts/state/vision.md`) records the project's final product vision.
+Created during blueprint scoping when the project is greenfield or the feature is large.
+Status: DRAFT → CONFIRMED. Updatable on direction changes.
+
+`roadmap.md` (at `.bts/state/roadmap.md`) tracks ordered recipe decomposition.
+Each item maps to one recipe. Updated by `/bts-status` when recipes complete.
+
 `project-status.md` (at `.bts/state/project-status.md`) is a **derived global document**
 that aggregates state across all recipes. It is NOT tracked in per-recipe manifests
 because it spans multiple recipes.
@@ -92,4 +99,6 @@ review.md                         # Code review findings report
 perspectives.md                   # Debug: multi-perspective analysis
 project-map.md                    # Level 0: layer overview (auto-synced)
 layers/{name}.md                  # Level 1: layer detail (on-demand)
+vision.md                         # Product vision (project-level)
+roadmap.md                        # Ordered recipe decomposition (project-level)
 ```

@@ -119,5 +119,46 @@ $BTS validate 2>&1 | grep -qv "invalid.*phase" && echo "✓ 19. validate accepts
 echo '{"current_draft":"draft.md","level":2.0,"documents":{"review.md":{"type":"review","created_at":"2026-03-18T00:00:00Z"}}}' > .bts/state/recipes/ss-001/manifest.json
 $BTS validate 2>&1 | grep -qv "invalid.*type" && echo "✓ 20. validate accepts type=review" || { echo "✗ 20. validate review type"; exit 1; }
 
+# --- Vision/Roadmap tests ---
+# Cancel all active recipes so roadmap hint appears
+echo '{"id":"test-001","type":"blueprint","topic":"OAuth2","phase":"cancelled","iteration":1,"level":1.5,"started_at":"2026-03-18T00:00:00Z","updated_at":"2026-03-18T00:00:00Z"}' > .bts/state/recipes/test-001/recipe.json
+echo '{"id":"ss-001","type":"blueprint","topic":"API","phase":"cancelled","iteration":1,"level":3.0,"started_at":"2026-03-18T00:00:00Z","updated_at":"2026-03-18T00:00:00Z"}' > .bts/state/recipes/ss-001/recipe.json
+
+# 21. Session-start — roadmap exists, no active recipe → roadmap hint
+printf '# Roadmap\n\nStatus: CONFIRMED\nProgress: 1/3\n\n## Items\n\n- [x] Core models (recipe: test-001)\n- [ ] API endpoints (recipe: rm-001)\n- [ ] UI components\n' > .bts/state/roadmap.md
+RESULT=$(echo '{"session_id":"t","cwd":"'"$TEST_DIR"'","hook_event_name":"session_start"}' | $BTS hook session-start 2>&1)
+echo "$RESULT" | grep -q "Roadmap" && echo "✓ 21. session-start roadmap hint" || { echo "✗ 21. roadmap hint"; exit 1; }
+
+# 22. Session-start — roadmap shows next item
+echo "$RESULT" | grep -q "API endpoints" && echo "✓ 22. roadmap next item shown" || { echo "✗ 22. roadmap next item"; exit 1; }
+
+# 23. IMPLEMENT DONE with roadmap → completion shows roadmap progress
+mkdir -p .bts/state/recipes/rm-001
+echo '{"id":"rm-001","type":"blueprint","topic":"API endpoints","phase":"status","iteration":1,"level":3.0,"started_at":"2026-03-18T00:00:00Z","updated_at":"2026-03-18T00:00:00Z"}' > .bts/state/recipes/rm-001/recipe.json
+echo '{"recipe_id":"rm-001","started_at":"2026-03-18T00:00:00Z","updated_at":"2026-03-18T00:00:00Z","tasks":[{"id":"t-001","file":"src/api.ts","action":"create","status":"done","description":"api","depends_on":[],"retry_count":0,"last_error":""}]}' > .bts/state/recipes/rm-001/tasks.json
+echo '{"recipe_id":"rm-001","run_at":"2026-03-18T00:00:00Z","framework":"jest","iterations":1,"status":"pass","total":3,"passed":3,"failed":0,"skipped":0}' > .bts/state/recipes/rm-001/test-results.json
+echo "# Code Review" > .bts/state/recipes/rm-001/review.md
+echo "# Deviation Report" > .bts/state/recipes/rm-001/deviation.md
+RESULT=$(echo '{"session_id":"t","cwd":"'"$TEST_DIR"'","hook_event_name":"stop","content":"<bts>IMPLEMENT DONE</bts>"}' | $BTS hook stop 2>&1; echo "EXIT:$?")
+echo "$RESULT" | grep -q "EXIT:0" && echo "$RESULT" | grep -q "Roadmap" && echo "✓ 23. IMPLEMENT DONE roadmap hint" || { echo "✗ 23. impl done roadmap"; exit 1; }
+
+# 24. IMPLEMENT DONE marks roadmap item [x]
+grep -q '\[x\] API endpoints' .bts/state/roadmap.md && echo "✓ 24. roadmap item marked done" || { echo "✗ 24. roadmap mark done"; exit 1; }
+
+# 25. Roadmap nextItem is now "UI components" (not the completed one)
+echo "$RESULT" | grep -q "UI components" && echo "✓ 25. roadmap next item updated" || { echo "✗ 25. next item after complete"; exit 1; }
+
+# 26. Session-start — vision DRAFT hint (no active recipe)
+printf '# Vision\n\nStatus: DRAFT\n' > .bts/state/vision.md
+rm .bts/state/roadmap.md
+RESULT=$(echo '{"session_id":"t","cwd":"'"$TEST_DIR"'","hook_event_name":"session_start"}' | $BTS hook session-start 2>&1)
+echo "$RESULT" | grep -q "Vision" && echo "✓ 26. session-start vision DRAFT hint" || { echo "✗ 26. vision DRAFT hint"; exit 1; }
+
+# 27. Session-start — roadmap all done → "complete" hint
+rm -f .bts/state/vision.md
+printf '# Roadmap\n\nStatus: CONFIRMED\nProgress: 2/2\n\n## Items\n\n- [x] Core models (recipe: test-001)\n- [x] API endpoints (recipe: rm-001)\n' > .bts/state/roadmap.md
+RESULT=$(echo '{"session_id":"t","cwd":"'"$TEST_DIR"'","hook_event_name":"session_start"}' | $BTS hook session-start 2>&1)
+echo "$RESULT" | grep -q "complete" && echo "✓ 27. session-start roadmap complete hint" || { echo "✗ 27. roadmap complete"; exit 1; }
+
 echo ""
-echo "=== All 20 tests passed ==="
+echo "=== All 27 tests passed ==="

@@ -45,12 +45,11 @@ Read each implemented code file completely. Build a mental model of:
 
 ### Step 3: Design Scenarios
 
-Design `simulate.min_scenarios` (default: 5) scenarios from the spec:
-- **Happy path**: Normal flow through the code end-to-end
-- **Error paths**: Each error return, exception, failure mode
-- **Edge cases**: Boundary values, empty input, null, concurrent access
-- **Security**: Injection, auth bypass, data exposure
-- **Integration**: Cross-file interactions, dependency failures
+Design at least `simulate.min_scenarios` (default: 5) scenarios from the spec.
+Cover the full risk surface — think about what could go wrong, what could be
+misused, and what happens at boundaries. Typical concerns include normal flow,
+failure modes, edge cases, security, and cross-component interactions, but
+adapt the scenarios to what matters for this specific code.
 
 ### Step 4: Walk Through Code
 
@@ -111,12 +110,11 @@ Run scenarios against the spec to find what's missing or wrong.
 
 1. Read the target document fully.
 
-2. Design `simulate.min_scenarios` (default: 5) or more scenarios across these categories:
-   - **Happy path**: Normal successful flow end-to-end
-   - **Error/failure**: What happens when things break? Network down? Invalid input? Timeout?
-   - **Security**: What can a malicious user do? Injection? CSRF? Auth bypass?
-   - **Scale**: What happens with 10x, 100x, 1000x load? Concurrent access?
-   - **Edge cases**: Empty input, null, maximum size, unicode, boundary values?
+2. Design at least `simulate.min_scenarios` (default: 5) scenarios.
+   Cover the full risk surface for this specific document — think about what could
+   go wrong, what could be misused, what happens at boundaries, and what breaks
+   under load. Adapt the scenario categories to what matters for this spec rather
+   than following a fixed checklist.
 
 3. For each scenario, walk through the spec step by step:
    ```

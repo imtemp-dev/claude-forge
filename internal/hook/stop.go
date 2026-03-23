@@ -157,7 +157,8 @@ func (h *stopHandler) handleImplementDone(btsRoot string, recipe *state.RecipeSt
 	recipe.Phase = "complete"
 	_ = state.SaveRecipeState(btsRoot, recipe)
 
-	return &HookOutput{}, nil
+	state.MarkRoadmapItemDone(btsRoot, recipe.ID)
+	return roadmapHint(btsRoot, "Implementation complete."), nil
 }
 
 // handleFixDone validates fix recipe completion via fix-spec.md + test-results.json.
@@ -185,7 +186,25 @@ func (h *stopHandler) handleFixDone(btsRoot string, recipe *state.RecipeState) (
 	recipe.Phase = "complete"
 	_ = state.SaveRecipeState(btsRoot, recipe)
 
-	return &HookOutput{}, nil
+	state.MarkRoadmapItemDone(btsRoot, recipe.ID)
+	return roadmapHint(btsRoot, "Fix complete."), nil
+}
+
+// roadmapHint returns a HookOutput with roadmap progress if roadmap.md exists.
+func roadmapHint(btsRoot string, prefix string) *HookOutput {
+	done, total, nextItem := state.RoadmapProgress(btsRoot)
+	if total > 0 {
+		hint := fmt.Sprintf("Roadmap: %d/%d done.", done, total)
+		if nextItem != "" {
+			hint += fmt.Sprintf(" Next: %s", nextItem)
+		}
+		return &HookOutput{
+			HookSpecificOutput: &HookSpecificOutput{
+				AdditionalContext: fmt.Sprintf("[bts] %s %s", prefix, hint),
+			},
+		}
+	}
+	return &HookOutput{}
 }
 
 func blockOutput(reason string) *HookOutput {

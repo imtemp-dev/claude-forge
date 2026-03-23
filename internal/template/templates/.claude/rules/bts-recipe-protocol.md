@@ -61,3 +61,9 @@ After a recipe reaches `complete`, its deviation.md feeds the next cycle:
 - Not-implemented items → new recipe or manual fix
 - Deviations → bug fix or spec update
 - The spec (final.md) stays alive — it evolves through follow-up work
+
+### Roadmap Progression
+If `.bts/state/roadmap.md` exists:
+- The recipe's roadmap item is marked done (via /bts-status)
+- Session-start hint shows the next pending item
+- The next /bts-recipe-blueprint scoping reads roadmap context automatically

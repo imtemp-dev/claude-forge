@@ -50,16 +50,19 @@ If standalone (no recipe):
 
 ### Full Mode (no category — default)
 
-Spawn 3 agents in parallel, each reviewing the same files from a different angle:
+Spawn 3 agents in parallel, each reviewing the same files from a different angle.
+The default perspectives are quality, security, and architecture, but adapt
+if the code warrants different emphasis (e.g., performance-critical code may
+need a performance perspective instead of or in addition to security):
 
-1. **Agent(reviewer-quality)**: Code quality — error handling, validation,
-   resource management, code smells, null safety, logging
+1. **Agent(reviewer-quality)**: Code quality — correctness, error handling,
+   resource management, maintainability
 
-2. **Agent(reviewer-security)**: Security — injection, auth bypass,
-   data exposure, XSS/CSRF, crypto weaknesses
+2. **Agent(reviewer-security)**: Security — input validation, authentication,
+   data protection, common vulnerability patterns
 
-3. **Agent(reviewer-arch)**: Architecture — structural alignment with
-   project-map/layers, naming conventions, pattern consistency, API consistency.
+3. **Agent(reviewer-arch)**: Architecture — alignment with project structure
+   (project-map.md, layers), naming conventions, pattern consistency.
    Include project-map.md and layers content in the agent prompt.
 
 Each agent produces a numbered list of findings with severity tags.

@@ -311,6 +311,57 @@ Required sections:
 - Deviations aggregate
 - Next steps recommendations
 
+## vision.md
+
+Located at `.bts/state/vision.md`. Markdown format:
+
+```markdown
+# Vision: {product name}
+
+Status: DRAFT | CONFIRMED
+Created: {ISO8601}
+Updated: {ISO8601}
+
+## Purpose
+{What is being built and why}
+
+## Users
+{Who will use this}
+
+## Core Components
+- {Component}: {role}
+
+## Technical Constraints
+- {constraint}
+
+## Success Criteria
+- {criterion}
+```
+
+Status transitions: DRAFT → CONFIRMED (user confirms).
+Updated when direction changes — always re-confirm after edits.
+
+## roadmap.md
+
+Located at `.bts/state/roadmap.md`. Markdown format:
+
+```markdown
+# Roadmap: {product name}
+
+Status: DRAFT | CONFIRMED
+Progress: {done}/{total}
+
+## Items
+
+- [x] {description} (recipe: {recipe-id})
+- [ ] {description}
+- [-] {description} (skipped: {reason})
+```
+
+Checkbox convention: `[x]` done, `[ ]` pending, `[-]` skipped.
+Active items get `(recipe: {id})` annotation when a recipe starts.
+Go code counts checkboxes for progress hints — no complex parsing needed.
+
 ## IMPORTANT RULES
 
 1. **Use exact field names** as shown above. `"time"` not `"timestamp"`. `"decided"` not `"status"`.

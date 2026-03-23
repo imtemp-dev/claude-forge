@@ -24,15 +24,12 @@ Check the document for internal contradictions and inconsistencies.
    bts verify --no-code $ARGUMENTS
    ```
 
-2. Read the document yourself and check:
-   - **Term consistency**: Is the same concept called the same name everywhere?
-     (e.g., "session" vs "token" vs "auth state" for the same thing)
-   - **Interface consistency**: If Section A defines `createUser(name, email)` but
-     Section B calls `addUser(username)`, that's a mismatch.
-   - **Type consistency**: If a field is `string` in one place and `number` in another.
-   - **Flow consistency**: If the data flow says A→B→C but the component section
-     describes C receiving from D.
-   - **Assumption consistency**: If one section assumes Redis and another assumes PostgreSQL.
+2. Read the document yourself and check for internal contradictions.
+   The document should be consistent throughout — the same concept should use
+   the same name, interfaces should match where they connect, types should agree,
+   data flows should be coherent, and assumptions should not conflict.
+   Look for any place where one section says something that contradicts or
+   is incompatible with another section.
 
 3. Classify findings:
    - critical: Same entity described differently in incompatible ways

@@ -64,21 +64,14 @@ Also scan for code files NOT mentioned in the spec that appear related
 
 ### Cosmetic vs Functional
 
-Automatically classify as **cosmetic** (non-blocking, one-line note each):
-- Import ordering differences
-- Docstring length/format differences
-- Whitespace or formatting differences
-- Lint suppression comments (# noqa, // nolint, //nolint)
-- Language-conventional naming (spec: `max_retries`, JS code: `maxRetries`)
+**Cosmetic** differences do not affect correctness or behavior — formatting,
+import ordering, naming conventions (e.g., snake_case vs camelCase across
+languages), lint directives, whitespace. Record these briefly but do not
+analyze them in detail.
 
-These are recorded under "Spec Additions" but do NOT require detailed analysis.
-
-**Functional** differences require full analysis:
-- Missing functions/methods
-- Different parameter types or counts
-- Different return types
-- Different error handling behavior
-- Missing error cases
+**Functional** differences affect behavior — missing functions, different
+signatures, different return types, different error handling. These require
+full analysis.
 
 For each item, classify as one of:
 

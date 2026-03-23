@@ -171,6 +171,27 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		fmt.Println("   ✓ project-map.md exists")
 	}
 
+	// Vision check
+	if state.VisionExists(btsRoot) {
+		visionData, _ := os.ReadFile(filepath.Join(state.StatePath(btsRoot), "vision.md"))
+		if strings.Contains(string(visionData), "Status: DRAFT") {
+			fmt.Println("   ⚠ vision.md exists (Status: DRAFT — confirm with next /bts-recipe-blueprint)")
+			totalWarnings++
+		} else {
+			fmt.Println("   ✓ vision.md exists")
+		}
+	}
+
+	// Roadmap check
+	done, total, nextItem := state.RoadmapProgress(btsRoot)
+	if total > 0 {
+		if nextItem != "" {
+			fmt.Printf("   ✓ roadmap.md (%d/%d done — next: %s)\n", done, total, nextItem)
+		} else {
+			fmt.Printf("   ✓ roadmap.md (%d/%d done)\n", done, total)
+		}
+	}
+
 	fmt.Printf("\n%d error(s), %d warning(s)\n", totalErrors, totalWarnings)
 
 	if totalErrors > 0 && len(quickFixes) > 0 {

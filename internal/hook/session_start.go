@@ -40,6 +40,39 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 		// Check for finalized recipes ready for implementation
 		recipe, err = state.GetFinalizedRecipe(btsRoot)
 		if err != nil || recipe == nil {
+			// Check roadmap for next-item hint
+			done, total, nextItem := state.RoadmapProgress(btsRoot)
+			if total > 0 {
+				var msg string
+				if nextItem != "" {
+					msg = fmt.Sprintf("[bts] Roadmap: %d/%d done. Next: %s\nRun /bts-recipe-blueprint to start.", done, total, nextItem)
+				} else {
+					msg = fmt.Sprintf("[bts] Roadmap complete: %d/%d done. Run /bts-recipe-blueprint to add new items or start a new vision.", done, total)
+				}
+				if updated {
+					msg = fmt.Sprintf("[bts] Templates updated to %s\n%s", version.GetTemplateVersion(), msg)
+				}
+				return &HookOutput{
+					HookSpecificOutput: &HookSpecificOutput{
+						AdditionalContext: msg,
+					},
+				}, nil
+			}
+			// Check for incomplete vision (DRAFT without a recipe yet)
+			if state.VisionExists(btsRoot) {
+				visionData, _ := os.ReadFile(filepath.Join(state.StatePath(btsRoot), "vision.md"))
+				if strings.Contains(string(visionData), "Status: DRAFT") {
+					msg := "[bts] Vision document in progress (Status: DRAFT).\nRun /bts-recipe-blueprint to continue."
+					if updated {
+						msg = fmt.Sprintf("[bts] Templates updated to %s\n%s", version.GetTemplateVersion(), msg)
+					}
+					return &HookOutput{
+						HookSpecificOutput: &HookSpecificOutput{
+							AdditionalContext: msg,
+						},
+					}, nil
+				}
+			}
 			if updated {
 				return &HookOutput{
 					HookSpecificOutput: &HookSpecificOutput{

@@ -97,10 +97,29 @@ Based on current state, recommend what to do next:
 - Recipes in `implemented` state → "Run /test {id}"
 - Recipes with failing tests → "Fix failures in ..."
 - Complete recipes with deviations → "Follow-up: review deviation.md for improvements"
+
+If `.bts/state/roadmap.md` exists:
+- Add roadmap progress: "Roadmap: {done}/{total} done"
+- If next pending item: "Next roadmap item: {description}"
 ```
 
 **Note**: `project-status.md` is a global derived document at `.bts/state/` level.
 It is NOT tracked in per-recipe manifests because it spans multiple recipes.
+
+## Step 3.5: Roadmap Update
+
+If `.bts/state/roadmap.md` exists:
+
+1. Read roadmap.md
+2. For each completed recipe (phase=complete):
+   - Match to roadmap item by topic similarity
+   - Mark as `[x]` and add `(recipe: {id})` if not already present
+3. For each active recipe (not complete/cancelled):
+   - Add `(recipe: {id})` to matching item if not present
+4. Update `Progress:` line with current counts
+5. Save roadmap.md
+
+If no roadmap.md → skip this step.
 
 ## Step 4: Project Map Sync
 

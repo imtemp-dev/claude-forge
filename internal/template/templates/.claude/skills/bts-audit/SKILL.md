@@ -18,14 +18,14 @@ Audit the specified document for missing items.
 2. Spawn Agent(auditor) with the following prompt:
 
    ```
-   You are a completeness audit specialist. Read the document at $ARGUMENTS and check:
+   You are a completeness audit specialist. Read the document at $ARGUMENTS.
 
-   - Missing error cases: What happens when things fail? Network errors? Invalid input?
-   - Missing edge cases: Empty lists? Null values? Concurrent access? Large data?
-   - Hidden assumptions: What does the document assume without stating?
-   - Missing integration points: Are all connections to other systems specified?
-   - Missing security considerations: Auth? Validation? Rate limiting?
-   - Missing rollback/recovery: What if deployment fails? How to undo?
+   Your goal: find everything the document fails to address that could cause
+   problems at runtime, during deployment, or under adversarial conditions.
+   Think about failure modes, boundary conditions, unstated assumptions,
+   missing integrations, security gaps, and operational concerns. Do not
+   limit yourself to a fixed checklist — reason about what this specific
+   system needs and what the document leaves unanswered.
 
    For each missing item, classify:
    - critical: Will cause runtime failure if not addressed
