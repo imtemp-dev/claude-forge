@@ -56,8 +56,9 @@ $BTS sync-check test-001 2>&1 | grep -qE "sync|UNVERIFIED|issue" && echo "✓ 10
 RESULT=$(echo '{"session_id":"t","cwd":"'"$TEST_DIR"'","hook_event_name":"stop","content":"<bts>DONE</bts>"}' | $BTS hook stop 2>&1; echo "EXIT:$?")
 echo "$RESULT" | grep -q "EXIT:2" && echo "✓ 11. stop hook blocks (critical>0)" || { echo "✗ 11. stop block"; exit 1; }
 
-# 12. Add converged entry, stop hook should ALLOW
+# 12. Add converged entry + verification.md, stop hook should ALLOW
 echo '{"iteration":2,"critical":0,"major":0,"minor":1,"status":"converged","timestamp":"2026-03-18T00:01:00Z"}' >> .bts/state/recipes/test-001/verify-log.jsonl
+echo "# Verification findings" > .bts/state/recipes/test-001/verification.md
 RESULT=$(echo '{"session_id":"t","cwd":"'"$TEST_DIR"'","hook_event_name":"stop","content":"<bts>DONE</bts>"}' | $BTS hook stop 2>&1; echo "EXIT:$?")
 echo "$RESULT" | grep -q "EXIT:0" && echo "✓ 12. stop hook allows (converged)" || { echo "✗ 12. stop allow"; exit 1; }
 

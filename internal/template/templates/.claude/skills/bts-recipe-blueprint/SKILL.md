@@ -13,6 +13,11 @@ argument-hint: "\"feature description\""
 
 Create a bulletproof implementation spec for: $ARGUMENTS
 
+**This recipe creates a SPEC DOCUMENT, not code.**
+Do NOT write source code files (.ts, .js, .go, .py, .rs, etc.) during this recipe.
+Only create documents in `.bts/state/recipes/{id}/`.
+Code implementation happens in `/bts-implement` AFTER this recipe completes with `<bts>DONE</bts>`.
+
 ## Settings
 
 Read `.bts/config/settings.yaml` for project-specific limits.

@@ -64,7 +64,16 @@ func (h *stopHandler) Handle(input *HookInput) (*HookOutput, error) {
 
 // handleSpecDone validates spec recipe completion via verify-log.
 func (h *stopHandler) handleSpecDone(btsRoot string, recipe *state.RecipeState) (*HookOutput, error) {
-	logPath := filepath.Join(state.RecipeDir(btsRoot, recipe.ID), "verify-log.jsonl")
+	recipeDir := state.RecipeDir(btsRoot, recipe.ID)
+
+	// 1. Check verification.md exists (proves /verify was actually run)
+	verifyDocPath := filepath.Join(recipeDir, "verification.md")
+	if _, err := os.Stat(verifyDocPath); os.IsNotExist(err) {
+		return blockOutput("No verification.md found. Run /bts-verify on draft.md before completing."), nil
+	}
+
+	// 2. Check verify-log has passing entry
+	logPath := filepath.Join(recipeDir, "verify-log.jsonl")
 	lastEntry, err := readLastVerifyEntry(logPath)
 	if err != nil {
 		return blockOutput("No verification log found. Run verification before completing."), nil
