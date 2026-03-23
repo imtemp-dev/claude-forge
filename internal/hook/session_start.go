@@ -76,7 +76,6 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 	if recipe.Phase == "scoping" {
 		hint = fmt.Sprintf("Scope alignment in progress. Read .bts/state/recipes/%s/scope.md and confirm or adjust.", recipe.ID)
 	} else if state.IsImplementPhase(recipe.Phase) {
-		// Fix recipes use /bts-recipe-fix, not /bts-implement
 		implCmd := fmt.Sprintf("/bts-implement %s", recipe.ID)
 		if recipe.Type == "fix" {
 			implCmd = fmt.Sprintf("/bts-recipe-fix %s", recipe.ID)
@@ -85,19 +84,25 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 		case "resume":
 			hint = "Session restored. Continue where you left off."
 		case "compact":
-			hint = fmt.Sprintf("Context compacted. Run %s to continue.", implCmd)
+			if next := nextStepHint(btsRoot, recipe); next != "" {
+				hint = fmt.Sprintf("Context compacted. NEXT: %s", next)
+			} else {
+				hint = fmt.Sprintf("Context compacted. Run %s to continue.", implCmd)
+			}
 		default:
 			hint = fmt.Sprintf("Run %s to continue, or /recipe cancel to abort.", implCmd)
 		}
 	} else {
-		// Source-aware hints for spec phases (research, draft, verify, debate, etc.)
 		switch source {
 		case "resume":
 			hint = "Session restored. Continue where you left off."
 		case "compact":
-			hint = "Context compacted. Continue where you left off."
+			if next := nextStepHint(btsRoot, recipe); next != "" {
+				hint = fmt.Sprintf("Context compacted. NEXT: %s", next)
+			} else {
+				hint = "Context compacted. Continue where you left off."
+			}
 		default:
-			// startup or clear — no context, need to re-invoke skill
 			hint = fmt.Sprintf("Run /bts-recipe-%s to re-enter the recipe, or /recipe cancel to abort.", recipe.Type)
 		}
 	}
@@ -156,6 +161,44 @@ func autoUpdateTemplates(btsRoot string) bool {
 	// Record new version
 	_ = os.WriteFile(versionFile, []byte(current), 0644)
 	return true
+}
+
+// nextStepHint returns a specific next-action hint based on recipe phase and state files.
+// Used after context compaction to give the LLM a clear directive instead of "continue".
+func nextStepHint(btsRoot string, recipe *state.RecipeState) string {
+	recipeDir := state.RecipeDir(btsRoot, recipe.ID)
+	exists := func(name string) bool {
+		_, err := os.Stat(filepath.Join(recipeDir, name))
+		return err == nil
+	}
+
+	switch {
+	case recipe.Phase == "scoping":
+		return "Read scope.md and confirm or adjust scope."
+	case !state.IsImplementPhase(recipe.Phase) && recipe.Phase != "finalize":
+		return "Run /bts-assess on draft.md to determine next action."
+	case recipe.Phase == "implement":
+		if !exists("tasks.json") {
+			return fmt.Sprintf("Run /bts-implement %s to decompose tasks.", recipe.ID)
+		}
+		return "Continue implementation — check tasks.json for next pending task."
+	case recipe.Phase == "test":
+		if exists("test-results.json") {
+			simsDir := filepath.Join(recipeDir, "simulations")
+			if entries, err := os.ReadDir(simsDir); err == nil && len(entries) > 0 {
+				return "Tests and simulation done. Run /bts-review for code quality review."
+			}
+			return "Tests completed. Run /bts-simulate code next."
+		}
+		return fmt.Sprintf("Run /bts-test %s to execute tests.", recipe.ID)
+	case recipe.Phase == "review":
+		return "Run /bts-review for code quality review."
+	case recipe.Phase == "sync":
+		return fmt.Sprintf("Run /bts-sync %s to compare spec with code.", recipe.ID)
+	case recipe.Phase == "status":
+		return fmt.Sprintf("Run /bts-status %s to update project status.", recipe.ID)
+	}
+	return ""
 }
 
 // detectSource determines the session source.
