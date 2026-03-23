@@ -6,11 +6,17 @@ description: >
 user-invocable: true
 allowed-tools: Read Grep Glob Agent
 argument-hint: "[file-path]"
+context: fork
 ---
 
 # Completeness Audit
 
 Audit the specified document for missing items.
+
+## Settings
+
+Read `.bts/config/settings.yaml`. If `agents.auditor` is set, pass that model
+when spawning Agent(auditor) below.
 
 ## Steps
 

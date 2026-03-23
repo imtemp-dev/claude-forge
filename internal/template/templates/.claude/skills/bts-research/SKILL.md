@@ -6,6 +6,7 @@ description: >
 user-invocable: true
 allowed-tools: Read Grep Glob Agent WebSearch WebFetch mcp__context7__resolve-library-id mcp__context7__get-library-docs
 argument-hint: "\"topic or question\""
+effort: high
 ---
 
 # Systematic Research

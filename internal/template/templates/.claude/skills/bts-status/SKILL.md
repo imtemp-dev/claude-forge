@@ -6,6 +6,7 @@ description: >
 user-invocable: true
 allowed-tools: Read Write Edit Grep Glob Bash
 argument-hint: "[recipe-id or 'all']"
+effort: low
 ---
 
 # Project Status: Generate/Update

@@ -6,6 +6,7 @@ description: >
 user-invocable: true
 allowed-tools: Read Write Bash
 argument-hint: "\"topic to debate\""
+effort: high
 ---
 
 # Expert Debate

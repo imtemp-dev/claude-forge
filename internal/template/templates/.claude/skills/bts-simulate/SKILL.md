@@ -7,11 +7,17 @@ description: >
 user-invocable: true
 allowed-tools: Read Write Agent Grep Glob
 argument-hint: "[file-path] or code"
+effort: high
 ---
 
 # Simulation
 
 Run scenarios to find what's missing or wrong: $ARGUMENTS
+
+## Settings
+
+Read `.bts/config/settings.yaml`. If `agents.simulator` is set, pass that model
+when spawning Agent(simulator) below.
 
 ## Mode Detection
 

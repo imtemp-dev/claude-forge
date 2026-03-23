@@ -6,11 +6,18 @@ description: >
 user-invocable: true
 allowed-tools: Read Grep Glob Agent
 argument-hint: "[file-path]"
+context: fork
+effort: high
 ---
 
 # Logical Verification
 
 Verify the specified document for logical correctness.
+
+## Settings
+
+Read `.bts/config/settings.yaml`. If `agents.verifier` is set, pass that model
+when spawning Agent(verifier) below (e.g., `model: opus`).
 
 ## Steps
 

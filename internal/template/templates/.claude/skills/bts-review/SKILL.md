@@ -7,11 +7,17 @@ description: >
 user-invocable: true
 allowed-tools: Read Grep Glob Bash Agent AskUserQuestion
 argument-hint: "[security|performance|patterns] [file-path]"
+effort: high
 ---
 
 # Code Review
 
 Review code for: $ARGUMENTS
+
+## Settings
+
+Read `.bts/config/settings.yaml`. If `agents.reviewer_quality`, `agents.reviewer_security`,
+or `agents.reviewer_arch` are set, pass those models when spawning the corresponding agents.
 
 ## Step 1: Determine Review Mode
 

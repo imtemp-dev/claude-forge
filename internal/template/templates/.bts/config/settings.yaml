@@ -49,6 +49,18 @@ vision:
   max_roadmap_items: 8           # Beyond 8, the roadmap itself becomes hard to track
   min_roadmap_items: 3           # Below 3, decomposition adds overhead without benefit
 
+# Agent models — override the model used for specialist agents.
+# Default: sonnet (set in agent frontmatter). Options: sonnet, opus, haiku.
+# Opus gives deeper analysis but costs more and is slower.
+# Haiku is fast and cheap but may miss subtle issues.
+agents:
+  verifier: sonnet
+  auditor: sonnet
+  simulator: sonnet
+  reviewer_quality: sonnet
+  reviewer_security: sonnet
+  reviewer_arch: sonnet
+
 # Privacy
 privacy:
   strip_private_tags: true

@@ -7,6 +7,7 @@ description: >
 user-invocable: true
 allowed-tools: Read Grep Glob Bash Agent
 argument-hint: "[file-path]"
+context: fork
 ---
 
 # Internal Consistency Check
