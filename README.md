@@ -36,7 +36,7 @@ flowchart LR
         V --> SIM["Simulate"] --> DB["Debate"] --> F["Finalize"]
     end
     subgraph Implement
-        IMP["Implement"] --> T["Test"] --> SY["Sync"] --> ST["Status"]
+        IMP["Implement"] --> T["Test"] --> CSM["Simulate"] --> RV["Review"] --> SY["Sync"] --> ST["Status"]
     end
     F --> IMP
     ST --> DONE["Complete"]
@@ -152,17 +152,15 @@ Typical project progression:
 
 ```mermaid
 flowchart TD
-    NEW["New Project"] --> A["/recipe blueprint Feature A"]
-    A --> AC["complete"]
+    NEW["New Project"] --> VIS["Vision & Roadmap"]
+    VIS -->|"decompose"| A["/recipe blueprint Feature A"]
+    A --> AC["complete → roadmap ✓"]
     AC --> B["/recipe blueprint Feature B"]
-    B -->|"reads project-map.md"| BC["complete"]
+    B -->|"roadmap item 2/5"| BC["complete → roadmap ✓"]
     BC --> FX["/recipe fix Bug in A"]
     FX --> FXC["complete"]
-    FXC --> DBG["/recipe debug Unknown issue"]
-    DBG --> DC["complete"]
-    DC --> REV["/bts-review security"]
-    REV --> C["/recipe blueprint Feature C"]
-    C -->|"project-map shows A+B+fixes"| CC["complete"]
+    FXC --> C["/recipe blueprint Feature C"]
+    C -->|"roadmap item 3/5"| CC["complete → roadmap ✓"]
     CC --> DOC["bts doctor — health check"]
 ```
 
@@ -193,7 +191,9 @@ stateDiagram-v2
 
     state "Implement Phase" as impl {
         implement --> test
-        test --> sync
+        test --> simulate_code : code simulation
+        simulate_code --> review
+        review --> sync
         sync --> status
     }
 
@@ -211,9 +211,9 @@ stateDiagram-v2
 
 | Marker | Validates | Sets phase |
 |--------|-----------|------------|
-| `<bts>DONE</bts>` | verify-log: critical=0, major=0 | → finalize |
-| `<bts>IMPLEMENT DONE</bts>` | tasks done + tests pass + deviation.md exists | → complete |
-| `<bts>FIX DONE</bts>` | fix-spec.md exists + tests pass | → complete |
+| `<bts>DONE</bts>` | verification.md + verify-log: critical=0, major=0 | → finalize |
+| `<bts>IMPLEMENT DONE</bts>` | tasks done + tests pass + review.md + deviation.md | → complete |
+| `<bts>FIX DONE</bts>` | fix-spec.md + tests pass | → complete |
 
 ## Document Flow
 
@@ -232,12 +232,14 @@ flowchart TD
         FM --> TK["tasks.json"]
         TK --> CODE["code files"]
         CODE --> TR["test-results.json"]
-        TR --> DV["deviation.md"]
+        TR --> RV2["review.md"]
+        RV2 --> DV["deviation.md"]
     end
 
     subgraph Project Level
         DV --> PS["project-status.md"]
         DV --> PM["project-map.md"]
+        PS --> RM["roadmap.md"]
     end
 ```
 
@@ -245,6 +247,8 @@ flowchart TD
 
 ```
 .bts/state/
+├── vision.md               Product vision (purpose, components, constraints)
+├── roadmap.md              Ordered recipe decomposition (checkbox items)
 ├── project-map.md          Level 0: layer overview (~300 tokens)
 ├── layers/{name}.md        Level 1: layer detail (on-demand)
 ├── project-status.md       Recipe status table + architecture
@@ -253,6 +257,11 @@ flowchart TD
     ├── r-fix-1002/         Fix: diagnosis.md, fix-spec.md, ...
     └── r-debug-1003/       Debug: perspectives.md, final.md, ...
 ```
+
+**Vision & Roadmap**: Large features auto-decompose into recipe-sized units.
+`vision.md` captures the final product vision; `roadmap.md` tracks ordered
+items with checkbox progress. Each recipe links to its roadmap item, and
+completion automatically marks it done.
 
 ## Recipes
 
@@ -341,8 +350,10 @@ Lightweight project overview, auto-synced on recipe completion:
 
 ```
 bts init [dir]              Initialize project
-bts doctor [recipe-id]      Recipe health check (documents, manifest, flow)
+bts doctor [recipe-id]      Recipe health check (documents, manifest, flow, vision/roadmap)
 bts validate [recipe-id]    Check JSON schema compliance
+bts version                 Show binary and template versions
+bts update                  Deploy latest templates
 bts recipe status           Show active recipe
 bts recipe list             All recipes
 bts recipe log <id>         Record action/phase/iteration

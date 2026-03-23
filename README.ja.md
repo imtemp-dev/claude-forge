@@ -36,7 +36,7 @@ flowchart LR
         V --> SIM["シミュレーション"] --> DB["ディベート"] --> F["確定"]
     end
     subgraph Implement
-        IMP["実装"] --> T["テスト"] --> SY["同期"] --> ST["ステータス"]
+        IMP["実装"] --> T["テスト"] --> CSM["シミュレーション"] --> RV["レビュー"] --> SY["同期"] --> ST["ステータス"]
     end
     F --> IMP
     ST --> DONE["完了"]
@@ -139,12 +139,23 @@ bts doctor
 - **クラッシュ回復**：tasks.json + work-state.jsonでワークステートを永続化
 - **高速**：単一Goバイナリ、ランタイム依存ゼロ、約5ms起動
 
+## ビジョン＆ロードマップ
+
+大規模な機能リクエストは管理可能なレシピ単位に自動分解されます：
+- `vision.md`：最終製品のビジョン（目的、コンポーネント、制約）
+- `roadmap.md`：チェックボックスベースの順序付きレシピ分解
+
+レシピ完了時にロードマップ項目は自動的に `[x]` にマークされ、
+次のセッションで次の項目を案内します。
+
 ## CLI
 
 ```
 bts init [dir]              プロジェクト初期化
-bts doctor [recipe-id]      レシピ健全性チェック（ドキュメント、マニフェスト、フロー）
+bts doctor [recipe-id]      レシピ健全性チェック（ドキュメント、マニフェスト、フロー、ビジョン/ロードマップ）
 bts validate [recipe-id]    JSONスキーマ準拠チェック
+bts version                 バイナリおよびテンプレートバージョン表示
+bts update                  最新テンプレートのデプロイ
 bts recipe status           アクティブレシピ表示
 bts recipe list             全レシピ一覧
 bts recipe log <id>         アクション/フェーズ/イテレーション記録

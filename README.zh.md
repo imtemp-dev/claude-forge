@@ -36,7 +36,7 @@ flowchart LR
         V --> SIM["模拟"] --> DB["辩论"] --> F["定稿"]
     end
     subgraph Implement
-        IMP["实现"] --> T["测试"] --> SY["同步"] --> ST["状态"]
+        IMP["实现"] --> T["测试"] --> CSM["模拟"] --> RV["评审"] --> SY["同步"] --> ST["状态"]
     end
     F --> IMP
     ST --> DONE["完成"]
@@ -139,12 +139,23 @@ bts doctor
 - **崩溃恢复**：通过 tasks.json + work-state.json 持久化工作状态
 - **高速**：单一 Go 二进制文件，零运行时依赖，约 5ms 启动
 
+## 愿景与路线图
+
+大型功能请求自动分解为可管理的配方单元：
+- `vision.md`：最终产品愿景（目的、组件、约束）
+- `roadmap.md`：基于复选框的有序配方分解
+
+配方完成时路线图项目自动标记为 `[x]`，
+下次会话提示下一个待处理项目。
+
 ## CLI
 
 ```
 bts init [dir]              初始化项目
-bts doctor [recipe-id]      配方健康检查（文档、清单、流程）
+bts doctor [recipe-id]      配方健康检查（文档、清单、流程、愿景/路线图）
 bts validate [recipe-id]    检查 JSON 模式合规性
+bts version                 显示二进制和模板版本
+bts update                  部署最新模板
 bts recipe status           显示活动配方
 bts recipe list             所有配方列表
 bts recipe log <id>         记录操作/阶段/迭代

@@ -36,7 +36,7 @@ flowchart LR
         V --> SIM["시뮬레이션"] --> DB["토론"] --> F["확정"]
     end
     subgraph Implement
-        IMP["구현"] --> T["테스트"] --> SY["동기화"] --> ST["상태"]
+        IMP["구현"] --> T["테스트"] --> CSM["시뮬레이션"] --> RV["리뷰"] --> SY["동기화"] --> ST["상태"]
     end
     F --> IMP
     ST --> DONE["완료"]
@@ -139,12 +139,23 @@ bts doctor
 - **충돌 복원**: tasks.json + work-state.json으로 작업 상태 유지
 - **빠름**: 단일 Go 바이너리, 런타임 의존성 제로, ~5ms 시작
 
+## 비전 & 로드맵
+
+큰 기능 요청은 자동으로 관리 가능한 레시피 단위로 분해됩니다:
+- `vision.md`: 최종 제품 비전 (목적, 컴포넌트, 제약 조건)
+- `roadmap.md`: 체크박스 기반 순서별 레시피 분해
+
+레시피 완료 시 로드맵 항목이 자동으로 `[x]`로 마킹되며,
+다음 세션에서 다음 항목을 안내합니다.
+
 ## CLI
 
 ```
 bts init [dir]              프로젝트 초기화
-bts doctor [recipe-id]      레시피 건강 체크 (문서, 매니페스트, 플로우)
+bts doctor [recipe-id]      레시피 건강 체크 (문서, 매니페스트, 플로우, 비전/로드맵)
 bts validate [recipe-id]    JSON 스키마 준수 확인
+bts version                 바이너리 및 템플릿 버전 표시
+bts update                  최신 템플릿 배포
 bts recipe status           활성 레시피 표시
 bts recipe list             전체 레시피 목록
 bts recipe log <id>         액션/단계/이터레이션 기록
