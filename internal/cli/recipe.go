@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/jlim/bts/internal/state"
@@ -110,8 +111,10 @@ var recipeLogCmd = &cobra.Command{
 				return fmt.Errorf("load recipe: %w", err)
 			}
 
-			// Pre-condition warnings for phase transition
-			checkPhasePreConditions(btsRoot, recipe, phase)
+			// Pre-condition checks for phase transition
+			if err := checkPhasePreConditions(btsRoot, recipe, phase); err != nil {
+				return err
+			}
 
 			recipe.Phase = phase
 			if err := state.SaveRecipeState(btsRoot, recipe); err != nil {
@@ -270,7 +273,7 @@ func actionToDocType(action string) string {
 
 // checkPhasePreConditions warns about missing prerequisites for a phase transition.
 // Warnings go to stderr; phase transition always proceeds (warn, not block).
-func checkPhasePreConditions(btsRoot string, recipe *state.RecipeState, newPhase string) {
+func checkPhasePreConditions(btsRoot string, recipe *state.RecipeState, newPhase string) error {
 	recipeDir := state.RecipeDir(btsRoot, recipe.ID)
 	exists := func(name string) bool {
 		_, err := os.Stat(filepath.Join(recipeDir, name))
@@ -285,6 +288,11 @@ func checkPhasePreConditions(btsRoot string, recipe *state.RecipeState, newPhase
 	}
 
 	switch newPhase {
+	case "complete", "finalize":
+		fmt.Fprintf(os.Stderr, "✗ Phase '%s' is protected — set automatically by completion gates.\n", newPhase)
+		fmt.Fprintf(os.Stderr, "  Output <bts>DONE</bts>, <bts>IMPLEMENT DONE</bts>, or <bts>FIX DONE</bts> to complete.\n")
+		return fmt.Errorf("phase '%s' is protected", newPhase)
+
 	case "research":
 		if recipe.Type == "blueprint" && !stateExists("project-map.md") {
 			warn("project-map.md not found — scan codebase to create it")
@@ -308,6 +316,10 @@ func checkPhasePreConditions(btsRoot string, recipe *state.RecipeState, newPhase
 				warn("tests not passing — fix before review")
 			}
 		}
+		simsDir := filepath.Join(recipeDir, "simulations")
+		if entries, err := os.ReadDir(simsDir); err != nil || countNonHidden(entries) == 0 {
+			warn("no code simulation found — run /bts-simulate code first")
+		}
 
 	case "sync":
 		if !exists("review.md") {
@@ -319,6 +331,18 @@ func checkPhasePreConditions(btsRoot string, recipe *state.RecipeState, newPhase
 			warn("deviation.md not found — run /bts-sync first")
 		}
 	}
+
+	return nil
+}
+
+func countNonHidden(entries []os.DirEntry) int {
+	count := 0
+	for _, e := range entries {
+		if !strings.HasPrefix(e.Name(), ".") {
+			count++
+		}
+	}
+	return count
 }
 
 func truncate(s string, max int) string {
