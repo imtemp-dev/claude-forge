@@ -125,7 +125,11 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 				hint = fmt.Sprintf("Context compacted. Run %s to continue.", implCmd)
 			}
 		default:
-			hint = fmt.Sprintf("Run %s to continue, or /recipe cancel to abort.", implCmd)
+			if next := nextStepHint(root, recipe); next != "" {
+				hint = fmt.Sprintf("NEXT: %s", next)
+			} else {
+				hint = fmt.Sprintf("Run %s to continue, or /recipe cancel to abort.", implCmd)
+			}
 		}
 	} else {
 		switch source {
@@ -138,7 +142,11 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 				hint = "Context compacted. Continue where you left off."
 			}
 		default:
-			hint = fmt.Sprintf("Run /forge-recipe-%s to re-enter the recipe, or /recipe cancel to abort.", recipe.Type)
+			if next := nextStepHint(root, recipe); next != "" {
+				hint = fmt.Sprintf("NEXT: %s", next)
+			} else {
+				hint = fmt.Sprintf("Run /forge-recipe-%s to re-enter the recipe, or /recipe cancel to abort.", recipe.Type)
+			}
 		}
 	}
 

@@ -48,7 +48,10 @@ func (h *stopHandler) Handle(input *HookInput) (*HookOutput, error) {
 	}
 
 	// No completion marker — allow stop without blocking.
-	// Session-start hook will re-inject recipe context on next session.
+	// Print next-step hint to stderr so user sees it immediately.
+	if next := nextStepHint(root, recipe); next != "" {
+		fmt.Fprintf(os.Stderr, "[forge] %s\n", next)
+	}
 	return &HookOutput{}, nil
 }
 
