@@ -229,6 +229,11 @@ func renderFullGraph(root string) string {
 						lines = append(lines, fmt.Sprintf("        %s -.-> %s", nid, prefix+nodeID("", entry.VerifiedBy)))
 					}
 				}
+				for _, inc := range entry.Incorporates {
+					if _, ok := manifest.Documents[inc]; ok {
+						lines = append(lines, fmt.Sprintf("        %s -.-> %s", prefix+nodeID("", inc), nid))
+					}
+				}
 			}
 		} else {
 			// No manifest — show recipe as single node
@@ -286,34 +291,31 @@ func phaseIcon(phase string) string {
 }
 
 // findFirstDoc returns the earliest/root document in a manifest.
+// Uses deterministic selection: known names first, then sorted by type, then alphabetical.
 func findFirstDoc(m *state.Manifest) string {
-	// Priority: intent.md > scope.md > research > draft > anything
-	priorities := []string{"intent.md", "scope.md"}
-	for _, p := range priorities {
+	// Priority 1: well-known entry points
+	for _, p := range []string{"intent.md", "scope.md"} {
 		if _, ok := m.Documents[p]; ok {
 			return p
 		}
 	}
-	// Find any research doc
-	for p, e := range m.Documents {
-		if e.Type == "research" {
-			return p
-		}
-	}
-	// Find any draft
-	for p, e := range m.Documents {
-		if e.Type == "draft" {
-			return p
-		}
-	}
-	// First alphabetically
-	var paths []string
+
+	// Priority 2: first research doc (alphabetically for determinism)
+	// Priority 3: first draft doc
+	// Priority 4: anything
+	typePriority := []string{"research", "draft", ""}
+	var allPaths []string
 	for p := range m.Documents {
-		paths = append(paths, p)
+		allPaths = append(allPaths, p)
 	}
-	if len(paths) > 0 {
-		sort.Strings(paths)
-		return paths[0]
+	sort.Strings(allPaths)
+
+	for _, wantType := range typePriority {
+		for _, p := range allPaths {
+			if wantType == "" || m.Documents[p].Type == wantType {
+				return p
+			}
+		}
 	}
 	return ""
 }
