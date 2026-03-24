@@ -35,13 +35,17 @@ Document-first AI development — iterate on specs, not code.
 
 ## Quick Start
 
-Requires [Go 1.22+](https://go.dev/dl/) and [Claude Code](https://docs.anthropic.com/en/docs/claude-code).
+Requires [Claude Code](https://docs.anthropic.com/en/docs/claude-code).
 
 ```bash
-# Install
+# Homebrew (macOS / Linux)
+brew tap imtemp-dev/tap
+brew install forge
+
+# Or one-line install
 curl -fsSL https://raw.githubusercontent.com/imtemp-dev/claude-forge/main/install.sh | bash
 
-# Or build from source
+# Or build from source (Go 1.22+)
 git clone https://github.com/imtemp-dev/claude-forge.git && cd claude-forge && make install
 
 # Initialize in your project

@@ -35,6 +35,18 @@ checksum:
 changelog:
   sort: asc
 
+brews:
+  - repository:
+      owner: imtemp-dev
+      name: homebrew-tap
+    homepage: https://github.com/imtemp-dev/claude-forge
+    description: "Document-first AI development — iterate on specs, not code"
+    license: MIT
+    install: |
+      bin.install "forge"
+    test: |
+      system "#{bin}/forge", "--version"
+
 release:
   github:
     owner: imtemp-dev
