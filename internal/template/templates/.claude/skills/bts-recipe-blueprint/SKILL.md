@@ -404,7 +404,9 @@ After each action:
 
 When /assess declares Level 3 achieved AND /sync-check passes:
 1. Copy `draft.md` to `final.md`
-2. Output `<bts>DONE</bts>`
+2. Run Skill("bts-status") with arguments: {id}
+   This updates project-status.md, roadmap.md, and project-map.md.
+3. Output `<bts>DONE</bts>`
 3. Stop hook will verify:
    - verify-log last entry: critical=0, major=0
    - All sync checks passed

@@ -220,8 +220,12 @@ When tests pass and review is done:
 3. Verify test-results.json shows pass
 4. Output `<bts>FIX DONE</bts>`
 
-The original recipe's final.md is NOT modified. fix-spec.md is the
-independent record of what was changed and why. Project history:
+**Note:** Fix recipes implement code directly in Step 6, not via /bts-implement.
+fix-spec.md is the authoritative document (not final.md). The original recipe's
+final.md is preserved unmodified — deviations from spec are tracked in the
+original recipe's deviation.md during future /bts-sync runs.
+
+Project history:
 
 ```
 r-1002/final.md        ← original design

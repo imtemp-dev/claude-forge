@@ -24,6 +24,8 @@ Before starting:
 4. Check deviation.md → known spec-code differences
 5. Check review.md from related recipes → quality issues that may be related
 6. Scan codebase for files likely related to the symptom
+7. If `.bts/state/roadmap.md` exists, read it for project context
+   (what's been built, what's planned — helps understand system boundaries)
 
 ## Resume Check
 
@@ -203,7 +205,8 @@ bts recipe log {id} --iteration N --critical X --major Y --minor Z
 
 When verify shows critical=0, major=0:
 1. Copy `draft.md` to `final.md`
-2. Output `<bts>DONE</bts>`
+2. Run Skill("bts-status") with arguments: {id}
+3. Output `<bts>DONE</bts>`
 
 Stop hook validates verify-log → phase=finalize.
 

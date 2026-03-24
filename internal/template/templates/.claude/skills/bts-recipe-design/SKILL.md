@@ -12,9 +12,22 @@ argument-hint: "\"what to design\""
 
 Design: $ARGUMENTS
 
+## Resume Check
+
+Before starting, check for an existing recipe:
+```bash
+bts recipe status
+```
+If active:
+- Phase `research` → read existing research doc, continue from Step 2.
+- Phase `draft` → read draft, run /bts-assess to determine next action.
+- Phase `debate` → read debate state, continue deliberation.
+- Phase `verify` → read draft + verification, run /bts-assess.
+- Phase `finalize` → skip to Step 5.
+
 ## Step 1: Research
 Use Skill("bts-research") to understand the current state.
-Save to `.bts/state/{id}/01-research.md`.
+Save to `.bts/state/{id}/research/v1.md`.
 
 ## Step 2: Draft Design Document
 Write a design spec:
@@ -25,7 +38,7 @@ Write a design spec:
 - API contracts (if applicable)
 - Technology choices with rationale
 
-Save to `.bts/state/{id}/02-draft.md`.
+Save to `.bts/state/{id}/draft.md`.
 
 ## Step 3: Verify Loop (max 3 iterations)
 - Skill("bts-cross-check"): referenced code/systems exist?
@@ -33,15 +46,31 @@ Save to `.bts/state/{id}/02-draft.md`.
 - Skill("bts-audit"): missing considerations?
 - Fix issues, re-verify until critical=0, major=0.
 
+Max 3 iterations. If same issues persist → [CONVERGENCE FAILED],
+report findings and ask user for guidance.
+
 Log each iteration:
 ```bash
 bts recipe log {id} --iteration N --critical X --major Y --minor Z
 ```
 
 ## Step 4: Decision (if needed)
-If uncertain choices exist, use Skill("bts-debate").
-Update design, re-verify.
+If uncertain choices exist:
+1. Use Skill("bts-debate") to deliberate
+2. Run Skill("bts-adjudicate") to evaluate the conclusion
+   - ACCEPT → update design → re-verify
+   - ACCEPT WITH RESERVATIONS → update design + note caveats → re-verify
+3. If debate reaches [DEBATE DEADLOCK] → present each position to user,
+   user decides, run Skill("bts-adjudicate") on user's decision
 
 ## Step 5: Finalize
-Copy to `.bts/state/{id}/final.md`.
-Output `<bts>DONE</bts>`.
+1. Copy `draft.md` to `final.md`.
+2. Run Skill("bts-status") with arguments: {id}
+3. Output `<bts>DONE</bts>`.
+
+## Next Steps
+
+After design is complete:
+- To create a full implementation spec: `/recipe blueprint "topic"`
+  The design final.md provides the Level 2 foundation for Level 3 spec.
+- To implement directly (if design is detailed enough): `/bts-implement {id}`
