@@ -234,22 +234,35 @@ func nextStepHint(root string, recipe *state.RecipeState) string {
 			detail = "continue task implementation"
 		}
 	case "test":
-		if exists("test-results.json") {
-			simsDir := filepath.Join(recipeDir, "simulations")
-			if entries, err := os.ReadDir(simsDir); err == nil && len(entries) > 0 {
-				detail = "proceed to code review"
-			} else {
-				detail = "run code simulation"
-			}
+		simsDir := filepath.Join(recipeDir, "simulations")
+		simsExist := false
+		if entries, err := os.ReadDir(simsDir); err == nil && len(entries) > 0 {
+			simsExist = true
+		}
+		if exists("test-results.json") && simsExist && exists("review.md") {
+			detail = "sync spec with implementation"
+		} else if exists("test-results.json") && simsExist {
+			detail = "run code review"
+		} else if exists("test-results.json") {
+			detail = "run code simulation"
 		} else {
 			detail = "run tests"
 		}
 	case "review":
-		detail = "run code review"
+		if exists("review.md") {
+			detail = "sync spec with implementation"
+		} else {
+			detail = "run code review"
+		}
 	case "sync":
 		detail = "sync spec with implementation"
 	case "status":
-		detail = "update project status"
+		if exists("tasks.json") && exists("test-results.json") &&
+			exists("review.md") && exists("deviation.md") {
+			detail = "complete recipe"
+		} else {
+			detail = "update project status"
+		}
 	default:
 		return ""
 	}
