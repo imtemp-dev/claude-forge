@@ -37,5 +37,5 @@ changelog:
 
 release:
   github:
-    owner: jlim
+    owner: imtemp-dev
     name: claude-forge
