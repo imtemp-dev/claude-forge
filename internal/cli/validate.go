@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/jlim/bts/internal/engine"
-	"github.com/jlim/bts/internal/state"
+	"github.com/jlim/claude-forge/internal/engine"
+	"github.com/jlim/claude-forge/internal/state"
 	"github.com/spf13/cobra"
 )
 
@@ -26,7 +26,7 @@ func runValidate(cmd *cobra.Command, args []string) error {
 	cwd, _ := os.Getwd()
 	btsRoot, err := state.FindBTSRoot(cwd)
 	if err != nil {
-		return fmt.Errorf("not a bts project: %w", err)
+		return fmt.Errorf("not a forge project: %w", err)
 	}
 
 	var recipeDir string
@@ -40,7 +40,7 @@ func runValidate(cmd *cobra.Command, args []string) error {
 			recipesDir := filepath.Join(state.StatePath(btsRoot), "recipes")
 			entries, err := os.ReadDir(recipesDir)
 			if err != nil || len(entries) == 0 {
-				return fmt.Errorf("no recipes found. Specify recipe ID: bts validate <id>")
+				return fmt.Errorf("no recipes found. Specify recipe ID: forge validate <id>")
 			}
 			// Use first directory found
 			for _, entry := range entries {

@@ -1,4 +1,4 @@
-# bts — Bulletproof Technical Specification
+# claude-forge — Bulletproof Technical Specification
 
 [한국어](README.ko.md) | [中文](README.zh.md) | [日本語](README.ja.md)
 
@@ -17,7 +17,7 @@
 ║   Loop the CODE (expensive)     Loop the DOCS (safe to fail)   ║
 ║   builds, tests, side effects   no builds, no tests, no breakage║
 ║                                                                ║
-║                    bts is Lisa Mode.                           ║
+║                    claude-forge is Lisa Mode.                           ║
 ║                                                                ║
 ╚════════════════════════════════════════════════════════════════╝
 ```
@@ -60,18 +60,18 @@ flowchart LR
     FM --> IMP2["/implement"] --> DONE2["Complete"]
 ```
 
-bts covers **Planning → Build → Verify** as a single automated pipeline.
+forge covers **Planning → Build → Verify** as a single automated pipeline.
 
 ## Install
 
 ```bash
 # One-line install (macOS / Linux)
-curl -fsSL https://raw.githubusercontent.com/jlim/bts/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/jlim/claude-forge/main/install.sh | bash
 
 # Or build from source (Go 1.22+)
-git clone https://github.com/jlim/bts.git
-cd bts
-make install    # installs to ~/.local/bin/bts
+git clone https://github.com/jlim/claude-forge.git
+cd claude-forge
+make install    # installs to ~/.local/bin/forge
 ```
 
 If `~/.local/bin` is not in your PATH, add it to `.zshrc` or `.bashrc`:
@@ -86,14 +86,14 @@ git pull && make install
 
 Check version:
 ```bash
-bts --version
+forge --version
 ```
 
 ## Quick Start
 
 ```bash
 # Initialize in your project
-bts init .
+forge init .
 
 # Start Claude Code
 claude
@@ -108,16 +108,16 @@ claude
 /recipe debug "session drops after 5 minutes"
 
 # Review code quality
-/bts-review
-/bts-review security src/auth/
+/forge-review
+/forge-review security src/auth/
 
 # Check project health
-bts doctor
+forge doctor
 ```
 
 ## Development Process
 
-How bts fits into a real development lifecycle:
+How forge fits into a real development lifecycle:
 
 ```mermaid
 flowchart LR
@@ -161,12 +161,12 @@ flowchart TD
     FX --> FXC["complete"]
     FXC --> C["/recipe blueprint Feature C"]
     C -->|"roadmap item 3/5"| CC["complete → roadmap ✓"]
-    CC --> DOC["bts doctor — health check"]
+    CC --> DOC["forge doctor — health check"]
 ```
 
 ## Development Lifecycle
 
-bts maps to a standard development process:
+forge maps to a standard development process:
 
 ```
 Requirements → Planning → Design → Implementation → Verification → Release
@@ -224,9 +224,9 @@ stateDiagram-v2
 
 | Marker | Validates | Sets phase |
 |--------|-----------|------------|
-| `<bts>DONE</bts>` | verification.md + verify-log: critical=0, major=0 | → finalize |
-| `<bts>IMPLEMENT DONE</bts>` | tasks done + tests pass + review.md + deviation.md | → complete |
-| `<bts>FIX DONE</bts>` | fix-spec.md + tests pass | → complete |
+| `<forge>DONE</forge>` | verification.md + verify-log: critical=0, major=0 | → finalize |
+| `<forge>IMPLEMENT DONE</forge>` | tasks done + tests pass + review.md + deviation.md | → complete |
+| `<forge>FIX DONE</forge>` | fix-spec.md + tests pass | → complete |
 
 ## Document Flow
 
@@ -259,7 +259,7 @@ flowchart TD
 ### Project-level Documents
 
 ```
-.bts/state/
+.forge/state/
 ├── vision.md               Product vision (purpose, components, constraints)
 ├── roadmap.md              Ordered recipe decomposition (checkbox items)
 ├── project-map.md          Level 0: layer overview (~300 tokens)
@@ -300,13 +300,13 @@ completion automatically marks it done.
 
 ```mermaid
 flowchart LR
-    subgraph Go["Go binary (bts)"]
-        init["bts init"]
-        validate["bts validate"]
-        doctor["bts doctor"]
-        hook["bts hook"]
-        recipe["bts recipe"]
-        statusline["bts statusline"]
+    subgraph Go["Go binary (forge)"]
+        init["forge init"]
+        validate["forge validate"]
+        doctor["forge doctor"]
+        hook["forge hook"]
+        recipe["forge recipe"]
+        statusline["forge statusline"]
     end
 
     subgraph CC["Claude Code"]
@@ -336,17 +336,17 @@ flowchart LR
 ### Statusline
 
 ```
-bts v0.1.0 │ JWT auth │ 🟡 verify │ ctx 45%
-bts v0.1.0 │ JWT auth │ implement 3/5 │ ctx 60%
-bts v0.1.0 │ bcrypt fix │ test │ ctx 30%
+forge v0.1.0 │ JWT auth │ 🟡 verify │ ctx 45%
+forge v0.1.0 │ JWT auth │ implement 3/5 │ ctx 60%
+forge v0.1.0 │ bcrypt fix │ test │ ctx 30%
 ```
 
 ### Project Map
 
 Lightweight project overview, auto-synced on recipe completion:
 ```
-.bts/state/project-map.md     — Level 0: layer paths + build/test commands
-.bts/state/layers/{name}.md   — Level 1: on-demand detail per layer
+.forge/state/project-map.md     — Level 0: layer paths + build/test commands
+.forge/state/layers/{name}.md   — Level 1: on-demand detail per layer
 ```
 
 ## Key Principles
@@ -362,18 +362,18 @@ Lightweight project overview, auto-synced on recipe completion:
 ## CLI
 
 ```
-bts init [dir]              Initialize project
-bts doctor [recipe-id]      Recipe health check (documents, manifest, flow, vision/roadmap)
-bts validate [recipe-id]    Check JSON schema compliance
-bts version                 Show binary and template versions
-bts update                  Deploy latest templates
-bts recipe status           Show active recipe
-bts recipe list             All recipes
-bts recipe log <id>         Record action/phase/iteration
-bts recipe cancel           Cancel active recipe
-bts debate list             All debates
-bts statusline              Render status for Claude Code (internal)
-bts hook <event>            Handle lifecycle events (internal)
+forge init [dir]              Initialize project
+forge doctor [recipe-id]      Recipe health check (documents, manifest, flow, vision/roadmap)
+forge validate [recipe-id]    Check JSON schema compliance
+forge version                 Show binary and template versions
+forge update                  Deploy latest templates
+forge recipe status           Show active recipe
+forge recipe list             All recipes
+forge recipe log <id>         Record action/phase/iteration
+forge recipe cancel           Cancel active recipe
+forge debate list             All debates
+forge statusline              Render status for Claude Code (internal)
+forge hook <event>            Handle lifecycle events (internal)
 ```
 
 ## Document Levels

@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/jlim/bts/internal/state"
+	"github.com/jlim/claude-forge/internal/state"
 )
 
 type stopHandler struct{}
@@ -33,29 +33,29 @@ func (h *stopHandler) Handle(input *HookInput) (*HookOutput, error) {
 	}
 
 	// Check for fix completion marker
-	if strings.Contains(input.StopHookContent, "<bts>FIX DONE</bts>") {
+	if strings.Contains(input.StopHookContent, "<forge>FIX DONE</forge>") {
 		return h.handleFixDone(btsRoot, recipe)
 	}
 
 	// Check for implementation completion marker
-	if strings.Contains(input.StopHookContent, "<bts>IMPLEMENT DONE</bts>") {
+	if strings.Contains(input.StopHookContent, "<forge>IMPLEMENT DONE</forge>") {
 		return h.handleImplementDone(btsRoot, recipe)
 	}
 
 	// Check for spec completion marker
-	if strings.Contains(input.StopHookContent, "<bts>DONE</bts>") {
+	if strings.Contains(input.StopHookContent, "<forge>DONE</forge>") {
 		return h.handleSpecDone(btsRoot, recipe)
 	}
 
 	// No completion marker — remind about active recipe
 	hint := "Continue or use /recipe cancel."
 	if state.IsImplementPhase(recipe.Phase) {
-		hint = fmt.Sprintf("Run /bts-implement %s to continue, or /recipe cancel to abort.", recipe.ID)
+		hint = fmt.Sprintf("Run /forge-implement %s to continue, or /recipe cancel to abort.", recipe.ID)
 	}
 	return &HookOutput{
 		HookSpecificOutput: &HookSpecificOutput{
 			AdditionalContext: fmt.Sprintf(
-				"[bts] Recipe \"%s\" is still active (Step: %s). %s",
+				"[forge] Recipe \"%s\" is still active (Step: %s). %s",
 				recipe.Topic, recipe.Phase, hint,
 			),
 		},
@@ -69,7 +69,7 @@ func (h *stopHandler) handleSpecDone(btsRoot string, recipe *state.RecipeState) 
 	// 1. Check verification.md exists (proves /verify was actually run)
 	verifyDocPath := filepath.Join(recipeDir, "verification.md")
 	if _, err := os.Stat(verifyDocPath); os.IsNotExist(err) {
-		return blockOutput("No verification.md found. Run /bts-verify on draft.md before completing."), nil
+		return blockOutput("No verification.md found. Run /forge-verify on draft.md before completing."), nil
 	}
 
 	// 2. Check verify-log has passing entry
@@ -141,7 +141,7 @@ func (h *stopHandler) handleImplementDone(btsRoot string, recipe *state.RecipeSt
 	// 3. Check that review has run (review.md exists)
 	reviewPath := filepath.Join(state.RecipeDir(btsRoot, recipe.ID), "review.md")
 	if _, err := os.Stat(reviewPath); os.IsNotExist(err) {
-		return blockOutput("No review.md found. Run /bts-review before completing implementation."), nil
+		return blockOutput("No review.md found. Run /forge-review before completing implementation."), nil
 	}
 
 	// 4. Check that sync has run (deviation.md exists)
@@ -200,7 +200,7 @@ func roadmapHint(btsRoot string, prefix string) *HookOutput {
 		}
 		return &HookOutput{
 			HookSpecificOutput: &HookSpecificOutput{
-				AdditionalContext: fmt.Sprintf("[bts] %s %s", prefix, hint),
+				AdditionalContext: fmt.Sprintf("[forge] %s %s", prefix, hint),
 			},
 		}
 	}

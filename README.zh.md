@@ -1,4 +1,4 @@
-# bts — 防弹技术规范
+# claude-forge — 防弹技术规范
 
 [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md)
 
@@ -17,7 +17,7 @@
 ║   Loop the CODE (expensive)     Loop the DOCS (safe to fail)   ║
 ║   builds, tests, side effects   no builds, no tests, no breakage║
 ║                                                                ║
-║                    bts is Lisa Mode.                           ║
+║                    claude-forge is Lisa Mode.                           ║
 ║                                                                ║
 ╚════════════════════════════════════════════════════════════════╝
 ```
@@ -60,18 +60,18 @@ flowchart LR
     FM --> IMP2["/implement"] --> DONE2["完成"]
 ```
 
-bts 将**规划 → 构建 → 验证**作为一个自动化流水线覆盖。
+forge 将**规划 → 构建 → 验证**作为一个自动化流水线覆盖。
 
 ## 安装
 
 ```bash
 # 一行安装（macOS / Linux）
-curl -fsSL https://raw.githubusercontent.com/jlim/bts/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/jlim/claude-forge/main/install.sh | bash
 
 # 或从源码构建（Go 1.22+）
-git clone https://github.com/jlim/bts.git
-cd bts
-make install    # 安装到 ~/.local/bin/bts
+git clone https://github.com/jlim/claude-forge.git
+cd claude-forge
+make install    # 安装到 ~/.local/bin/forge
 ```
 
 如果 `~/.local/bin` 不在 PATH 中，添加到 `.zshrc` 或 `.bashrc`：
@@ -88,7 +88,7 @@ git pull && make install
 
 ```bash
 # 在项目中初始化
-bts init .
+forge init .
 
 # 启动 Claude Code
 claude
@@ -103,11 +103,11 @@ claude
 /recipe debug "session drops after 5 minutes"
 
 # 代码质量审查
-/bts-review
-/bts-review security src/auth/
+/forge-review
+/forge-review security src/auth/
 
 # 检查项目健康状态
-bts doctor
+forge doctor
 ```
 
 ## 配方
@@ -151,15 +151,15 @@ bts doctor
 ## CLI
 
 ```
-bts init [dir]              初始化项目
-bts doctor [recipe-id]      配方健康检查（文档、清单、流程、愿景/路线图）
-bts validate [recipe-id]    检查 JSON 模式合规性
-bts version                 显示二进制和模板版本
-bts update                  部署最新模板
-bts recipe status           显示活动配方
-bts recipe list             所有配方列表
-bts recipe log <id>         记录操作/阶段/迭代
-bts recipe cancel           取消活动配方
+forge init [dir]              初始化项目
+forge doctor [recipe-id]      配方健康检查（文档、清单、流程、愿景/路线图）
+forge validate [recipe-id]    检查 JSON 模式合规性
+forge version                 显示二进制和模板版本
+forge update                  部署最新模板
+forge recipe status           显示活动配方
+forge recipe list             所有配方列表
+forge recipe log <id>         记录操作/阶段/迭代
+forge recipe cancel           取消活动配方
 ```
 
 ## 许可证

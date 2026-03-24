@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 )
 
-// FindBTSRoot searches for .bts/ directory starting from cwd upward.
+// FindBTSRoot searches for .forge/ directory starting from cwd upward.
 func FindBTSRoot(cwd string) (string, error) {
 	dir := cwd
 	for i := 0; i < 10; i++ {
-		if _, err := os.Stat(filepath.Join(dir, ".bts")); err == nil {
+		if _, err := os.Stat(filepath.Join(dir, ".forge")); err == nil {
 			return dir, nil
 		}
 		parent := filepath.Dir(dir)
@@ -20,12 +20,12 @@ func FindBTSRoot(cwd string) (string, error) {
 		}
 		dir = parent
 	}
-	return "", fmt.Errorf(".bts/ not found from %s", cwd)
+	return "", fmt.Errorf(".forge/ not found from %s", cwd)
 }
 
 // StatePath returns the path to state directory.
 func StatePath(btsRoot string) string {
-	return filepath.Join(btsRoot, ".bts", "state")
+	return filepath.Join(btsRoot, ".forge", "state")
 }
 
 // ReadJSON reads a JSON file into the target struct.
@@ -49,7 +49,7 @@ func WriteJSON(path string, data interface{}) error {
 		return fmt.Errorf("mkdir: %w", err)
 	}
 
-	tmp, err := os.CreateTemp(dir, ".bts-*.tmp")
+	tmp, err := os.CreateTemp(dir, ".forge-*.tmp")
 	if err != nil {
 		return fmt.Errorf("create temp: %w", err)
 	}

@@ -1,4 +1,4 @@
-# bts — 방탄 기술 사양
+# claude-forge — 방탄 기술 사양
 
 [English](README.md) | [中文](README.zh.md) | [日本語](README.ja.md)
 
@@ -17,7 +17,7 @@
 ║   코드를 루프 (비쌈)            문서를 루프 (안전하게 실패)    ║
 ║   빌드, 테스트, 부작용          빌드 없음, 테스트 없음, 파손 0 ║
 ║                                                                ║
-║                  bts는 리사 모드입니다.                         ║
+║                  claude-forge는 리사 모드입니다.                         ║
 ║                                                                ║
 ╚════════════════════════════════════════════════════════════════╝
 ```
@@ -60,18 +60,18 @@ flowchart LR
     FM --> IMP2["/implement"] --> DONE2["완료"]
 ```
 
-bts는 **기획 → 구현 → 검증**을 하나의 자동화된 파이프라인으로 다룹니다.
+forge는 **기획 → 구현 → 검증**을 하나의 자동화된 파이프라인으로 다룹니다.
 
 ## 설치
 
 ```bash
 # 원라인 설치 (macOS / Linux)
-curl -fsSL https://raw.githubusercontent.com/jlim/bts/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/jlim/claude-forge/main/install.sh | bash
 
 # 또는 소스에서 빌드 (Go 1.22+)
-git clone https://github.com/jlim/bts.git
-cd bts
-make install    # ~/.local/bin/bts에 설치
+git clone https://github.com/jlim/claude-forge.git
+cd claude-forge
+make install    # ~/.local/bin/forge에 설치
 ```
 
 `~/.local/bin`이 PATH에 없으면 `.zshrc` 또는 `.bashrc`에 추가:
@@ -88,7 +88,7 @@ git pull && make install
 
 ```bash
 # 프로젝트 초기화
-bts init .
+forge init .
 
 # Claude Code 시작
 claude
@@ -103,11 +103,11 @@ claude
 /recipe debug "5분 후 세션 끊김"
 
 # 코드 품질 리뷰
-/bts-review
-/bts-review security src/auth/
+/forge-review
+/forge-review security src/auth/
 
 # 프로젝트 건강 체크
-bts doctor
+forge doctor
 ```
 
 ## 레시피
@@ -151,15 +151,15 @@ bts doctor
 ## CLI
 
 ```
-bts init [dir]              프로젝트 초기화
-bts doctor [recipe-id]      레시피 건강 체크 (문서, 매니페스트, 플로우, 비전/로드맵)
-bts validate [recipe-id]    JSON 스키마 준수 확인
-bts version                 바이너리 및 템플릿 버전 표시
-bts update                  최신 템플릿 배포
-bts recipe status           활성 레시피 표시
-bts recipe list             전체 레시피 목록
-bts recipe log <id>         액션/단계/이터레이션 기록
-bts recipe cancel           활성 레시피 취소
+forge init [dir]              프로젝트 초기화
+forge doctor [recipe-id]      레시피 건강 체크 (문서, 매니페스트, 플로우, 비전/로드맵)
+forge validate [recipe-id]    JSON 스키마 준수 확인
+forge version                 바이너리 및 템플릿 버전 표시
+forge update                  최신 템플릿 배포
+forge recipe status           활성 레시피 표시
+forge recipe list             전체 레시피 목록
+forge recipe log <id>         액션/단계/이터레이션 기록
+forge recipe cancel           활성 레시피 취소
 ```
 
 ## 라이선스

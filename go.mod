@@ -1,4 +1,4 @@
-module github.com/jlim/bts
+module github.com/jlim/claude-forge
 
 go 1.26.1
 

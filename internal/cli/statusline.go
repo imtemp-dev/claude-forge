@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jlim/bts/internal/state"
-	"github.com/jlim/bts/internal/statusline"
+	"github.com/jlim/claude-forge/internal/state"
+	"github.com/jlim/claude-forge/internal/statusline"
 	"github.com/spf13/cobra"
 )
 

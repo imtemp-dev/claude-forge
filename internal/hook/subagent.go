@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/jlim/bts/internal/state"
+	"github.com/jlim/claude-forge/internal/state"
 )
 
 type subagentStartHandler struct{}

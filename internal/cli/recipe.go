@@ -8,7 +8,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/jlim/bts/internal/state"
+	"github.com/jlim/claude-forge/internal/state"
 	"github.com/spf13/cobra"
 )
 
@@ -30,7 +30,7 @@ var recipeStatusCmd = &cobra.Command{
 		cwd, _ := os.Getwd()
 		btsRoot, err := state.FindBTSRoot(cwd)
 		if err != nil {
-			return fmt.Errorf("not a bts project: %w", err)
+			return fmt.Errorf("not a forge project: %w", err)
 		}
 
 		recipe, err := state.GetActiveRecipe(btsRoot)
@@ -65,7 +65,7 @@ var recipeListCmd = &cobra.Command{
 		cwd, _ := os.Getwd()
 		btsRoot, err := state.FindBTSRoot(cwd)
 		if err != nil {
-			return fmt.Errorf("not a bts project: %w", err)
+			return fmt.Errorf("not a forge project: %w", err)
 		}
 
 		recipes, err := state.ListRecipes(btsRoot)
@@ -97,7 +97,7 @@ var recipeLogCmd = &cobra.Command{
 		cwd, _ := os.Getwd()
 		btsRoot, err := state.FindBTSRoot(cwd)
 		if err != nil {
-			return fmt.Errorf("not a bts project: %w", err)
+			return fmt.Errorf("not a forge project: %w", err)
 		}
 
 		recipeID := args[0]
@@ -209,7 +209,7 @@ var recipeCancelCmd = &cobra.Command{
 		cwd, _ := os.Getwd()
 		btsRoot, err := state.FindBTSRoot(cwd)
 		if err != nil {
-			return fmt.Errorf("not a bts project: %w", err)
+			return fmt.Errorf("not a forge project: %w", err)
 		}
 
 		recipe, err := state.GetActiveRecipe(btsRoot)
@@ -290,7 +290,7 @@ func checkPhasePreConditions(btsRoot string, recipe *state.RecipeState, newPhase
 	switch newPhase {
 	case "complete", "finalize":
 		fmt.Fprintf(os.Stderr, "✗ Phase '%s' is protected — set automatically by completion gates.\n", newPhase)
-		fmt.Fprintf(os.Stderr, "  Output <bts>DONE</bts>, <bts>IMPLEMENT DONE</bts>, or <bts>FIX DONE</bts> to complete.\n")
+		fmt.Fprintf(os.Stderr, "  Output <forge>DONE</forge>, <forge>IMPLEMENT DONE</forge>, or <forge>FIX DONE</forge> to complete.\n")
 		return fmt.Errorf("phase '%s' is protected", newPhase)
 
 	case "research":
@@ -305,7 +305,7 @@ func checkPhasePreConditions(btsRoot string, recipe *state.RecipeState, newPhase
 
 	case "test":
 		if recipe.Type != "fix" && !exists("tasks.json") {
-			warn("tasks.json not found — run /bts-implement to decompose tasks")
+			warn("tasks.json not found — run /forge-implement to decompose tasks")
 		}
 
 	case "review":
@@ -318,17 +318,17 @@ func checkPhasePreConditions(btsRoot string, recipe *state.RecipeState, newPhase
 		}
 		simsDir := filepath.Join(recipeDir, "simulations")
 		if entries, err := os.ReadDir(simsDir); err != nil || countNonHidden(entries) == 0 {
-			warn("no code simulation found — run /bts-simulate code first")
+			warn("no code simulation found — run /forge-simulate code first")
 		}
 
 	case "sync":
 		if !exists("review.md") {
-			warn("review.md not found — run /bts-review first")
+			warn("review.md not found — run /forge-review first")
 		}
 
 	case "status":
 		if !exists("deviation.md") {
-			warn("deviation.md not found — run /bts-sync first")
+			warn("deviation.md not found — run /forge-sync first")
 		}
 	}
 

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jlim/bts/internal/state"
-	"github.com/jlim/bts/internal/template"
-	"github.com/jlim/bts/pkg/version"
+	"github.com/jlim/claude-forge/internal/state"
+	"github.com/jlim/claude-forge/internal/template"
+	"github.com/jlim/claude-forge/pkg/version"
 )
 
 type sessionStartHandler struct{}
@@ -45,12 +45,12 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 			if total > 0 {
 				var msg string
 				if nextItem != "" {
-					msg = fmt.Sprintf("[bts] Roadmap: %d/%d done. Next: %s\nRun /bts-recipe-blueprint to start.", done, total, nextItem)
+					msg = fmt.Sprintf("[forge] Roadmap: %d/%d done. Next: %s\nRun /forge-recipe-blueprint to start.", done, total, nextItem)
 				} else {
-					msg = fmt.Sprintf("[bts] Roadmap complete: %d/%d done. Run /bts-recipe-blueprint to add new items or start a new vision.", done, total)
+					msg = fmt.Sprintf("[forge] Roadmap complete: %d/%d done. Run /forge-recipe-blueprint to add new items or start a new vision.", done, total)
 				}
 				if updated {
-					msg = fmt.Sprintf("[bts] Templates updated to %s\n%s", version.GetTemplateVersion(), msg)
+					msg = fmt.Sprintf("[forge] Templates updated to %s\n%s", version.GetTemplateVersion(), msg)
 				}
 				return &HookOutput{
 					HookSpecificOutput: &HookSpecificOutput{
@@ -62,9 +62,9 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 			if state.VisionExists(btsRoot) {
 				visionData, _ := os.ReadFile(filepath.Join(state.StatePath(btsRoot), "vision.md"))
 				if strings.Contains(string(visionData), "Status: DRAFT") {
-					msg := "[bts] Vision document in progress (Status: DRAFT).\nRun /bts-recipe-blueprint to continue."
+					msg := "[forge] Vision document in progress (Status: DRAFT).\nRun /forge-recipe-blueprint to continue."
 					if updated {
-						msg = fmt.Sprintf("[bts] Templates updated to %s\n%s", version.GetTemplateVersion(), msg)
+						msg = fmt.Sprintf("[forge] Templates updated to %s\n%s", version.GetTemplateVersion(), msg)
 					}
 					return &HookOutput{
 						HookSpecificOutput: &HookSpecificOutput{
@@ -76,7 +76,7 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 			if updated {
 				return &HookOutput{
 					HookSpecificOutput: &HookSpecificOutput{
-						AdditionalContext: fmt.Sprintf("[bts] Templates updated to %s", version.GetTemplateVersion()),
+						AdditionalContext: fmt.Sprintf("[forge] Templates updated to %s", version.GetTemplateVersion()),
 					},
 				}, nil
 			}
@@ -84,17 +84,17 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 		}
 
 		msg := fmt.Sprintf(
-			"[bts] Recipe ready for implementation: %s \"%s\" (ID: %s)\nRun /bts-implement %s to start coding.",
+			"[forge] Recipe ready for implementation: %s \"%s\" (ID: %s)\nRun /forge-implement %s to start coding.",
 			recipe.Type, recipe.Topic, recipe.ID, recipe.ID,
 		)
 
 		// Enrich with work state if resuming
 		if ws != nil && (source == "compact" || source == "resume") {
-			msg = fmt.Sprintf("[bts] Resuming. %s\nRun /bts-implement %s to start coding.", ws.Summary, recipe.ID)
+			msg = fmt.Sprintf("[forge] Resuming. %s\nRun /forge-implement %s to start coding.", ws.Summary, recipe.ID)
 		}
 
 		if updated {
-			msg = fmt.Sprintf("[bts] Templates updated to %s\n%s", version.GetTemplateVersion(), msg)
+			msg = fmt.Sprintf("[forge] Templates updated to %s\n%s", version.GetTemplateVersion(), msg)
 		}
 
 		return &HookOutput{
@@ -107,13 +107,13 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 	// Build hint based on phase and source
 	var hint string
 	if recipe.Phase == "discovery" {
-		hint = fmt.Sprintf("Intent discovery in progress. Read .bts/state/recipes/%s/intent.md and continue conversation.", recipe.ID)
+		hint = fmt.Sprintf("Intent discovery in progress. Read .forge/state/recipes/%s/intent.md and continue conversation.", recipe.ID)
 	} else if recipe.Phase == "scoping" {
-		hint = fmt.Sprintf("Scope alignment in progress. Read .bts/state/recipes/%s/scope.md and confirm or adjust.", recipe.ID)
+		hint = fmt.Sprintf("Scope alignment in progress. Read .forge/state/recipes/%s/scope.md and confirm or adjust.", recipe.ID)
 	} else if state.IsImplementPhase(recipe.Phase) {
-		implCmd := fmt.Sprintf("/bts-implement %s", recipe.ID)
+		implCmd := fmt.Sprintf("/forge-implement %s", recipe.ID)
 		if recipe.Type == "fix" {
-			implCmd = fmt.Sprintf("/bts-recipe-fix %s", recipe.ID)
+			implCmd = fmt.Sprintf("/forge-recipe-fix %s", recipe.ID)
 		}
 		switch source {
 		case "resume":
@@ -138,7 +138,7 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 				hint = "Context compacted. Continue where you left off."
 			}
 		default:
-			hint = fmt.Sprintf("Run /bts-recipe-%s to re-enter the recipe, or /recipe cancel to abort.", recipe.Type)
+			hint = fmt.Sprintf("Run /forge-recipe-%s to re-enter the recipe, or /recipe cancel to abort.", recipe.Type)
 		}
 	}
 
@@ -146,26 +146,26 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 	var msg string
 	switch source {
 	case "resume":
-		msg = fmt.Sprintf("[bts] Session restored. %s \"%s\" (Step: %s)\n%s",
+		msg = fmt.Sprintf("[forge] Session restored. %s \"%s\" (Step: %s)\n%s",
 			recipe.Type, recipe.Topic, recipe.Phase, hint)
 		if ws != nil {
-			msg = fmt.Sprintf("[bts] Session restored. %s\n%s", ws.Summary, hint)
+			msg = fmt.Sprintf("[forge] Session restored. %s\n%s", ws.Summary, hint)
 		}
 	case "compact":
-		msg = fmt.Sprintf("[bts] Context compacted. %s \"%s\" (Step: %s)\n%s",
+		msg = fmt.Sprintf("[forge] Context compacted. %s \"%s\" (Step: %s)\n%s",
 			recipe.Type, recipe.Topic, recipe.Phase, hint)
 		if ws != nil {
-			msg = fmt.Sprintf("[bts] Context compacted. %s\n%s", ws.Summary, hint)
+			msg = fmt.Sprintf("[forge] Context compacted. %s\n%s", ws.Summary, hint)
 		}
 	default:
 		msg = fmt.Sprintf(
-			"[bts] Active recipe: %s \"%s\" (Step: %s, Iteration: %d)\n%s",
+			"[forge] Active recipe: %s \"%s\" (Step: %s, Iteration: %d)\n%s",
 			recipe.Type, recipe.Topic, recipe.Phase, recipe.Iteration, hint,
 		)
 	}
 
 	if updated {
-		msg = fmt.Sprintf("[bts] Templates updated to %s\n%s", version.GetTemplateVersion(), msg)
+		msg = fmt.Sprintf("[forge] Templates updated to %s\n%s", version.GetTemplateVersion(), msg)
 	}
 
 	return &HookOutput{
@@ -178,7 +178,7 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 // autoUpdateTemplates checks if templates need updating and deploys if so.
 // Returns true if templates were updated, false if skipped.
 func autoUpdateTemplates(btsRoot string) bool {
-	versionFile := filepath.Join(btsRoot, ".bts", "config", ".template-version")
+	versionFile := filepath.Join(btsRoot, ".forge", "config", ".template-version")
 	existing, _ := os.ReadFile(versionFile)
 
 	current := version.GetTemplateVersion()
@@ -189,7 +189,7 @@ func autoUpdateTemplates(btsRoot string) bool {
 
 	// Deploy templates (overwrite all except user config files)
 	_, _ = template.DeployForce(btsRoot, []string{
-		".bts/config/settings.yaml",
+		".forge/config/settings.yaml",
 		".mcp.json",
 	})
 
@@ -213,27 +213,27 @@ func nextStepHint(btsRoot string, recipe *state.RecipeState) string {
 	case recipe.Phase == "scoping":
 		return "Read scope.md and confirm or adjust scope."
 	case !state.IsImplementPhase(recipe.Phase) && recipe.Phase != "finalize":
-		return "Run /bts-assess on draft.md to determine next action."
+		return "Run /forge-assess on draft.md to determine next action."
 	case recipe.Phase == "implement":
 		if !exists("tasks.json") {
-			return fmt.Sprintf("Run /bts-implement %s to decompose tasks.", recipe.ID)
+			return fmt.Sprintf("Run /forge-implement %s to decompose tasks.", recipe.ID)
 		}
 		return "Continue implementation — check tasks.json for next pending task."
 	case recipe.Phase == "test":
 		if exists("test-results.json") {
 			simsDir := filepath.Join(recipeDir, "simulations")
 			if entries, err := os.ReadDir(simsDir); err == nil && len(entries) > 0 {
-				return "Tests and simulation done. Run /bts-review for code quality review."
+				return "Tests and simulation done. Run /forge-review for code quality review."
 			}
-			return "Tests completed. Run /bts-simulate code next."
+			return "Tests completed. Run /forge-simulate code next."
 		}
-		return fmt.Sprintf("Run /bts-test %s to execute tests.", recipe.ID)
+		return fmt.Sprintf("Run /forge-test %s to execute tests.", recipe.ID)
 	case recipe.Phase == "review":
-		return "Run /bts-review for code quality review."
+		return "Run /forge-review for code quality review."
 	case recipe.Phase == "sync":
-		return fmt.Sprintf("Run /bts-sync %s to compare spec with code.", recipe.ID)
+		return fmt.Sprintf("Run /forge-sync %s to compare spec with code.", recipe.ID)
 	case recipe.Phase == "status":
-		return fmt.Sprintf("Run /bts-status %s to update project status.", recipe.ID)
+		return fmt.Sprintf("Run /forge-status %s to update project status.", recipe.ID)
 	}
 	return ""
 }

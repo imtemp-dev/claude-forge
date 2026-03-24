@@ -6,20 +6,20 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/jlim/bts/internal/template"
-	"github.com/jlim/bts/pkg/version"
+	"github.com/jlim/claude-forge/internal/template"
+	"github.com/jlim/claude-forge/pkg/version"
 	"github.com/spf13/cobra"
 )
 
 func init() {
 	rootCmd.AddCommand(initCmd)
-	initCmd.Flags().Bool("force", false, "Reinitialize (overwrites existing bts files)")
+	initCmd.Flags().Bool("force", false, "Reinitialize (overwrites existing forge files)")
 }
 
 var initCmd = &cobra.Command{
 	Use:   "init [directory]",
-	Short: "Initialize bts in a project",
-	Long:  "Deploy skills, agents, hooks, and rules to .claude/ and create .bts/ for state management.",
+	Short: "Initialize forge in a project",
+	Long:  "Deploy skills, agents, hooks, and rules to .claude/ and create .forge/ for state management.",
 	Args:  cobra.MaximumNArgs(1),
 	GroupID: "project",
 	RunE:  runInit,
@@ -38,15 +38,15 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 
 	// Check if already initialized
-	btsDir := filepath.Join(absRoot, ".bts")
+	btsDir := filepath.Join(absRoot, ".forge")
 	force, _ := cmd.Flags().GetBool("force")
 	if _, err := os.Stat(btsDir); err == nil && !force {
-		return fmt.Errorf(".bts/ already exists. Use --force to reinitialize")
+		return fmt.Errorf(".forge/ already exists. Use --force to reinitialize")
 	}
 
-	fmt.Println("Initializing bts...")
+	fmt.Println("Initializing forge...")
 
-	// Create .bts directories
+	// Create .forge directories
 	stateDirs := []string{
 		filepath.Join(btsDir, "config"),
 		filepath.Join(btsDir, "state", "recipes"),
@@ -59,7 +59,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 
 	// Deploy templates
-	skipFiles := []string{".bts/config/settings.yaml", ".mcp.json"}
+	skipFiles := []string{".forge/config/settings.yaml", ".mcp.json"}
 	var created []string
 	if force {
 		created, err = template.DeployForce(absRoot, skipFiles)
@@ -75,21 +75,21 @@ func runInit(cmd *cobra.Command, args []string) error {
 	if version.Commit != "none" && len(version.Commit) >= 7 {
 		tv += "-" + version.Commit[:7]
 	}
-	_ = os.WriteFile(filepath.Join(absRoot, ".bts", "config", ".template-version"), []byte(tv), 0644)
+	_ = os.WriteFile(filepath.Join(absRoot, ".forge", "config", ".template-version"), []byte(tv), 0644)
 
 	// Merge statusline config into .claude/settings.local.json
 	if err := mergeStatusLineSettings(absRoot); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: could not configure statusline: %v\n", err)
 	}
 
-	fmt.Printf("\nbts initialized successfully.\n")
+	fmt.Printf("\nforge initialized successfully.\n")
 	fmt.Printf("  Files created: %d\n", len(created))
-	fmt.Printf("  Skills:        .claude/skills/bts/\n")
-	fmt.Printf("  Agents:        .claude/agents/bts/\n")
-	fmt.Printf("  Commands:      .claude/commands/bts/\n")
-	fmt.Printf("  Rules:         .claude/rules/bts/\n")
-	fmt.Printf("  Hooks:         .claude/hooks/bts/\n")
-	fmt.Printf("  State:         .bts/\n")
+	fmt.Printf("  Skills:        .claude/skills/forge/\n")
+	fmt.Printf("  Agents:        .claude/agents/forge/\n")
+	fmt.Printf("  Commands:      .claude/commands/forge/\n")
+	fmt.Printf("  Rules:         .claude/rules/forge/\n")
+	fmt.Printf("  Hooks:         .claude/hooks/forge/\n")
+	fmt.Printf("  State:         .forge/\n")
 	fmt.Printf("\nStart Claude Code and try: /recipe blueprint \"your feature\"\n")
 
 	return nil
@@ -116,7 +116,7 @@ func mergeStatusLineSettings(projectRoot string) error {
 	if _, exists := settings["statusLine"]; !exists {
 		settings["statusLine"] = map[string]interface{}{
 			"type":    "command",
-			"command": ".bts/status_line.sh",
+			"command": ".forge/status_line.sh",
 		}
 		changed = true
 	}
@@ -148,13 +148,13 @@ func mergeStatusLineSettings(projectRoot string) error {
 		}
 	}
 
-	register("SessionStart", ".claude/hooks/bts-handle-session-start.sh", 10)
-	register("PreCompact", ".claude/hooks/bts-handle-pre-compact.sh", 5)
-	register("Stop", ".claude/hooks/bts-handle-stop.sh", 10)
-	register("SessionEnd", ".claude/hooks/bts-handle-session-end.sh", 5)
-	register("SubagentStart", ".claude/hooks/bts-handle-subagent-start.sh", 5)
-	register("SubagentStop", ".claude/hooks/bts-handle-subagent-stop.sh", 5)
-	register("PreToolUse", ".claude/hooks/bts-handle-pre-tool-use.sh", 5)
+	register("SessionStart", ".claude/hooks/forge-handle-session-start.sh", 10)
+	register("PreCompact", ".claude/hooks/forge-handle-pre-compact.sh", 5)
+	register("Stop", ".claude/hooks/forge-handle-stop.sh", 10)
+	register("SessionEnd", ".claude/hooks/forge-handle-session-end.sh", 5)
+	register("SubagentStart", ".claude/hooks/forge-handle-subagent-start.sh", 5)
+	register("SubagentStop", ".claude/hooks/forge-handle-subagent-stop.sh", 5)
+	register("PreToolUse", ".claude/hooks/forge-handle-pre-tool-use.sh", 5)
 
 	if len(hooks) > 0 {
 		settings["hooks"] = hooks

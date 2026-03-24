@@ -10,8 +10,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/jlim/bts/internal/state"
-	"github.com/jlim/bts/pkg/version"
+	"github.com/jlim/claude-forge/internal/state"
+	"github.com/jlim/claude-forge/pkg/version"
 	"github.com/spf13/cobra"
 )
 
@@ -38,16 +38,16 @@ type doctorIssue struct {
 
 func runDoctor(cmd *cobra.Command, args []string) error {
 	// System diagnostics (always)
-	fmt.Println("bts doctor")
+	fmt.Println("forge doctor")
 	fmt.Println("----------")
-	fmt.Printf("bts version:  %s\n", version.GetFullVersion())
+	fmt.Printf("forge version:  %s\n", version.GetFullVersion())
 	fmt.Printf("Platform:     %s/%s (%s)\n", runtime.GOOS, runtime.GOARCH, runtime.Version())
 
 	// Template version check
 	cwd, _ := os.Getwd()
 	btsRoot, btsErr := state.FindBTSRoot(cwd)
 	if btsErr == nil {
-		vf := filepath.Join(btsRoot, ".bts", "config", ".template-version")
+		vf := filepath.Join(btsRoot, ".forge", "config", ".template-version")
 		if data, err := os.ReadFile(vf); err == nil {
 			tmplVer := strings.TrimSpace(string(data))
 			binVer := version.GetTemplateVersion()
@@ -55,7 +55,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 				fmt.Printf("Templates:    %s (up to date)\n", tmplVer)
 			} else {
 				fmt.Printf("Templates:    %s (outdated, binary: %s)\n", tmplVer, binVer)
-				fmt.Println("              → Run 'bts update' to refresh templates")
+				fmt.Println("              → Run 'forge update' to refresh templates")
 			}
 		}
 	}
@@ -75,8 +75,8 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 
 	// Recipe health checks
 	if btsErr != nil {
-		fmt.Println("\nNo .bts/ project found.")
-		fmt.Println("  → Run 'bts init' to initialize bts in this project")
+		fmt.Println("\nNo .forge/ project found.")
+		fmt.Println("  → Run 'forge init' to initialize forge in this project")
 		return nil
 	}
 
@@ -115,9 +115,9 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 
 	if activeCount > 1 {
 		fmt.Printf("\n⚠ %d active recipes found (expected 1)\n", activeCount)
-		fmt.Println("  → Cancel inactive recipes with 'bts recipe cancel'")
+		fmt.Println("  → Cancel inactive recipes with 'forge recipe cancel'")
 		totalWarnings++
-		quickFixes = append(quickFixes, "bts recipe cancel")
+		quickFixes = append(quickFixes, "forge recipe cancel")
 	}
 
 	for _, recipe := range recipes {
@@ -165,7 +165,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 	mapPath := filepath.Join(state.StatePath(btsRoot), "project-map.md")
 	if _, err := os.Stat(mapPath); os.IsNotExist(err) {
 		fmt.Println("   ⚠ project-map.md not found")
-		fmt.Println("     → Run /bts-status to generate, or created during next /bts-recipe-blueprint scoping")
+		fmt.Println("     → Run /forge-status to generate, or created during next /forge-recipe-blueprint scoping")
 		totalWarnings++
 	} else {
 		fmt.Println("   ✓ project-map.md exists")
@@ -175,7 +175,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 	if state.VisionExists(btsRoot) {
 		visionData, _ := os.ReadFile(filepath.Join(state.StatePath(btsRoot), "vision.md"))
 		if strings.Contains(string(visionData), "Status: DRAFT") {
-			fmt.Println("   ⚠ vision.md exists (Status: DRAFT — confirm with next /bts-recipe-blueprint)")
+			fmt.Println("   ⚠ vision.md exists (Status: DRAFT — confirm with next /forge-recipe-blueprint)")
 			totalWarnings++
 		} else {
 			fmt.Println("   ✓ vision.md exists")
@@ -230,12 +230,12 @@ func checkDocuments(recipeDir string, recipe *state.RecipeState) []doctorIssue {
 		if pw >= 2 && !exists("diagnosis.md") {
 			issues = append(issues, doctorIssue{"warning", "documents",
 				"diagnosis.md — missing",
-				"Run /bts-recipe-fix to start diagnosis"})
+				"Run /forge-recipe-fix to start diagnosis"})
 		}
 		if pw >= 3 && !exists("fix-spec.md") {
 			issues = append(issues, doctorIssue{"error", "documents",
 				"fix-spec.md — missing",
-				"Run /bts-recipe-fix to create fix spec"})
+				"Run /forge-recipe-fix to create fix spec"})
 		}
 		if pw >= 6 {
 			issues = append(issues, checkTestFile(recipeDir)...)
@@ -243,14 +243,14 @@ func checkDocuments(recipeDir string, recipe *state.RecipeState) []doctorIssue {
 		if pw >= 8 && !exists("review.md") {
 			issues = append(issues, doctorIssue{"warning", "documents",
 				"review.md — missing",
-				"Run /bts-review to generate code review"})
+				"Run /forge-review to generate code review"})
 		}
 
 	case "debug":
 		if pw >= 2 && !exists("perspectives.md") {
 			issues = append(issues, doctorIssue{"warning", "documents",
 				"perspectives.md — missing",
-				"Run /bts-recipe-debug to collect perspectives"})
+				"Run /forge-recipe-debug to collect perspectives"})
 		}
 		if pw >= 3 && !exists("draft.md") {
 			issues = append(issues, doctorIssue{"warning", "documents",
@@ -261,7 +261,7 @@ func checkDocuments(recipeDir string, recipe *state.RecipeState) []doctorIssue {
 			if !exists("final.md") {
 				issues = append(issues, doctorIssue{"error", "documents",
 					"final.md — missing",
-					"Complete /bts-recipe-debug to produce final.md"})
+					"Complete /forge-recipe-debug to produce final.md"})
 			}
 			// verify-log checked separately with recipe ID
 		}
@@ -274,7 +274,7 @@ func checkDocuments(recipeDir string, recipe *state.RecipeState) []doctorIssue {
 		if pw >= 8 && !exists("review.md") {
 			issues = append(issues, doctorIssue{"error", "documents",
 				"review.md — missing",
-				"Run /bts-review to generate code review"})
+				"Run /forge-review to generate code review"})
 		}
 
 	default: // blueprint, analyze, design
@@ -286,7 +286,7 @@ func checkDocuments(recipeDir string, recipe *state.RecipeState) []doctorIssue {
 					if strings.Contains(content, "Status: DRAFT") && !strings.Contains(content, "Status: CONFIRMED") {
 						issues = append(issues, doctorIssue{"warning", "documents",
 							"scope.md — Status: DRAFT (not confirmed)",
-							"Confirm scope in /bts-recipe-blueprint"})
+							"Confirm scope in /forge-recipe-blueprint"})
 					}
 				}
 			}
@@ -300,7 +300,7 @@ func checkDocuments(recipeDir string, recipe *state.RecipeState) []doctorIssue {
 			if !exists("final.md") {
 				issues = append(issues, doctorIssue{"error", "documents",
 					"final.md — missing",
-					fmt.Sprintf("Complete /bts-recipe-%s to produce final.md", recipe.Type)})
+					fmt.Sprintf("Complete /forge-recipe-%s to produce final.md", recipe.Type)})
 			}
 			// verify-log checked separately with recipe ID
 		}
@@ -313,12 +313,12 @@ func checkDocuments(recipeDir string, recipe *state.RecipeState) []doctorIssue {
 		if pw >= 8 && !exists("review.md") {
 			issues = append(issues, doctorIssue{"error", "documents",
 				"review.md — missing",
-				"Run /bts-review to generate code review"})
+				"Run /forge-review to generate code review"})
 		}
 		if pw >= 8 && !exists("deviation.md") {
 			issues = append(issues, doctorIssue{"warning", "documents",
 				"deviation.md — missing",
-				"Run /bts-sync to compare spec with code"})
+				"Run /forge-sync to compare spec with code"})
 		}
 	}
 
@@ -336,7 +336,7 @@ func checkVerifyLog(recipeDir string, recipeID string) []doctorIssue {
 	if verifyCount > 0 && logCount == 0 {
 		issues = append(issues, doctorIssue{"error", "flow",
 			fmt.Sprintf("verify-log.jsonl — %d verify in changelog, 0 in verify-log", verifyCount),
-			fmt.Sprintf("bts recipe log %s --iteration 1 --critical 0 --major 0", recipeID)})
+			fmt.Sprintf("forge recipe log %s --iteration 1 --critical 0 --major 0", recipeID)})
 	}
 
 	// Check verify-log last entry for unresolved issues
@@ -344,7 +344,7 @@ func checkVerifyLog(recipeDir string, recipeID string) []doctorIssue {
 		if last.Critical > 0 || last.Major > 0 {
 			issues = append(issues, doctorIssue{"error", "flow",
 				fmt.Sprintf("verify-log: %d critical, %d major unresolved", last.Critical, last.Major),
-				"Fix issues and re-run /bts-verify"})
+				"Fix issues and re-run /forge-verify"})
 		}
 	}
 
@@ -358,7 +358,7 @@ func checkTasks(recipeDir string) []doctorIssue {
 	if err != nil {
 		issues = append(issues, doctorIssue{"error", "documents",
 			"tasks.json — missing",
-			"Run /bts-implement to decompose tasks"})
+			"Run /forge-implement to decompose tasks"})
 		return issues
 	}
 	var ts state.TaskState
@@ -381,7 +381,7 @@ func checkTasks(recipeDir string) []doctorIssue {
 		fmt.Printf(", %d blocked", blocked)
 		issues = append(issues, doctorIssue{"warning", "documents",
 			fmt.Sprintf("tasks.json — %d task(s) blocked", blocked),
-			"Run /bts-implement to retry or skip blocked tasks"})
+			"Run /forge-implement to retry or skip blocked tasks"})
 	}
 	if pending > 0 {
 		fmt.Printf(", %d pending", pending)
@@ -405,7 +405,7 @@ func checkTestFile(recipeDir string) []doctorIssue {
 	if tr.Status != "pass" {
 		issues = append(issues, doctorIssue{"warning", "documents",
 			fmt.Sprintf("tests — %d/%d failed", tr.Failed, tr.Total),
-			"Fix failing tests and re-run /bts-test"})
+			"Fix failing tests and re-run /forge-test"})
 	}
 	return issues
 }
@@ -436,7 +436,7 @@ func checkManifestConsistency(recipeDir string, recipeID string, manifest *state
 			if _, inManifest := manifest.Documents[name]; !inManifest {
 				issues = append(issues, doctorIssue{"warning", "manifest",
 					name + " — on disk but not in manifest",
-					fmt.Sprintf("bts recipe log %s --action [type] --output %s", recipeID, name)})
+					fmt.Sprintf("forge recipe log %s --action [type] --output %s", recipeID, name)})
 			}
 		}
 	}
@@ -462,7 +462,7 @@ func checkFlowCompliance(recipeDir string, recipe *state.RecipeState) []doctorIs
 				if actions[j] == "improve" {
 					issues = append(issues, doctorIssue{"warning", "flow",
 						"improve before finalize without verify",
-						"Run /bts-verify before finalizing"})
+						"Run /forge-verify before finalizing"})
 					break
 				}
 			}
@@ -473,21 +473,21 @@ func checkFlowCompliance(recipeDir string, recipe *state.RecipeState) []doctorIs
 	if pw >= 6 && containsAction(actions, "implement") && !containsAction(actions, "test") {
 		issues = append(issues, doctorIssue{"warning", "flow",
 			"implement without test",
-			"Run /bts-test to generate and execute tests"})
+			"Run /forge-test to generate and execute tests"})
 	}
 
 	// Check: test without simulate
 	if pw >= 7 && containsAction(actions, "test") && !containsAction(actions, "simulate") {
 		issues = append(issues, doctorIssue{"warning", "flow",
 			"test without code simulation",
-			"Run /bts-simulate code to verify all code paths"})
+			"Run /forge-simulate code to verify all code paths"})
 	}
 
 	// Check: test without review
 	if pw >= 8 && containsAction(actions, "test") && !containsAction(actions, "review") {
 		issues = append(issues, doctorIssue{"warning", "flow",
 			"test without review",
-			"Run /bts-review to check code quality"})
+			"Run /forge-review to check code quality"})
 	}
 
 	return issues

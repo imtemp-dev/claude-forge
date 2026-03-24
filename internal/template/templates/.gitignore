@@ -1,2 +1,2 @@
-# bts state (per-session, not committed)
-.bts/state/
+# forge state (per-session, not committed)
+.forge/state/

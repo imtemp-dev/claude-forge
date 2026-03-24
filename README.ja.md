@@ -1,4 +1,4 @@
-# bts — 防弾技術仕様
+# claude-forge — 防弾技術仕様
 
 [English](README.md) | [한국어](README.ko.md) | [中文](README.zh.md)
 
@@ -17,7 +17,7 @@
 ║   Loop the CODE (expensive)     Loop the DOCS (safe to fail)   ║
 ║   builds, tests, side effects   no builds, no tests, no breakage║
 ║                                                                ║
-║                    bts is Lisa Mode.                           ║
+║                    claude-forge is Lisa Mode.                           ║
 ║                                                                ║
 ╚════════════════════════════════════════════════════════════════╝
 ```
@@ -60,18 +60,18 @@ flowchart LR
     FM --> IMP2["/implement"] --> DONE2["完了"]
 ```
 
-btsは**企画 → 構築 → 検証**を単一の自動化パイプラインとしてカバーします。
+forgeは**企画 → 構築 → 検証**を単一の自動化パイプラインとしてカバーします。
 
 ## インストール
 
 ```bash
 # ワンラインインストール（macOS / Linux）
-curl -fsSL https://raw.githubusercontent.com/jlim/bts/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/jlim/claude-forge/main/install.sh | bash
 
 # またはソースからビルド（Go 1.22+）
-git clone https://github.com/jlim/bts.git
-cd bts
-make install    # ~/.local/bin/btsにインストール
+git clone https://github.com/jlim/claude-forge.git
+cd claude-forge
+make install    # ~/.local/bin/forgeにインストール
 ```
 
 `~/.local/bin`がPATHにない場合、`.zshrc`または`.bashrc`に追加：
@@ -88,7 +88,7 @@ git pull && make install
 
 ```bash
 # プロジェクトを初期化
-bts init .
+forge init .
 
 # Claude Codeを起動
 claude
@@ -103,11 +103,11 @@ claude
 /recipe debug "session drops after 5 minutes"
 
 # コード品質レビュー
-/bts-review
-/bts-review security src/auth/
+/forge-review
+/forge-review security src/auth/
 
 # プロジェクトの健全性チェック
-bts doctor
+forge doctor
 ```
 
 ## レシピ
@@ -151,15 +151,15 @@ bts doctor
 ## CLI
 
 ```
-bts init [dir]              プロジェクト初期化
-bts doctor [recipe-id]      レシピ健全性チェック（ドキュメント、マニフェスト、フロー、ビジョン/ロードマップ）
-bts validate [recipe-id]    JSONスキーマ準拠チェック
-bts version                 バイナリおよびテンプレートバージョン表示
-bts update                  最新テンプレートのデプロイ
-bts recipe status           アクティブレシピ表示
-bts recipe list             全レシピ一覧
-bts recipe log <id>         アクション/フェーズ/イテレーション記録
-bts recipe cancel           アクティブレシピキャンセル
+forge init [dir]              プロジェクト初期化
+forge doctor [recipe-id]      レシピ健全性チェック（ドキュメント、マニフェスト、フロー、ビジョン/ロードマップ）
+forge validate [recipe-id]    JSONスキーマ準拠チェック
+forge version                 バイナリおよびテンプレートバージョン表示
+forge update                  最新テンプレートのデプロイ
+forge recipe status           アクティブレシピ表示
+forge recipe list             全レシピ一覧
+forge recipe log <id>         アクション/フェーズ/イテレーション記録
+forge recipe cancel           アクティブレシピキャンセル
 ```
 
 ## ライセンス
