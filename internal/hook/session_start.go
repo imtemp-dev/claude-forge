@@ -206,6 +206,8 @@ func nextStepHint(btsRoot string, recipe *state.RecipeState) string {
 	}
 
 	switch {
+	case recipe.Phase == "discovery":
+		return "Continue intent discovery — read intent.md and resume conversation."
 	case recipe.Phase == "scoping":
 		return "Read scope.md and confirm or adjust scope."
 	case !state.IsImplementPhase(recipe.Phase) && recipe.Phase != "finalize":

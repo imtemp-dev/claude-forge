@@ -107,7 +107,7 @@ func validateRecipeJSON(path string) []ValidationError {
 	// Validate phase enum
 	if p, ok := raw["phase"].(string); ok {
 		valid := map[string]bool{
-			"scoping": true,
+			"discovery": true, "scoping": true,
 			"research": true, "draft": true, "assess": true, "improve": true,
 			"verify": true, "debate": true, "simulate": true, "audit": true,
 			"finalize": true, "cancelled": true,

@@ -311,6 +311,40 @@ Required sections:
 - Deviations aggregate
 - Next steps recommendations
 
+## intent.md
+
+Located at `.bts/state/recipes/{id}/intent.md`. Markdown format:
+
+```markdown
+# Intent: {topic}
+
+Status: EXPLORING | CONFIRMED
+
+## Problem
+{pain point or gap}
+
+## Purpose
+{why this needs to exist}
+
+## Users
+{who and their context}
+
+## Success Criteria
+{measurable outcomes}
+
+## Direction
+{agreed path forward}
+
+## Key Decisions
+- {decision with reasoning}
+
+## Research Notes
+{findings from investigation}
+```
+
+Status transitions: EXPLORING → CONFIRMED (mutual agreement).
+Updated incrementally during discovery conversation.
+
 ## vision.md
 
 Located at `.bts/state/vision.md`. Markdown format:

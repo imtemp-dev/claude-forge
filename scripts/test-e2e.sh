@@ -176,5 +176,11 @@ echo '{"id":"ptu-001","type":"blueprint","topic":"Test","phase":"implement","ite
 RESULT=$(echo '{"session_id":"t","cwd":"'"$TEST_DIR"'","hook_event_name":"pre-tool-use","tool_name":"Write","tool_input":{"file_path":"src/app.ts","content":"code"}}' | $BTS hook pre-tool-use 2>&1)
 echo "$RESULT" | grep -qv "spec phase" && echo "✓ 30. PreToolUse allows during implement" || { echo "✗ 30. PreToolUse impl"; exit 1; }
 
+# --- Discovery phase test ---
+# 31. Validate — discovery phase accepted
+mkdir -p .bts/state/recipes/disc-001
+echo '{"id":"disc-001","type":"blueprint","topic":"Test","phase":"discovery","iteration":0,"level":0,"started_at":"2026-03-18T00:00:00Z","updated_at":"2026-03-18T00:00:00Z"}' > .bts/state/recipes/disc-001/recipe.json
+$BTS validate 2>&1 | grep -qv "invalid.*phase" && echo "✓ 31. validate accepts phase=discovery" || { echo "✗ 31. discovery phase"; exit 1; }
+
 echo ""
-echo "=== All 30 tests passed ==="
+echo "=== All 31 tests passed ==="

@@ -99,6 +99,7 @@ review.md                         # Code review findings report
 perspectives.md                   # Debug: multi-perspective analysis
 project-map.md                    # Level 0: layer overview (auto-synced)
 layers/{name}.md                  # Level 1: layer detail (on-demand)
+intent.md                         # Intent discovery (per-recipe)
 vision.md                         # Product vision (project-level)
 roadmap.md                        # Ordered recipe decomposition (project-level)
 ```

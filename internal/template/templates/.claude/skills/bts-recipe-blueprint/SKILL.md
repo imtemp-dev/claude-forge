@@ -31,6 +31,10 @@ bts recipe status
 ```
 If active, check the phase to determine resume strategy:
 
+**If phase is `discovery`:** Read intent.md.
+- Status EXPLORING → continue discovery conversation using AskUserQuestion
+- Status CONFIRMED → proceed to Vision & Roadmap Check
+
 **If phase is `scoping`:** Check vision/roadmap state first (in order):
 1. If `.bts/state/vision.md` exists with Status: DRAFT → re-present vision for confirmation.
    After vision confirmed, check roadmap below.
@@ -92,6 +96,21 @@ ASSESS determines what to do next based on the document's current state.
 8. Run /assess to determine the next action
 
 **Refer to `.claude/rules/bts-schema.md` for exact JSON field names, types, and structures.**
+
+### Intent Check (before vision/roadmap/scoping)
+
+Before anything else, check if the intent is clear:
+
+1. If `.bts/state/recipes/{id}/intent.md` exists with Status: CONFIRMED → proceed.
+2. If intent.md exists with Status: EXPLORING → re-present current understanding,
+   continue discovery conversation until confirmed.
+3. If no intent.md → run Skill("bts-discover") with the recipe topic.
+   Wait for intent.md Status: CONFIRMED before proceeding.
+
+After intent is confirmed, intent.md informs all subsequent decisions:
+- Vision creation references intent's Purpose and Users
+- Scope proposals are evaluated against intent's Success Criteria
+- Out of Scope items justified by what the intent does NOT include
 
 ### Vision & Roadmap Check (before scoping)
 
@@ -187,6 +206,10 @@ bts recipe log {id} --phase scoping
    ### Complexity Estimate
    - Files to create/modify: ~N
    - Key challenges: [list]
+
+   ### Intent Reference
+   - Problem: {from intent.md}
+   - Success Criteria: {from intent.md}
 
    ### Roadmap Reference (if roadmap exists)
    - Item: {N} of {total} — "{description}"
