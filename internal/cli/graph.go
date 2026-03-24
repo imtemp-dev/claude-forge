@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -116,11 +117,12 @@ func renderRecipeGraph(root, recipeID string) string {
 	}
 	sort.Strings(paths)
 
-	// Emit nodes
+	// Emit nodes (use short filename for label, full path for tooltip)
 	for _, p := range paths {
 		entry := manifest.Documents[p]
 		nid := nodeID("", p)
-		label := p + "\\n" + entry.Type
+		shortName := filepath.Base(p)
+		label := shortName + "\\n" + entry.Type
 		if entry.VerifiedBy != "" {
 			label += " ✓"
 		}
@@ -161,6 +163,7 @@ func renderRecipeGraph(root, recipeID string) string {
 }
 
 // renderFullGraph combines project structure with recipe internals.
+// Shows only key documents per recipe for readability at scale.
 func renderFullGraph(root string) string {
 	var lines []string
 	lines = append(lines, "```mermaid")
@@ -182,7 +185,7 @@ func renderFullGraph(root string) string {
 		}
 	}
 
-	// Recipes as subgraphs
+	// Recipes as subgraphs with key documents only
 	recipes, _ := state.ListRecipes(root)
 	sort.Slice(recipes, func(i, j int) bool {
 		return recipes[i].StartedAt < recipes[j].StartedAt
@@ -200,55 +203,26 @@ func renderFullGraph(root string) string {
 		lines = append(lines, fmt.Sprintf(`    subgraph %s["%s"]`, nodeID("sg", r.ID), sgLabel))
 
 		manifest, _ := state.LoadManifest(root, r.ID)
-		if len(manifest.Documents) > 0 {
-			var paths []string
-			for p := range manifest.Documents {
-				paths = append(paths, p)
+		keyDocs := selectKeyDocs(manifest)
+		if len(keyDocs) > 0 {
+			for _, kd := range keyDocs {
+				lines = append(lines, fmt.Sprintf(`        %s["%s"]`, prefix+nodeID("", kd.path), kd.label))
 			}
-			sort.Strings(paths)
-
-			// Nodes
-			for _, p := range paths {
-				entry := manifest.Documents[p]
-				nid := prefix + nodeID("", p)
-				label := p + "\\n" + entry.Type
-				lines = append(lines, fmt.Sprintf(`        %s["%s"]`, nid, label))
-			}
-
-			// Edges within recipe
-			for _, p := range paths {
-				entry := manifest.Documents[p]
-				nid := prefix + nodeID("", p)
-				for _, dep := range entry.BasedOn {
-					if _, ok := manifest.Documents[dep]; ok {
-						lines = append(lines, fmt.Sprintf("        %s --> %s", prefix+nodeID("", dep), nid))
-					}
-				}
-				if entry.VerifiedBy != "" {
-					if _, ok := manifest.Documents[entry.VerifiedBy]; ok {
-						lines = append(lines, fmt.Sprintf("        %s -.-> %s", nid, prefix+nodeID("", entry.VerifiedBy)))
-					}
-				}
-				for _, inc := range entry.Incorporates {
-					if _, ok := manifest.Documents[inc]; ok {
-						lines = append(lines, fmt.Sprintf("        %s -.-> %s", prefix+nodeID("", inc), nid))
-					}
-				}
+			// Chain key docs linearly
+			for i := 1; i < len(keyDocs); i++ {
+				prev := prefix + nodeID("", keyDocs[i-1].path)
+				curr := prefix + nodeID("", keyDocs[i].path)
+				lines = append(lines, fmt.Sprintf("        %s --> %s", prev, curr))
 			}
 		} else {
-			// No manifest — show recipe as single node
 			lines = append(lines, fmt.Sprintf(`        %sempty["(no documents)"]`, prefix))
 		}
 
 		lines = append(lines, "    end")
 
-		// Connect roadmap → first document in recipe
-		if state.RoadmapExists(root) && len(manifest.Documents) > 0 {
-			// Find the earliest document (by type priority: research > draft > other)
-			first := findFirstDoc(manifest)
-			if first != "" {
-				lines = append(lines, fmt.Sprintf("    roadmap --> %s", prefix+nodeID("", first)))
-			}
+		// Connect roadmap → first key doc in subgraph
+		if state.RoadmapExists(root) && len(keyDocs) > 0 {
+			lines = append(lines, fmt.Sprintf("    roadmap --> %s", prefix+nodeID("", keyDocs[0].path)))
 		}
 	}
 
@@ -288,6 +262,56 @@ func phaseIcon(phase string) string {
 	default:
 		return "●"
 	}
+}
+
+type keyDoc struct {
+	path  string
+	label string
+}
+
+// selectKeyDocs picks the most important documents for a compact view.
+// Returns them in lifecycle order: research → draft → final → tasks → tests → review → deviation.
+func selectKeyDocs(m *state.Manifest) []keyDoc {
+	// Ordered by lifecycle stage. For each, find the first matching doc.
+	candidates := []struct {
+		paths []string // explicit paths to try
+		dtype string   // fallback: match by document type
+		label string   // display label
+	}{
+		{[]string{"scope.md"}, "research", "scope"},
+		{[]string{"draft.md"}, "draft", "draft"},
+		{[]string{"final.md"}, "", "final"},
+		{[]string{"tasks.json"}, "implementation", "tasks"},
+		{[]string{"test-results.json"}, "test-result", "tests"},
+		{[]string{"review.md"}, "review", "review"},
+		{[]string{"deviation.md"}, "deviation", "deviation"},
+	}
+
+	var result []keyDoc
+	for _, c := range candidates {
+		// Try explicit paths first
+		for _, p := range c.paths {
+			if _, ok := m.Documents[p]; ok {
+				result = append(result, keyDoc{path: p, label: c.label})
+				goto next
+			}
+		}
+		// Fallback: find by type
+		if c.dtype != "" {
+			var paths []string
+			for p, e := range m.Documents {
+				if e.Type == c.dtype {
+					paths = append(paths, p)
+				}
+			}
+			if len(paths) > 0 {
+				sort.Strings(paths)
+				result = append(result, keyDoc{path: paths[0], label: c.label})
+			}
+		}
+	next:
+	}
+	return result
 }
 
 // findFirstDoc returns the earliest/root document in a manifest.
