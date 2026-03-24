@@ -104,70 +104,45 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 		}, nil
 	}
 
-	// Build hint based on phase and source
+	// Build hint — actionable content only, no source prefix.
+	// All sources (startup, resume, compact) get the same hint quality.
 	var hint string
 	if recipe.Phase == "discovery" {
-		hint = fmt.Sprintf("Intent discovery in progress. Read .forge/state/recipes/%s/intent.md and continue conversation.", recipe.ID)
+		hint = fmt.Sprintf("Read .forge/state/recipes/%s/intent.md and continue intent discovery.", recipe.ID)
 	} else if recipe.Phase == "scoping" {
-		hint = fmt.Sprintf("Scope alignment in progress. Read .forge/state/recipes/%s/scope.md and confirm or adjust.", recipe.ID)
+		hint = fmt.Sprintf("Read .forge/state/recipes/%s/scope.md and confirm or adjust scope.", recipe.ID)
+	} else if next := nextStepHint(root, recipe); next != "" {
+		hint = next
 	} else if state.IsImplementPhase(recipe.Phase) {
 		implCmd := fmt.Sprintf("/forge-implement %s", recipe.ID)
 		if recipe.Type == "fix" {
 			implCmd = fmt.Sprintf("/forge-recipe-fix %s", recipe.ID)
 		}
-		switch source {
-		case "resume":
-			hint = "Session restored. Continue where you left off."
-		case "compact":
-			if next := nextStepHint(root, recipe); next != "" {
-				hint = fmt.Sprintf("Context compacted. NEXT: %s", next)
-			} else {
-				hint = fmt.Sprintf("Context compacted. Run %s to continue.", implCmd)
-			}
-		default:
-			if next := nextStepHint(root, recipe); next != "" {
-				hint = fmt.Sprintf("NEXT: %s", next)
-			} else {
-				hint = fmt.Sprintf("Run %s to continue, or /recipe cancel to abort.", implCmd)
-			}
-		}
+		hint = fmt.Sprintf("Run %s to continue.", implCmd)
 	} else {
-		switch source {
-		case "resume":
-			hint = "Session restored. Continue where you left off."
-		case "compact":
-			if next := nextStepHint(root, recipe); next != "" {
-				hint = fmt.Sprintf("Context compacted. NEXT: %s", next)
-			} else {
-				hint = "Context compacted. Continue where you left off."
-			}
-		default:
-			if next := nextStepHint(root, recipe); next != "" {
-				hint = fmt.Sprintf("NEXT: %s", next)
-			} else {
-				hint = fmt.Sprintf("Run /forge-recipe-%s to re-enter the recipe, or /recipe cancel to abort.", recipe.Type)
-			}
-		}
+		hint = fmt.Sprintf("Run /forge-recipe-%s to re-enter the recipe, or /recipe cancel to abort.", recipe.Type)
 	}
 
-	// Build message
+	// Build message — source prefix in msg, hint appended with NEXT:
 	var msg string
 	switch source {
 	case "resume":
-		msg = fmt.Sprintf("[forge] Session restored. %s \"%s\" (Step: %s)\n%s",
-			recipe.Type, recipe.Topic, recipe.Phase, hint)
 		if ws != nil {
-			msg = fmt.Sprintf("[forge] Session restored. %s\n%s", ws.Summary, hint)
+			msg = fmt.Sprintf("[forge] Session restored. %s\nNEXT: %s", ws.Summary, hint)
+		} else {
+			msg = fmt.Sprintf("[forge] Session restored. %s \"%s\" (Step: %s)\nNEXT: %s",
+				recipe.Type, recipe.Topic, recipe.Phase, hint)
 		}
 	case "compact":
-		msg = fmt.Sprintf("[forge] Context compacted. %s \"%s\" (Step: %s)\n%s",
-			recipe.Type, recipe.Topic, recipe.Phase, hint)
 		if ws != nil {
-			msg = fmt.Sprintf("[forge] Context compacted. %s\n%s", ws.Summary, hint)
+			msg = fmt.Sprintf("[forge] Context compacted. %s\nNEXT: %s", ws.Summary, hint)
+		} else {
+			msg = fmt.Sprintf("[forge] Context compacted. %s \"%s\" (Step: %s)\nNEXT: %s",
+				recipe.Type, recipe.Topic, recipe.Phase, hint)
 		}
 	default:
 		msg = fmt.Sprintf(
-			"[forge] Active recipe: %s \"%s\" (Step: %s, Iteration: %d)\n%s",
+			"[forge] Active recipe: %s \"%s\" (Step: %s, Iteration: %d)\nNEXT: %s",
 			recipe.Type, recipe.Topic, recipe.Phase, recipe.Iteration, hint,
 		)
 	}

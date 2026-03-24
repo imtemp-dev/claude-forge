@@ -29,6 +29,11 @@ func (h *stopHandler) Handle(input *HookInput) (*HookOutput, error) {
 
 	recipe, err := state.GetActiveRecipe(root)
 	if err != nil || recipe == nil {
+		// Check for finalized recipe (ready for implementation)
+		finalized, _ := state.GetFinalizedRecipe(root)
+		if finalized != nil {
+			fmt.Fprintf(os.Stderr, "[forge] Spec finalized. Run /forge-implement %s to start implementation.\n", finalized.ID)
+		}
 		return &HookOutput{}, nil
 	}
 
@@ -90,10 +95,15 @@ func (h *stopHandler) handleSpecDone(root string, recipe *state.RecipeState) (*H
 
 // handleImplementDone validates implementation completion via tasks.json + test-results.json.
 func (h *stopHandler) handleImplementDone(root string, recipe *state.RecipeState) (*HookOutput, error) {
+	implCmd := fmt.Sprintf("/forge-implement %s", recipe.ID)
+	if recipe.Type == "fix" {
+		implCmd = fmt.Sprintf("/forge-recipe-fix %s", recipe.ID)
+	}
+
 	// 1. Check tasks.json
 	tasks, err := state.LoadTaskState(root, recipe.ID)
 	if err != nil {
-		return blockOutput("No tasks.json found. Run /implement to decompose tasks before completing."), nil
+		return blockOutput(fmt.Sprintf("No tasks.json found. Run %s to decompose tasks.", implCmd)), nil
 	}
 
 	var blocked, pending int
@@ -115,34 +125,34 @@ func (h *stopHandler) handleImplementDone(root string, recipe *state.RecipeState
 
 	if pending > 0 {
 		return blockOutput(fmt.Sprintf(
-			"Implementation incomplete: %d task(s) still pending. Complete all tasks before finishing.",
-			pending,
+			"Implementation incomplete: %d task(s) still pending. Run %s to complete remaining tasks.",
+			pending, implCmd,
 		)), nil
 	}
 
 	// 2. Check test-results.json
 	testResults, err := state.LoadTestResults(root, recipe.ID)
 	if err != nil {
-		return blockOutput("No test-results.json found. Run /test before completing implementation."), nil
+		return blockOutput(fmt.Sprintf("No test-results.json found. Run %s to run tests.", implCmd)), nil
 	}
 
 	if testResults.Status != "pass" {
 		return blockOutput(fmt.Sprintf(
-			"Tests not passing: %d failed out of %d. Fix failing tests before completing.",
-			testResults.Failed, testResults.Total,
+			"Tests not passing: %d failed out of %d. Run %s to fix and re-test.",
+			testResults.Failed, testResults.Total, implCmd,
 		)), nil
 	}
 
 	// 3. Check that review has run (review.md exists)
 	reviewPath := filepath.Join(state.RecipeDir(root, recipe.ID), "review.md")
 	if _, err := os.Stat(reviewPath); os.IsNotExist(err) {
-		return blockOutput("No review.md found. Run /forge-review before completing implementation."), nil
+		return blockOutput(fmt.Sprintf("No review.md found. Run %s to complete review.", implCmd)), nil
 	}
 
 	// 4. Check that sync has run (deviation.md exists)
 	deviationPath := filepath.Join(state.RecipeDir(root, recipe.ID), "deviation.md")
 	if _, err := os.Stat(deviationPath); os.IsNotExist(err) {
-		return blockOutput("No deviation.md found. Run /sync before completing implementation."), nil
+		return blockOutput(fmt.Sprintf("No deviation.md found. Run %s to sync spec with code.", implCmd)), nil
 	}
 	// deviation.md content is a REPORT, not a gate.
 	// Deviations and not-implemented items become follow-up work,
