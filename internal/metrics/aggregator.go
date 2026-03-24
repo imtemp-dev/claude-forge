@@ -59,6 +59,7 @@ func AggregateRecipe(events []MetricsEvent) *RecipeStats {
 	}
 
 	modelSet := make(map[string]bool)
+	lastTokenBySession := make(map[string]*TokenSnapshot)
 	var phaseEnteredAt time.Time
 	var currentPhase string
 
@@ -100,11 +101,18 @@ func AggregateRecipe(events []MetricsEvent) *RecipeStats {
 			}
 
 		case KindTokenSnapshot:
-			if e.Tokens != nil {
-				// Keep the latest snapshot as cumulative reference
-				stats.TokensTotal = *e.Tokens
+			if e.Tokens != nil && e.SessionID != "" {
+				lastTokenBySession[e.SessionID] = e.Tokens
 			}
 		}
+	}
+
+	// Aggregate tokens: sum the last snapshot from each session
+	for _, snap := range lastTokenBySession {
+		stats.TokensTotal.InputTokens += snap.InputTokens
+		stats.TokensTotal.OutputTokens += snap.OutputTokens
+		stats.TokensTotal.CacheCreationTokens += snap.CacheCreationTokens
+		stats.TokensTotal.CacheReadTokens += snap.CacheReadTokens
 	}
 
 	for m := range modelSet {
@@ -135,6 +143,8 @@ func AggregateProject(root string) (*ProjectStats, error) {
 	toolCounts := make(map[string]int)
 	toolFailures := make(map[string]int)
 	modelSet := make(map[string]bool)
+	lastTokenBySession := make(map[string]*TokenSnapshot)
+	var lastTokenGlobal *TokenSnapshot
 
 	stats.TotalRecipes = len(recipes)
 	for _, r := range recipes {
@@ -172,13 +182,26 @@ func AggregateProject(root string) (*ProjectStats, error) {
 			}
 
 		case KindTokenSnapshot:
-			if e.Tokens != nil {
-				stats.TotalTokens.InputTokens += e.Tokens.InputTokens
-				stats.TotalTokens.OutputTokens += e.Tokens.OutputTokens
-				stats.TotalTokens.CacheCreationTokens += e.Tokens.CacheCreationTokens
-				stats.TotalTokens.CacheReadTokens += e.Tokens.CacheReadTokens
+			// Token snapshots are absolute values at a point in time, not increments.
+			// Track the last snapshot per session to avoid double-counting.
+			if e.Tokens != nil && e.SessionID != "" {
+				lastTokenBySession[e.SessionID] = e.Tokens
+			} else if e.Tokens != nil {
+				lastTokenGlobal = e.Tokens
 			}
 		}
+	}
+
+	// Aggregate tokens: sum the last snapshot from each session
+	if len(lastTokenBySession) > 0 {
+		for _, snap := range lastTokenBySession {
+			stats.TotalTokens.InputTokens += snap.InputTokens
+			stats.TotalTokens.OutputTokens += snap.OutputTokens
+			stats.TotalTokens.CacheCreationTokens += snap.CacheCreationTokens
+			stats.TotalTokens.CacheReadTokens += snap.CacheReadTokens
+		}
+	} else if lastTokenGlobal != nil {
+		stats.TotalTokens = *lastTokenGlobal
 	}
 
 	for m := range modelSet {

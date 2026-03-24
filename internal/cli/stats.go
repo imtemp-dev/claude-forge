@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/jlim/claude-forge/internal/metrics"
 	"github.com/jlim/claude-forge/internal/state"
@@ -175,29 +176,8 @@ func formatTokens(n int) string {
 	return fmt.Sprintf("%d", n)
 }
 
-func formatDuration(d interface{}) string {
-	switch v := d.(type) {
-	case int64:
-		return formatDurationFromNano(v)
-	default:
-		// time.Duration
-		dur, ok := d.(interface{ Seconds() float64 })
-		if !ok {
-			return "?"
-		}
-		secs := dur.Seconds()
-		if secs < 60 {
-			return fmt.Sprintf("%.0fs", secs)
-		}
-		if secs < 3600 {
-			return fmt.Sprintf("%dm %ds", int(secs)/60, int(secs)%60)
-		}
-		return fmt.Sprintf("%dh %dm", int(secs)/3600, (int(secs)%3600)/60)
-	}
-}
-
-func formatDurationFromNano(ns int64) string {
-	secs := float64(ns) / 1e9
+func formatDuration(d time.Duration) string {
+	secs := d.Seconds()
 	if secs < 60 {
 		return fmt.Sprintf("%.0fs", secs)
 	}
