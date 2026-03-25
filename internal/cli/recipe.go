@@ -232,11 +232,19 @@ var recipeCreateCmd = &cobra.Command{
 		topic, _ := cmd.Flags().GetString("topic")
 
 		id := state.NewRecipeID(root, topic)
+
+		// Initial phase depends on recipe type
+		initialPhase := "discovery" // blueprint: intent discovery first
+		switch recipeType {
+		case "fix", "debug", "analyze", "design":
+			initialPhase = "research"
+		}
+
 		recipe := &state.RecipeState{
 			ID:        id,
 			Type:      recipeType,
 			Topic:     topic,
-			Phase:     "discovery",
+			Phase:     initialPhase,
 			StartedAt: time.Now().UTC().Format(time.RFC3339),
 		}
 

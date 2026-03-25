@@ -199,11 +199,11 @@ func TestNewRecipeID(t *testing.T) {
 
 	t.Run("coexists with old format", func(t *testing.T) {
 		saveTestRecipe(t, root, "r-1774323037", "complete")
-		// Old timestamp format should be ignored in sequence calculation
+		// Old timestamp format (>4 digits) should be ignored in sequence calculation
+		// Only r-001-oauth2 dir exists (from "sequential numbering"), so next is r-002
 		id := NewRecipeID(root, "Peer discovery")
-		// Should still be based on max from r-001, r-002 (not the timestamp)
-		if !strings.HasPrefix(id, "r-") {
-			t.Errorf("got %s, want prefix r-", id)
+		if id != "r-002-peer-discovery" {
+			t.Errorf("got %s, want r-002-peer-discovery", id)
 		}
 	})
 
