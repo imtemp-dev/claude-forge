@@ -86,5 +86,5 @@ prevents discovering these gaps late and needing additional rework iterations.
 ## Important
 
 - Always be specific. Not "needs more detail" but "add function signatures for auth module."
-- Consider what has already been done (check .forge/state/{id}/ for previous research, debates, simulations).
+- Consider what has already been done (check .forge/specs/{id}/ for previous research, debates, simulations).
 - If previous debates exist, check if their conclusions are reflected in the current draft.

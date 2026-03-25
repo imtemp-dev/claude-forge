@@ -33,7 +33,7 @@ If active:
 
 ## Step 1: Research
 Use Skill("forge-research") to understand the current state.
-Save to `.forge/state/{id}/research/v1.md`.
+Save to `.forge/specs/{id}/research/v1.md`.
 
 ## Step 2: Draft Design Document
 Write a design spec:
@@ -44,7 +44,7 @@ Write a design spec:
 - API contracts (if applicable)
 - Technology choices with rationale
 
-Save to `.forge/state/{id}/draft.md`.
+Save to `.forge/specs/{id}/draft.md`.
 
 ## Step 3: Verify Loop (max 3 iterations)
 - Skill("forge-cross-check"): referenced code/systems exist?

@@ -31,13 +31,13 @@ func runValidate(cmd *cobra.Command, args []string) error {
 
 	var recipeDir string
 	if len(args) > 0 {
-		recipeDir = filepath.Join(state.StatePath(root), "recipes", args[0])
+		recipeDir = filepath.Join(state.SpecsPath(root), "recipes", args[0])
 	} else {
 		// Find active recipe
 		recipe, err := state.GetActiveRecipe(root)
 		if err != nil || recipe == nil {
 			// Try to find any recipe directory
-			recipesDir := filepath.Join(state.StatePath(root), "recipes")
+			recipesDir := filepath.Join(state.SpecsPath(root), "recipes")
 			entries, err := os.ReadDir(recipesDir)
 			if err != nil || len(entries) == 0 {
 				return fmt.Errorf("no recipes found. Specify recipe ID: forge validate <id>")

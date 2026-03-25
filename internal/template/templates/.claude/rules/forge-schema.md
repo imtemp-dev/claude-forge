@@ -5,7 +5,7 @@ paths:
 
 # Forge File Schema Reference
 
-When creating or updating files in `.forge/state/`, you MUST follow these exact JSON schemas.
+When creating or updating files in `.forge/specs/`, you MUST follow these exact JSON schemas.
 After creating or modifying any JSON file, run `forge validate` to verify compliance.
 
 ## manifest.json
@@ -89,12 +89,12 @@ Optional fields:
 
 ## diagnosis.md (fix recipe)
 
-Located at `.forge/state/recipes/{id}/diagnosis.md`. Markdown format with sections:
+Located at `.forge/specs/recipes/{id}/diagnosis.md`. Markdown format with sections:
 Symptom, Reproduction, Root Cause, Affected Files, Impact, Related Recipe.
 
 ## fix-spec.md (fix recipe)
 
-Located at `.forge/state/recipes/{id}/fix-spec.md`. Markdown format with sections:
+Located at `.forge/specs/recipes/{id}/fix-spec.md`. Markdown format with sections:
 Current Behavior, Expected Behavior, Changes (per file: function, current, fixed, rationale),
 Edge Cases, Regression Test.
 
@@ -127,7 +127,7 @@ Optional fields:
 
 ## debate meta.json
 
-Located at `.forge/state/recipes/{id}/debates/{debate-id}/meta.json`:
+Located at `.forge/specs/recipes/{id}/debates/{debate-id}/meta.json`:
 
 ```json
 {
@@ -154,7 +154,7 @@ Optional fields:
 
 ## tasks.json
 
-Located at `.forge/state/recipes/{id}/tasks.json`:
+Located at `.forge/specs/recipes/{id}/tasks.json`:
 
 ```json
 {
@@ -206,7 +206,7 @@ Task object optional fields:
 
 ## test-results.json
 
-Located at `.forge/state/recipes/{id}/test-results.json`:
+Located at `.forge/specs/recipes/{id}/test-results.json`:
 
 ```json
 {
@@ -246,7 +246,7 @@ Optional fields:
 
 ## deviation.md
 
-Located at `.forge/state/recipes/{id}/deviation.md`. Markdown format:
+Located at `.forge/specs/recipes/{id}/deviation.md`. Markdown format:
 
 ```markdown
 # Deviation Report: {topic}
@@ -279,7 +279,7 @@ Required sections:
 
 ## project-status.md
 
-Located at `.forge/state/project-status.md`. Markdown format:
+Located at `.forge/specs/project-status.md`. Markdown format:
 
 ```markdown
 # Project Status
@@ -313,7 +313,7 @@ Required sections:
 
 ## intent.md
 
-Located at `.forge/state/recipes/{id}/intent.md`. Markdown format:
+Located at `.forge/specs/recipes/{id}/intent.md`. Markdown format:
 
 ```markdown
 # Intent: {topic}
@@ -347,7 +347,7 @@ Updated incrementally during discovery conversation.
 
 ## vision.md
 
-Located at `.forge/state/vision.md`. Markdown format:
+Located at `.forge/specs/vision.md`. Markdown format:
 
 ```markdown
 # Vision: {product name}
@@ -377,7 +377,7 @@ Updated when direction changes — always re-confirm after edits.
 
 ## roadmap.md
 
-Located at `.forge/state/roadmap.md`. Markdown format:
+Located at `.forge/specs/roadmap.md`. Markdown format:
 
 ```markdown
 # Roadmap: {product name}

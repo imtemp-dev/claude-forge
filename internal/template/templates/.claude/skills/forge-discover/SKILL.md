@@ -20,7 +20,7 @@ Check for an existing recipe with phase `discovery`:
 ```bash
 forge recipe status
 ```
-If found, read `.forge/state/recipes/{id}/intent.md`:
+If found, read `.forge/specs/recipes/{id}/intent.md`:
 - Status EXPLORING → continue the conversation from where it left off
 - Status CONFIRMED → skip discovery, proceed to blueprint
 
@@ -57,7 +57,7 @@ use WebSearch or Agent(Explore) to investigate before asking more questions.
 Share relevant findings with the user — this builds shared understanding.
 
 **After each meaningful exchange:**
-Update `.forge/state/recipes/{id}/intent.md` with the current understanding.
+Update `.forge/specs/recipes/{id}/intent.md` with the current understanding.
 This ensures the conversation survives context compaction or session breaks.
 
 ## intent.md Format

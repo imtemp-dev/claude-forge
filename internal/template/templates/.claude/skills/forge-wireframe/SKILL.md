@@ -20,9 +20,9 @@ Design the high-level structure for: $ARGUMENTS
    to find the active recipe. Use its ID for all `{id}` references below.
 
 1. Read research output:
-   - `.forge/state/recipes/{id}/research/v1.md` (or latest)
-   - `.forge/state/recipes/{id}/scope.md`
-   - `.forge/state/project-map.md` (existing system structure)
+   - `.forge/specs/recipes/{id}/research/v1.md` (or latest)
+   - `.forge/specs/recipes/{id}/scope.md`
+   - `.forge/specs/project-map.md` (existing system structure)
 
 ## Step 1: Component Diagram
 
@@ -133,7 +133,7 @@ For each path, verify:
 
 ## Step 6: Save and Log
 
-Save to `.forge/state/recipes/{id}/wireframe.md`
+Save to `.forge/specs/recipes/{id}/wireframe.md`
 
 Log:
 ```bash

@@ -92,7 +92,7 @@ func Render(stdin io.Reader, root string) string {
 func renderRecipeSegment(root string) string {
 	// Check if a subagent is running
 	agentDot := ""
-	agentFile := filepath.Join(state.StatePath(root), "active-agent.json")
+	agentFile := filepath.Join(state.LocalPath(root), "active-agent.json")
 	if _, err := os.Stat(agentFile); err == nil {
 		agentDot = "🟡 "
 	}

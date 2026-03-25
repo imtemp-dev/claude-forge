@@ -25,7 +25,7 @@ Use settings values if present, otherwise use defaults noted in each step.
 
 1. Verify final.md exists:
    ```bash
-   ls .forge/state/recipes/{id}/final.md
+   ls .forge/specs/recipes/{id}/final.md
    ```
    If not found → "Run /recipe blueprint first."
 
@@ -56,7 +56,7 @@ Use settings values if present, otherwise use defaults noted in each step.
 
 4. **Load design context**:
    - Read scope.md for tech stack constraints and assumptions
-   - Read project-map.md (at `.forge/state/project-map.md`) for layer-specific
+   - Read project-map.md (at `.forge/specs/project-map.md`) for layer-specific
      build and test commands. When implementing files across multiple layers,
      use each layer's build command for verification (not a single global command).
 
@@ -81,10 +81,10 @@ If tasks.json exists in the recipe directory:
 
 ## Step 1: Task Decomposition
 
-1. Read `.forge/state/recipes/{id}/final.md`
+1. Read `.forge/specs/recipes/{id}/final.md`
 2. Extract file-level tasks: each file to create or modify becomes a task
 3. Determine dependency order (shared types first, then modules, then integration)
-4. Save task list to `.forge/state/recipes/{id}/tasks.json`:
+4. Save task list to `.forge/specs/recipes/{id}/tasks.json`:
    ```json
    {
      "recipe_id": "{id}",
@@ -131,7 +131,7 @@ Do NOT proceed to task implementation if the build environment is broken.
 
 ## Step 3: Implementation Loop
 
-**Reservations check**: If `.forge/state/recipes/{id}/reservations.md` exists,
+**Reservations check**: If `.forge/specs/recipes/{id}/reservations.md` exists,
 read it before starting. When implementing a file listed in the "Affected Files"
 section, warn: "[RESERVATION] This area has unresolved concerns from debate:
 {concern}. Proceed with extra caution."

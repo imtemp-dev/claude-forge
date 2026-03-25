@@ -98,7 +98,7 @@ Report all GAPs, ISSUEs, and COVERAGE GAPs with severity and file:line reference
 - **major**: Important scenario not handled in code
 - **minor**: Edge case missing but unlikely in practice
 
-Save to `.forge/state/recipes/{id}/simulations/NNN-code.md`
+Save to `.forge/specs/recipes/{id}/simulations/NNN-code.md`
 
 Log:
 ```bash
@@ -168,7 +168,7 @@ Run scenarios against the spec to find what's missing or wrong.
    - **major**: Important scenario not covered
    - **minor**: Edge case not mentioned but handleable
 
-6. Save simulation results to `.forge/state/{id}/simulations/NNN-[category].md`
+6. Save simulation results to `.forge/specs/{id}/simulations/NNN-[category].md`
 
 7. Log in changelog:
    ```bash

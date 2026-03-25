@@ -92,13 +92,13 @@ forge recipe log {id} --phase test
 
 ## State Files
 
-Implementation artifacts go to `.forge/state/recipes/{id}/`:
+Implementation artifacts go to `.forge/specs/recipes/{id}/`:
 - `tasks.json`: task decomposition, progress, retry counts, errors
 - `test-results.json`: test execution results
 - `deviation.md`: spec↔code differences
 
 Project-level status:
-- `.forge/state/project-status.md`: all recipes overview
+- `.forge/specs/project-status.md`: all recipes overview
 
 ## Max Retry Limits
 

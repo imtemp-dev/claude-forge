@@ -19,7 +19,7 @@ Synchronize spec and implementation for recipe: $ARGUMENTS
 
 1. Verify test-results.json exists:
    ```bash
-   ls .forge/state/recipes/{id}/test-results.json
+   ls .forge/specs/recipes/{id}/test-results.json
    ```
    If not found → "Run /test first. Sync requires passing tests."
 
@@ -28,7 +28,7 @@ Synchronize spec and implementation for recipe: $ARGUMENTS
 
 ## Step 1: Extract Spec Definitions (grouped by file)
 
-Read `.forge/state/recipes/{id}/final.md` and group all definitions by file.
+Read `.forge/specs/recipes/{id}/final.md` and group all definitions by file.
 Also read `tasks.json` to know which files were created vs modified —
 this helps focus the comparison on files that actually changed.
 
@@ -120,7 +120,7 @@ Both exist but differ (different signature, different behavior).
 
 ## Step 5: Generate Deviation Report
 
-Create `.forge/state/recipes/{id}/deviation.md`:
+Create `.forge/specs/recipes/{id}/deviation.md`:
 
 ```markdown
 # Deviation Report: {topic}

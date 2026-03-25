@@ -23,7 +23,7 @@ Read `.forge/config/settings.yaml` for project-specific limits.
 
 1. Verify tasks.json exists and implementation is done:
    ```bash
-   ls .forge/state/recipes/{id}/tasks.json
+   ls .forge/specs/recipes/{id}/tasks.json
    ```
    If not found → "Run /implement first."
 
@@ -41,7 +41,7 @@ If test-results.json does not exist → start from Step 1
 
 ## Step 1: Extract Test Scenarios
 
-1. Read `.forge/state/recipes/{id}/final.md`
+1. Read `.forge/specs/recipes/{id}/final.md`
 2. Find all test scenarios defined in the spec:
    - Happy path scenarios
    - Error path scenarios
@@ -130,7 +130,7 @@ If max iterations reached with failures:
 
 ## Step 4: Record Results
 
-1. Save test results to `.forge/state/recipes/{id}/test-results.json`:
+1. Save test results to `.forge/specs/recipes/{id}/test-results.json`:
    ```json
    {
      "recipe_id": "{id}",

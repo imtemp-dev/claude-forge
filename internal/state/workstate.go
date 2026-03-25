@@ -33,7 +33,7 @@ type TaskInfo struct {
 
 // WorkStatePath returns the path to the work state file.
 func WorkStatePath(root string) string {
-	return filepath.Join(StatePath(root), "work-state.json")
+	return filepath.Join(LocalPath(root), "work-state.json")
 }
 
 // SaveWorkState persists the work state snapshot.

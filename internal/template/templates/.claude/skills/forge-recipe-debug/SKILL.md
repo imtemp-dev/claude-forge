@@ -17,14 +17,14 @@ Debug through multi-perspective analysis: $ARGUMENTS
 ## Context Briefing
 
 Before starting:
-1. List `.forge/state/recipes/` → find related recipes (especially the one
+1. List `.forge/specs/recipes/` → find related recipes (especially the one
    that built the affected code)
 2. Set `ref_recipe` in recipe.json to the most relevant recipe ID
 3. Read related recipe's final.md → original design intent
 4. Check deviation.md → known spec-code differences
 5. Check review.md from related recipes → quality issues that may be related
 6. Scan codebase for files likely related to the symptom
-7. If `.forge/state/roadmap.md` exists, read it for project context
+7. If `.forge/specs/roadmap.md` exists, read it for project context
    (what's been built, what's planned — helps understand system boundaries)
 
 ## Resume Check
@@ -45,7 +45,7 @@ Use the output as recipe ID for all subsequent commands.
 Read `.forge/config/settings.yaml` for project-specific limits.
 
 Investigate the symptom from `debug.perspective_count` (default: 6) angles. Create
-`.forge/state/recipes/{id}/perspectives.md`:
+`.forge/specs/recipes/{id}/perspectives.md`:
 
 ### 1.1 Data Flow Map
 Trace the complete path of the failing operation:
@@ -61,8 +61,8 @@ Map all modules/functions involved in the failing path:
 - Identify any recently changed dependencies
 
 ### 1.3 Design Intent
-Read `.forge/state/project-map.md` for the layer overview.
-Load the affected layer's detail from `.forge/state/layers/{name}.md`.
+Read `.forge/specs/project-map.md` for the layer overview.
+Load the affected layer's detail from `.forge/specs/layers/{name}.md`.
 Then read the specific recipe's final.md (via ref_recipe) for
 detailed design of the affected feature.
 - project-map.md: what layers exist, how they connect
@@ -121,7 +121,7 @@ Produce ranked hypotheses:
 
 ## Step 3: Draft Fix Spec
 
-Based on the top hypothesis, create `.forge/state/recipes/{id}/draft.md`:
+Based on the top hypothesis, create `.forge/specs/recipes/{id}/draft.md`:
 
 ```markdown
 # Debug Fix: {symptom}

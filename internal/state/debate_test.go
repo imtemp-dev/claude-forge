@@ -10,7 +10,7 @@ import (
 func setupDebateRoot(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	os.MkdirAll(filepath.Join(root, ".forge", "state", "debates"), 0755)
+	os.MkdirAll(filepath.Join(root, ".forge", "specs", "debates"), 0755)
 	return root
 }
 
@@ -100,7 +100,7 @@ func TestListDebates(t *testing.T) {
 
 	t.Run("no debates dir", func(t *testing.T) {
 		root := t.TempDir()
-		os.MkdirAll(filepath.Join(root, ".forge", "state"), 0755)
+		os.MkdirAll(filepath.Join(root, ".forge", "specs"), 0755)
 
 		debates, err := ListDebates(root)
 		if err != nil {
@@ -146,7 +146,7 @@ func TestNewDebateID(t *testing.T) {
 
 func TestDebateDir(t *testing.T) {
 	got := DebateDir("/project", "d-1000")
-	want := filepath.Join("/project", ".forge", "state", "debates", "d-1000")
+	want := filepath.Join("/project", ".forge", "specs", "debates", "d-1000")
 	if got != want {
 		t.Errorf("got %s, want %s", got, want)
 	}

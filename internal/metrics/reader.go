@@ -35,12 +35,12 @@ func ReadEvents(path string) ([]MetricsEvent, error) {
 
 // ReadRecipeEvents reads events for a specific recipe.
 func ReadRecipeEvents(root, recipeID string) ([]MetricsEvent, error) {
-	path := filepath.Join(state.RecipeDir(root, recipeID), "metrics.jsonl")
+	path := filepath.Join(state.LocalPath(root), "recipes", recipeID, "metrics.jsonl")
 	return ReadEvents(path)
 }
 
 // ReadAllEvents reads the global metrics log.
 func ReadAllEvents(root string) ([]MetricsEvent, error) {
-	path := filepath.Join(state.StatePath(root), "metrics.jsonl")
+	path := filepath.Join(state.LocalPath(root), "metrics.jsonl")
 	return ReadEvents(path)
 }

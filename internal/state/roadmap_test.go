@@ -10,13 +10,13 @@ import (
 func setupRoadmapRoot(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	os.MkdirAll(StatePath(root), 0755)
+	os.MkdirAll(SpecsPath(root), 0755)
 	return root
 }
 
 func writeRoadmap(t *testing.T, root, content string) {
 	t.Helper()
-	path := filepath.Join(StatePath(root), "roadmap.md")
+	path := filepath.Join(SpecsPath(root), "roadmap.md")
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		t.Fatalf("write roadmap: %v", err)
 	}
@@ -114,7 +114,7 @@ Status: CONFIRMED
 
 		MarkRoadmapItemDone(root, "r-2000")
 
-		data, _ := os.ReadFile(filepath.Join(StatePath(root), "roadmap.md"))
+		data, _ := os.ReadFile(filepath.Join(SpecsPath(root), "roadmap.md"))
 		content := string(data)
 		if !strings.Contains(content, "- [x] Dashboard (recipe: r-2000)") {
 			t.Error("item should be marked done")
@@ -139,7 +139,7 @@ Status: CONFIRMED
 
 		MarkRoadmapItemDone(root, "r-9999")
 
-		data, _ := os.ReadFile(filepath.Join(StatePath(root), "roadmap.md"))
+		data, _ := os.ReadFile(filepath.Join(SpecsPath(root), "roadmap.md"))
 		if strings.Contains(string(data), "[x]") {
 			t.Error("no item should be marked")
 		}
@@ -154,7 +154,7 @@ Status: CONFIRMED
 
 		MarkRoadmapItemDone(root, "r-1000")
 
-		data, _ := os.ReadFile(filepath.Join(StatePath(root), "roadmap.md"))
+		data, _ := os.ReadFile(filepath.Join(SpecsPath(root), "roadmap.md"))
 		content := string(data)
 		if !strings.Contains(content, "Progress: 1/1") {
 			t.Errorf("Progress line should be inserted:\n%s", content)
@@ -169,7 +169,7 @@ func TestVisionExists(t *testing.T) {
 		t.Error("should return false when no vision.md")
 	}
 
-	os.WriteFile(filepath.Join(StatePath(root), "vision.md"), []byte("# Vision"), 0644)
+	os.WriteFile(filepath.Join(SpecsPath(root), "vision.md"), []byte("# Vision"), 0644)
 	if !VisionExists(root) {
 		t.Error("should return true when vision.md exists")
 	}
@@ -182,7 +182,7 @@ func TestRoadmapExists(t *testing.T) {
 		t.Error("should return false when no roadmap.md")
 	}
 
-	os.WriteFile(filepath.Join(StatePath(root), "roadmap.md"), []byte("# Roadmap"), 0644)
+	os.WriteFile(filepath.Join(SpecsPath(root), "roadmap.md"), []byte("# Roadmap"), 0644)
 	if !RoadmapExists(root) {
 		t.Error("should return true when roadmap.md exists")
 	}

@@ -110,7 +110,7 @@ After a recipe reaches `complete`, its deviation.md feeds the next cycle:
 - The spec (final.md) stays alive — it evolves through follow-up work
 
 ### Roadmap Progression
-If `.forge/state/roadmap.md` exists:
+If `.forge/specs/roadmap.md` exists:
 - The recipe's roadmap item is marked done (stop hook + /forge-status)
 - Session-start hint shows the next pending item
 - The next /forge-recipe-blueprint scoping reads roadmap context automatically

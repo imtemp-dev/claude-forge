@@ -162,7 +162,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 
 	// Project-level checks
 	fmt.Println()
-	mapPath := filepath.Join(state.StatePath(root), "project-map.md")
+	mapPath := filepath.Join(state.SpecsPath(root), "project-map.md")
 	if _, err := os.Stat(mapPath); os.IsNotExist(err) {
 		fmt.Println("   ⚠ project-map.md not found")
 		fmt.Println("     → Run /forge-status to generate, or created during next /forge-recipe-blueprint scoping")
@@ -173,7 +173,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 
 	// Vision check
 	if state.VisionExists(root) {
-		visionData, _ := os.ReadFile(filepath.Join(state.StatePath(root), "vision.md"))
+		visionData, _ := os.ReadFile(filepath.Join(state.SpecsPath(root), "vision.md"))
 		if strings.Contains(string(visionData), "Status: DRAFT") {
 			fmt.Println("   ⚠ vision.md exists (Status: DRAFT — confirm with next /forge-recipe-blueprint)")
 			totalWarnings++

@@ -346,7 +346,7 @@ func checkPhasePreConditions(root string, recipe *state.RecipeState, newPhase st
 		return err == nil
 	}
 	stateExists := func(name string) bool {
-		_, err := os.Stat(filepath.Join(state.StatePath(root), name))
+		_, err := os.Stat(filepath.Join(state.SpecsPath(root), name))
 		return err == nil
 	}
 	warn := func(msg string) {

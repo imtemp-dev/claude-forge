@@ -12,7 +12,7 @@ import (
 // Returns (done, total, nextItemDescription).
 // Returns (0, 0, "") if roadmap.md doesn't exist or Status is DRAFT.
 func RoadmapProgress(root string) (int, int, string) {
-	path := filepath.Join(StatePath(root), "roadmap.md")
+	path := filepath.Join(SpecsPath(root), "roadmap.md")
 	f, err := os.Open(path)
 	if err != nil {
 		return 0, 0, ""
@@ -55,7 +55,7 @@ func RoadmapProgress(root string) (int, int, string) {
 // Matches by "(recipe: {id})" annotation. Updates the Progress line.
 // Returns nil if roadmap.md doesn't exist or no matching item found.
 func MarkRoadmapItemDone(root string, recipeID string) error {
-	path := filepath.Join(StatePath(root), "roadmap.md")
+	path := filepath.Join(SpecsPath(root), "roadmap.md")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil // no roadmap is not an error
@@ -115,14 +115,14 @@ func MarkRoadmapItemDone(root string, recipeID string) error {
 
 // VisionExists checks if vision.md exists at the project level.
 func VisionExists(root string) bool {
-	path := filepath.Join(StatePath(root), "vision.md")
+	path := filepath.Join(SpecsPath(root), "vision.md")
 	_, err := os.Stat(path)
 	return err == nil
 }
 
 // RoadmapExists checks if roadmap.md exists at the project level.
 func RoadmapExists(root string) bool {
-	path := filepath.Join(StatePath(root), "roadmap.md")
+	path := filepath.Join(SpecsPath(root), "roadmap.md")
 	_, err := os.Stat(path)
 	return err == nil
 }

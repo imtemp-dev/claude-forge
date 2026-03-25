@@ -49,8 +49,9 @@ func runInit(cmd *cobra.Command, args []string) error {
 	// Create .forge directories
 	stateDirs := []string{
 		filepath.Join(forgeDir, "config"),
-		filepath.Join(forgeDir, "state", "recipes"),
-		filepath.Join(forgeDir, "state", "debates"),
+		filepath.Join(forgeDir, "specs", "recipes"),
+		filepath.Join(forgeDir, "specs", "debates"),
+		filepath.Join(forgeDir, "local"),
 	}
 	for _, dir := range stateDirs {
 		if err := os.MkdirAll(dir, 0755); err != nil {

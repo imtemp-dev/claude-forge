@@ -11,7 +11,8 @@ import (
 func setupMetricsRoot(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	os.MkdirAll(filepath.Join(root, ".forge", "state", "recipes", "r-1000"), 0755)
+	os.MkdirAll(filepath.Join(root, ".forge", "specs", "recipes", "r-1000"), 0755)
+	os.MkdirAll(filepath.Join(root, ".forge", "local", "recipes", "r-1000"), 0755)
 	return root
 }
 

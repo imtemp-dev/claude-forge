@@ -26,7 +26,7 @@ func (h *subagentStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 		return &HookOutput{}, nil
 	}
 
-	agentFile := filepath.Join(state.StatePath(root), "active-agent.json")
+	agentFile := filepath.Join(state.LocalPath(root), "active-agent.json")
 	data := map[string]string{
 		"agent_id":   input.AgentID,
 		"started_at": time.Now().UTC().Format(time.RFC3339),
@@ -63,7 +63,7 @@ func (h *subagentStopHandler) Handle(input *HookInput) (*HookOutput, error) {
 		return &HookOutput{}, nil
 	}
 
-	agentFile := filepath.Join(state.StatePath(root), "active-agent.json")
+	agentFile := filepath.Join(state.LocalPath(root), "active-agent.json")
 	_ = os.Remove(agentFile)
 
 	_ = metrics.Append(root, &metrics.MetricsEvent{

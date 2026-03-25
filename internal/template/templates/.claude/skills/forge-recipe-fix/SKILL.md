@@ -16,7 +16,7 @@ Fix a bug through document-first diagnosis and verified implementation: $ARGUMEN
 ## Context Briefing
 
 Before starting, build situational awareness:
-1. List `.forge/state/recipes/` → find related recipes (especially completed ones)
+1. List `.forge/specs/recipes/` → find related recipes (especially completed ones)
 2. Set `ref_recipe` in recipe.json to the most relevant recipe ID
 3. For each related recipe, read its final.md → understand design intent
 4. Check deviation.md → known issues that may be relevant
@@ -38,7 +38,7 @@ Use the output as recipe ID for all subsequent commands.
 
 ## Step 1: Diagnose
 
-Investigate the bug and create `.forge/state/recipes/{id}/diagnosis.md`:
+Investigate the bug and create `.forge/specs/recipes/{id}/diagnosis.md`:
 
 ```markdown
 # Diagnosis: {bug description}
@@ -72,7 +72,7 @@ forge recipe log {id} --phase research --action research --output diagnosis.md -
 
 ## Step 2: Fix Spec (document first)
 
-Based on diagnosis, create `.forge/state/recipes/{id}/fix-spec.md`:
+Based on diagnosis, create `.forge/specs/recipes/{id}/fix-spec.md`:
 
 ```markdown
 # Fix Spec: {bug description}

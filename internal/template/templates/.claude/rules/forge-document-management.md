@@ -69,14 +69,14 @@ Deviations do NOT block completion. They are a report, not a gate.
 
 ## Global Documents
 
-`vision.md` (at `.forge/state/vision.md`) records the project's final product vision.
+`vision.md` (at `.forge/specs/vision.md`) records the project's final product vision.
 Created during blueprint scoping when the project is greenfield or the feature is large.
 Status: DRAFT → CONFIRMED. Updatable on direction changes.
 
-`roadmap.md` (at `.forge/state/roadmap.md`) tracks ordered recipe decomposition.
+`roadmap.md` (at `.forge/specs/roadmap.md`) tracks ordered recipe decomposition.
 Each item maps to one recipe. Updated by `/forge-status` when recipes complete.
 
-`project-status.md` (at `.forge/state/project-status.md`) is a **derived global document**
+`project-status.md` (at `.forge/specs/project-status.md`) is a **derived global document**
 that aggregates state across all recipes. It is NOT tracked in per-recipe manifests
 because it spans multiple recipes.
 

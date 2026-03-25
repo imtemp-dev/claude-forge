@@ -10,7 +10,8 @@ import (
 func setupWorkStateRoot(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	os.MkdirAll(filepath.Join(root, ".forge", "state", "recipes"), 0755)
+	os.MkdirAll(filepath.Join(root, ".forge", "specs", "recipes"), 0755)
+	os.MkdirAll(filepath.Join(root, ".forge", "local"), 0755)
 	return root
 }
 
@@ -200,7 +201,7 @@ func TestBuildWorkState(t *testing.T) {
 
 func TestWorkStatePath(t *testing.T) {
 	got := WorkStatePath("/project")
-	want := filepath.Join("/project", ".forge", "state", "work-state.json")
+	want := filepath.Join("/project", ".forge", "local", "work-state.json")
 	if got != want {
 		t.Errorf("got %s, want %s", got, want)
 	}

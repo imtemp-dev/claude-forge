@@ -15,7 +15,7 @@ Create a bulletproof implementation spec for: $ARGUMENTS
 
 **This recipe creates a SPEC DOCUMENT, not code.**
 Do NOT write source code files (.ts, .js, .go, .py, .rs, etc.) during this recipe.
-Only create documents in `.forge/state/recipes/{id}/`.
+Only create documents in `.forge/specs/recipes/{id}/`.
 Code implementation happens in `/forge-implement` AFTER this recipe completes with `<forge>DONE</forge>`.
 
 ## Settings
@@ -36,11 +36,11 @@ If active, check the phase to determine resume strategy:
 - Status CONFIRMED → proceed to Vision & Roadmap Check
 
 **If phase is `scoping`:** Check vision/roadmap state first (in order):
-1. If `.forge/state/vision.md` exists with Status: DRAFT → re-present vision for confirmation.
+1. If `.forge/specs/vision.md` exists with Status: DRAFT → re-present vision for confirmation.
    After vision confirmed, check roadmap below.
-2. If `.forge/state/vision.md` CONFIRMED but `.forge/state/roadmap.md` missing →
+2. If `.forge/specs/vision.md` CONFIRMED but `.forge/specs/roadmap.md` missing →
    go to Vision & Roadmap Check step 3b (create roadmap from confirmed vision).
-3. If `.forge/state/roadmap.md` exists with Status: DRAFT → re-present roadmap for confirmation.
+3. If `.forge/specs/roadmap.md` exists with Status: DRAFT → re-present roadmap for confirmation.
 4. If scope.md exists → follow the Scoping Loop "On resume" protocol below —
    re-present if Status is DRAFT, or skip to adaptive loop if CONFIRMED.
 5. If scope.md does not exist → go to Scoping Loop step 1 (start scoping with roadmap context).
@@ -109,7 +109,7 @@ ASSESS determines what to do next based on the document's current state.
 
 Before anything else, check if the intent is clear:
 
-1. If `.forge/state/recipes/{id}/intent.md` exists with Status: CONFIRMED → proceed.
+1. If `.forge/specs/recipes/{id}/intent.md` exists with Status: CONFIRMED → proceed.
 2. If intent.md exists with Status: EXPLORING → re-present current understanding,
    continue discovery conversation until confirmed.
 3. If no intent.md → run Skill("forge-discover") with the recipe topic.
@@ -125,10 +125,10 @@ After intent is confirmed, intent.md informs all subsequent decisions:
 Before scoping, check for project-level planning documents:
 
 **1. Read existing vision/roadmap:**
-   - `.forge/state/vision.md` exists? → Read it.
+   - `.forge/specs/vision.md` exists? → Read it.
      - Status CONFIRMED → check roadmap.
      - Status DRAFT → present vision for confirmation before proceeding.
-   - `.forge/state/roadmap.md` exists? → Read it. Find next pending `- [ ]` item.
+   - `.forge/specs/roadmap.md` exists? → Read it. Find next pending `- [ ]` item.
      - Both exist and CONFIRMED → set scope target from roadmap's next pending item.
        Skip to Scoping Loop step 1 with context: "Roadmap item {N}/{total}: {description}"
      - No pending items → all done. Ask user: "Roadmap complete. Add new items or start fresh?"
@@ -149,14 +149,14 @@ Before scoping, check for project-level planning documents:
 
 **3. Create Vision & Roadmap:**
    a. **Vision**: Draft purpose, users, core components, constraints, success criteria.
-      Write to `.forge/state/vision.md` with Status: DRAFT.
+      Write to `.forge/specs/vision.md` with Status: DRAFT.
       Present to user → confirm/adjust loop → Status: CONFIRMED.
    b. **Roadmap**: Decompose vision into `vision.min_roadmap_items`~`vision.max_roadmap_items`
       (default: 3~8) ordered items. Each item should be:
       - Implementable in one recipe session
       - Affecting a bounded set of files
       - Independently testable
-      Write to `.forge/state/roadmap.md` with Status: DRAFT.
+      Write to `.forge/specs/roadmap.md` with Status: DRAFT.
       Present to user → confirm/adjust loop → Status: CONFIRMED.
    c. Select first pending roadmap item as this recipe's scope target.
 
@@ -177,7 +177,7 @@ forge recipe log {id} --phase scoping
 **1. Analyze the request**: Parse the feature description. Identify ambiguities.
 
 **2. Scan existing context**:
-   - **Read project-map.md** (at `.forge/state/project-map.md`) for the
+   - **Read project-map.md** (at `.forge/specs/project-map.md`) for the
      project layer overview: what layers exist, how to build/test each.
      If it doesn't exist but code exists, scan root to create it.
      If it doesn't exist and no code exists, skip (new project).
@@ -185,7 +185,7 @@ forge recipe log {id} --phase scoping
      If any layer path is missing or new directories found → re-scan root
      to rebuild project-map.md before proceeding.
    - **Identify affected layers** for this feature
-   - **Load affected layers' detail** from `.forge/state/layers/{name}.md`.
+   - **Load affected layers' detail** from `.forge/specs/layers/{name}.md`.
      If detail doesn't exist for a layer, scan that layer's code to create it.
      Only load layers relevant to this feature — skip unrelated ones.
    - Scan codebase for anything layers might have missed (recent changes)
@@ -227,7 +227,7 @@ forge recipe log {id} --phase scoping
    ### Status: DRAFT
    ```
 
-**4. Save immediately**: Write scope to `.forge/state/recipes/{id}/scope.md`
+**4. Save immediately**: Write scope to `.forge/specs/recipes/{id}/scope.md`
    even before user confirms. This persists the conversation state so it
    survives compaction or session breaks.
 
@@ -243,7 +243,7 @@ forge recipe log {id} --phase scoping
 
 **7. Register with roadmap** (if roadmap exists):
    If this recipe's scope targets a roadmap item, annotate that item with the recipe ID.
-   Read `.forge/state/roadmap.md`, find the matching pending item, and add `(recipe: {id})`
+   Read `.forge/specs/roadmap.md`, find the matching pending item, and add `(recipe: {id})`
    if not already present. This links the recipe to its roadmap item so completion
    tracking works correctly. Save roadmap.md.
 
@@ -273,9 +273,9 @@ If the user requests a fundamental direction change during the adaptive loop
 6. Resume adaptive loop
 
 If the direction change affects the vision:
-- Update `.forge/state/vision.md` with changes, set Status: DRAFT, re-confirm
+- Update `.forge/specs/vision.md` with changes, set Status: DRAFT, re-confirm
 - Assess roadmap impact: which items are affected?
-- Update `.forge/state/roadmap.md` if items changed/added/removed
+- Update `.forge/specs/roadmap.md` if items changed/added/removed
 
 **When to re-open**: Any user statement whose intent contradicts the confirmed
 scope — different technology, different boundaries, added/removed features,
@@ -285,7 +285,7 @@ or a fundamental shift in approach. Judge by intent, not by keywords.
 
 **Starting from scratch (no existing code):**
 1. /research — investigate technology, best practices, libraries.
-   Research is scoped by `.forge/state/recipes/{id}/scope.md`.
+   Research is scoped by `.forge/specs/recipes/{id}/scope.md`.
 2. /forge-wireframe — design high-level structure (component diagram, state machine, data flow, file structure, all execution paths). This creates `wireframe.md`.
 3. Write initial draft (Level 1) referencing wireframe.md → **Draft Self-Check** → draft.md → /verify
 4. /assess → loop begins
@@ -395,7 +395,7 @@ If /debate reports [DEBATE DEADLOCK] instead of a conclusion:
 ### File Structure
 
 ```
-.forge/state/{id}/
+.forge/specs/{id}/
 ├── recipe.json
 ├── manifest.json
 ├── changelog.jsonl

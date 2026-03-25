@@ -49,9 +49,9 @@ func TestFindRoot(t *testing.T) {
 	})
 }
 
-func TestStatePath(t *testing.T) {
-	got := StatePath("/project")
-	want := filepath.Join("/project", ".forge", "state")
+func TestSpecsPath(t *testing.T) {
+	got := SpecsPath("/project")
+	want := filepath.Join("/project", ".forge", "specs")
 	if got != want {
 		t.Errorf("got %s, want %s", got, want)
 	}

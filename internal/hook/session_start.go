@@ -70,7 +70,7 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 			}
 			// Check for incomplete vision (DRAFT without a recipe yet)
 			if state.VisionExists(root) {
-				visionData, _ := os.ReadFile(filepath.Join(state.StatePath(root), "vision.md"))
+				visionData, _ := os.ReadFile(filepath.Join(state.SpecsPath(root), "vision.md"))
 				if strings.Contains(string(visionData), "Status: DRAFT") {
 					msg := "[forge] Vision document in progress (Status: DRAFT).\nRun /forge-recipe-blueprint to continue."
 					if updated {
@@ -124,9 +124,9 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 	// All sources (startup, resume, compact) get the same hint quality.
 	var hint string
 	if recipe.Phase == "discovery" {
-		hint = fmt.Sprintf("Read .forge/state/recipes/%s/intent.md and continue intent discovery.", recipe.ID)
+		hint = fmt.Sprintf("Read .forge/specs/recipes/%s/intent.md and continue intent discovery.", recipe.ID)
 	} else if recipe.Phase == "scoping" {
-		hint = fmt.Sprintf("Read .forge/state/recipes/%s/scope.md and confirm or adjust scope.", recipe.ID)
+		hint = fmt.Sprintf("Read .forge/specs/recipes/%s/scope.md and confirm or adjust scope.", recipe.ID)
 	} else if next := nextStepHint(root, recipe); next != "" {
 		hint = next
 	} else if state.IsImplementPhase(recipe.Phase) {

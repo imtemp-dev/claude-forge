@@ -98,7 +98,7 @@ type VerifyLogEntry struct {
 
 // RecipeDir returns the directory for a recipe's state.
 func RecipeDir(root, recipeID string) string {
-	return filepath.Join(StatePath(root), "recipes", recipeID)
+	return filepath.Join(SpecsPath(root), "recipes", recipeID)
 }
 
 // LoadRecipeState reads the recipe state file.
@@ -127,7 +127,7 @@ func AppendVerifyLog(root, recipeID string, entry *VerifyLogEntry) error {
 
 // GetActiveRecipe finds the currently active recipe, if any.
 func GetActiveRecipe(root string) (*RecipeState, error) {
-	recipesDir := filepath.Join(StatePath(root), "recipes")
+	recipesDir := filepath.Join(SpecsPath(root), "recipes")
 	entries, err := os.ReadDir(recipesDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -154,7 +154,7 @@ func GetActiveRecipe(root string) (*RecipeState, error) {
 
 // GetFinalizedRecipe finds a recipe in "finalize" phase (ready for implementation).
 func GetFinalizedRecipe(root string) (*RecipeState, error) {
-	recipesDir := filepath.Join(StatePath(root), "recipes")
+	recipesDir := filepath.Join(SpecsPath(root), "recipes")
 	entries, err := os.ReadDir(recipesDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -181,7 +181,7 @@ func GetFinalizedRecipe(root string) (*RecipeState, error) {
 
 // ListRecipes returns all recipe states.
 func ListRecipes(root string) ([]*RecipeState, error) {
-	recipesDir := filepath.Join(StatePath(root), "recipes")
+	recipesDir := filepath.Join(SpecsPath(root), "recipes")
 	entries, err := os.ReadDir(recipesDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -208,7 +208,7 @@ func ListRecipes(root string) ([]*RecipeState, error) {
 // NewRecipeID generates a sequential recipe ID with topic slug.
 // Format: r-NNN-slug (e.g., r-001-mcp-server, r-002-oauth2-auth)
 func NewRecipeID(root, topic string) string {
-	recipesDir := filepath.Join(StatePath(root), "recipes")
+	recipesDir := filepath.Join(SpecsPath(root), "recipes")
 	entries, _ := os.ReadDir(recipesDir)
 
 	maxSeq := 0

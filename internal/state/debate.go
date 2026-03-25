@@ -20,7 +20,7 @@ type DebateState struct {
 
 // DebateDir returns the directory for a debate's state.
 func DebateDir(root, debateID string) string {
-	return filepath.Join(StatePath(root), "debates", debateID)
+	return filepath.Join(SpecsPath(root), "debates", debateID)
 }
 
 // LoadDebateState reads the debate state file.
@@ -42,7 +42,7 @@ func SaveDebateState(root string, state *DebateState) error {
 
 // ListDebates returns all debate states.
 func ListDebates(root string) ([]*DebateState, error) {
-	debatesDir := filepath.Join(StatePath(root), "debates")
+	debatesDir := filepath.Join(SpecsPath(root), "debates")
 	entries, err := os.ReadDir(debatesDir)
 	if err != nil {
 		if os.IsNotExist(err) {

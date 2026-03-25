@@ -16,7 +16,7 @@ Evaluate the debate conclusion for: $ARGUMENTS
 ## Step 1: Read Debate Output
 
 Find the debate artifacts:
-- List `.forge/state/recipes/{id}/debates/` to find the latest debate
+- List `.forge/specs/recipes/{id}/debates/` to find the latest debate
   (highest sequence number, or matching the argument)
 - Read meta.json for topic, conclusion, decided status
 - Read all round files for full expert arguments
@@ -35,7 +35,7 @@ For each dimension, assign: PASS / CONCERN / FAIL
 - **Red flag**: Conclusion discusses technology X but debate was about technology Y.
 
 ### 2b. Scope Compliance
-- Read `.forge/state/recipes/{id}/scope.md`
+- Read `.forge/specs/recipes/{id}/scope.md`
 - Does the conclusion stay within the confirmed scope boundaries?
 - Does it introduce items explicitly listed as "Out of Scope"?
 - If the conclusion requires scope expansion → flag it.
@@ -128,7 +128,7 @@ If VERDICT is EXTEND DEBATE:
    - Use Grep/Glob to check current codebase constraints
    - Clone and analyze external repos if needed
 
-2. Save preparation results to `.forge/state/recipes/{id}/debates/{debate-id}/prep-roundN.md`
+2. Save preparation results to `.forge/specs/recipes/{id}/debates/{debate-id}/prep-roundN.md`
 
 3. Log to changelog:
    ```bash
@@ -157,7 +157,7 @@ If VERDICT is EXTEND DEBATE:
 ## Step 6: Max Extensions Check
 
 Track extension count by counting follow-up debate directories in
-`.forge/state/recipes/{id}/debates/` that contain "-followup" in their name.
+`.forge/specs/recipes/{id}/debates/` that contain "-followup" in their name.
 Each follow-up debate = 1 extension. This count persists on disk and
 survives session breaks.
 
@@ -169,7 +169,7 @@ VERDICT: ACCEPT WITH RESERVATIONS
 
 Accept the best available conclusion. Do NOT extend further — diminishing returns.
 
-**Save reservations** to `.forge/state/recipes/{id}/reservations.md`:
+**Save reservations** to `.forge/specs/recipes/{id}/reservations.md`:
 ```markdown
 # Reservations: {debate topic}
 

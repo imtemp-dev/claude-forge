@@ -47,8 +47,8 @@ If standalone (no recipe):
   If no git or no changes, ask user which files to review.
 
 **Architecture context:**
-- Read `.forge/state/project-map.md` for layer structure
-- Read `.forge/state/layers/{name}.md` for the relevant layer's patterns
+- Read `.forge/specs/project-map.md` for layer structure
+- Read `.forge/specs/layers/{name}.md` for the relevant layer's patterns
 - If inside a recipe, read final.md for design intent
 - Pass this context to the architecture agent
 
@@ -101,7 +101,7 @@ After collecting findings from all agents:
 
 ## Step 5: Generate Report
 
-Save to `.forge/state/recipes/{id}/review.md` if inside a recipe.
+Save to `.forge/specs/recipes/{id}/review.md` if inside a recipe.
 Otherwise output directly to user.
 
 ```markdown

@@ -31,7 +31,7 @@ If active:
 
 ## Step 1: Research
 Use Skill("forge-research") to explore the target.
-Save to `.forge/state/{id}/research/v1.md`.
+Save to `.forge/specs/{id}/research/v1.md`.
 
 ## Step 2: Draft Analysis Document
 Write a structured analysis:
@@ -41,7 +41,7 @@ Write a structured analysis:
 - Dependencies and integration points
 - Patterns and conventions used
 
-Save to `.forge/state/{id}/draft.md`.
+Save to `.forge/specs/{id}/draft.md`.
 
 ## Step 3: Verify Loop (max 3 iterations)
 - Skill("forge-cross-check"): file/function references correct?

@@ -26,7 +26,7 @@ Research the given topic and produce a structured document.
    - Existing patterns and conventions
    - Configuration and environment requirements
    ```
-   If `.forge/state/recipes/` contains completed recipes, read their
+   If `.forge/specs/recipes/` contains completed recipes, read their
    final.md to understand existing design decisions, patterns, and
    known issues that may affect this research.
 
@@ -69,4 +69,4 @@ Research the given topic and produce a structured document.
      "Research suggests {item} may be needed but is currently out of scope."
    - These flags are included in the research document for /assess to act on.
 
-6. Save to `.forge/state/{recipe-id}/01-research.md` if inside a recipe
+6. Save to `.forge/specs/{recipe-id}/01-research.md` if inside a recipe

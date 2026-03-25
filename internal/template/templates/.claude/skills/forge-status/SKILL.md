@@ -18,9 +18,9 @@ If argument is "all" or empty, scan all recipes.
 
 ## Step 1: Scan Recipes
 
-Read `.forge/state/recipes/` directory:
+Read `.forge/specs/recipes/` directory:
 ```bash
-ls .forge/state/recipes/
+ls .forge/specs/recipes/
 ```
 
 For each recipe directory, read:
@@ -47,7 +47,7 @@ For each recipe, determine its state:
 
 ## Step 3: Generate project-status.md
 
-Write to `.forge/state/project-status.md`:
+Write to `.forge/specs/project-status.md`:
 
 ```markdown
 # Project Status
@@ -99,17 +99,17 @@ Based on current state, recommend what to do next:
 - Recipes with failing tests → "Fix failures in ..."
 - Complete recipes with deviations → "Follow-up: review deviation.md for improvements"
 
-If `.forge/state/roadmap.md` exists:
+If `.forge/specs/roadmap.md` exists:
 - Add roadmap progress: "Roadmap: {done}/{total} done"
 - If next pending item: "Next roadmap item: {description}"
 ```
 
-**Note**: `project-status.md` is a global derived document at `.forge/state/` level.
+**Note**: `project-status.md` is a global derived document at `.forge/specs/` level.
 It is NOT tracked in per-recipe manifests because it spans multiple recipes.
 
 ## Step 3.5: Roadmap Update
 
-If `.forge/state/roadmap.md` exists:
+If `.forge/specs/roadmap.md` exists:
 
 1. Read roadmap.md
 2. For each completed recipe (phase=complete):
@@ -128,7 +128,7 @@ Two-level map: Level 0 (lightweight overview) + Level 1 (on-demand detail).
 
 ### Level 0: project-map.md
 
-Update `.forge/state/project-map.md`:
+Update `.forge/specs/project-map.md`:
 
 **If it doesn't exist** and codebase has source files → scan root directory
 for layer directories (look for package.json, go.mod, Cargo.toml, pyproject.toml,
@@ -155,7 +155,7 @@ For layers changed by this recipe:
 - If neither: scan changelog.jsonl for implement actions with file references
 - Determine which layer each changed file belongs to
 - Scan that layer's source files
-- Update `.forge/state/layers/{layer-name}.md` with
+- Update `.forge/specs/layers/{layer-name}.md` with
   (naming: replace `/` with `-`, e.g., `services/api/` → `services-api.md`):
   - File structure (tree with one-line role descriptions)
   - Data models (if schema/model files exist)

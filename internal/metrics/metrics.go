@@ -61,12 +61,12 @@ type TokenSnapshot struct {
 
 // globalPath returns the project-wide metrics log path.
 func globalPath(root string) string {
-	return filepath.Join(state.StatePath(root), "metrics.jsonl")
+	return filepath.Join(state.LocalPath(root), "metrics.jsonl")
 }
 
-// recipePath returns the per-recipe metrics log path.
+// recipePath returns the per-recipe metrics log path (in local, not specs).
 func recipePath(root, recipeID string) string {
-	return filepath.Join(state.RecipeDir(root, recipeID), "metrics.jsonl")
+	return filepath.Join(state.LocalPath(root), "recipes", recipeID, "metrics.jsonl")
 }
 
 // Append writes a metric event to both global and per-recipe logs.
