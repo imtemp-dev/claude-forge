@@ -7,7 +7,7 @@ Verify before you code — forge catches spec errors before they become debuggin
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.22+-00ADD8.svg)](https://go.dev)
 
-[한국어](README.ko.md) | [中文](README.zh.md) | [日本語](README.ja.md)
+[한국어](README.ko.md) | [中文](README.zh.md) | [日本語](README.ja.md) | [For AI Agents](llms.txt)
 
 ## Why
 

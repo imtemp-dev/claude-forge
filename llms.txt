@@ -1,0 +1,185 @@
+# claude-forge
+
+> Verify before you code — forge catches spec errors before they become debugging sessions.
+
+forge is a CLI tool for Claude Code that structures the spec → verify → implement cycle. It plugs into Claude Code's lifecycle hooks to provide isolated verification, state tracking across sessions, and completion gates.
+
+## Install
+
+```bash
+# Homebrew
+brew tap imtemp-dev/tap && brew install forge
+
+# Or one-line install
+curl -fsSL https://raw.githubusercontent.com/imtemp-dev/claude-forge/main/install.sh | bash
+
+# Or from source (Go 1.22+)
+git clone https://github.com/imtemp-dev/claude-forge.git && cd claude-forge && make install
+```
+
+## Initialize
+
+```bash
+cd your-project
+forge init .
+claude   # start Claude Code
+```
+
+This deploys skills, hooks, and rules to `.claude/` and creates `.forge/` for state management.
+
+## Recipes
+
+Recipes are structured workflows. Start one inside Claude Code:
+
+```
+/forge-recipe-blueprint add OAuth2 authentication
+/forge-recipe-fix login bcrypt hash comparison fails
+/forge-recipe-debug session drops after 5 minutes
+/forge-recipe-design auth system architecture
+/forge-recipe-analyze existing codebase
+```
+
+| Type | Purpose | Lifecycle |
+|------|---------|-----------|
+| blueprint | New feature (full spec → code) | discover → scope → research → wireframe → draft ←→ verify → finalize → implement ←→ test → simulate → review → sync → complete |
+| fix | Known bug | diagnose → fix-spec → implement ←→ test → complete |
+| debug | Unknown bug | 6-perspective analysis → cross-reference → fix-spec → implement ←→ test → complete |
+| design | Feature design (spec only) | research → draft ←→ verify → finalize |
+| analyze | System understanding (spec only) | research → draft ←→ verify → finalize |
+
+## Phases
+
+Blueprint phases in order:
+`discovery` → `scoping` → `research` → `wireframe` → `draft` → `assess` → `improve` → `verify` → `debate` → `simulate` → `audit` → `finalize` → `implement` → `test` → `review` → `sync` → `status` → `complete`
+
+Implementation phases (shared across blueprint, fix, debug):
+`implement` → `test` → `review` → `sync` → `status` → `complete`
+
+## File Structure
+
+```
+.forge/
+├── config/              # git tracked — settings, template version
+│   ├── settings.yaml
+│   └── .template-version
+├── specs/               # git tracked — recipe specs, project docs
+│   ├── vision.md
+│   ├── roadmap.md
+│   ├── project-status.md
+│   ├── project-map.md
+│   └── recipes/{id}/
+│       ├── recipe.json         # recipe state (id, type, topic, phase)
+│       ├── intent.md           # discovery output
+│       ├── scope.md            # scoping output
+│       ├── wireframe.md        # structure design
+│       ├── draft.md            # working spec
+│       ├── final.md            # finalized spec (Level 3)
+│       ├── manifest.json       # document relationships
+│       ├── changelog.jsonl     # action log
+│       ├── verify-log.jsonl    # verification history
+│       ├── tasks.json          # implementation tasks
+│       ├── test-results.json   # test results
+│       ├── deviation.md        # spec-code differences
+│       ├── review.md           # code review findings
+│       ├── diagnosis.md        # fix/debug: root cause
+│       ├── fix-spec.md         # fix/debug: change spec
+│       ├── debates/{id}/       # debate rounds + meta.json
+│       └── simulations/        # simulation results
+└── local/               # gitignored — runtime data
+    ├── metrics.jsonl
+    ├── work-state.json
+    └── recipes/{id}/metrics.jsonl
+```
+
+## CLI Reference
+
+```
+forge init [dir]              Initialize project (--force to reinitialize)
+forge doctor [recipe-id]      System and recipe health check (--strict)
+forge validate [recipe-id]    JSON schema compliance check
+forge verify <file>           Document consistency and level assessment (--no-code)
+forge recipe status           Show active recipe
+forge recipe list             List all recipes
+forge recipe create           Create recipe (--type blueprint|fix|debug|design|analyze --topic "...")
+forge recipe log <id>         Record action/phase/iteration (--phase, --action, --output, --force)
+forge recipe cancel           Cancel active recipe
+forge stats [recipe-id]       Metrics and cost estimation (--json, --csv)
+forge graph [recipe-id]       Document relationship graph (--all)
+forge sync-check [recipe-id]  Verify documents are in sync
+forge debate list|log|resume|export   Manage debates
+forge update                  Update templates to match binary version
+forge version                 Show versions
+```
+
+## Skills (21)
+
+Inside Claude Code, invoke skills with `/skill-name`:
+
+| Skill | Purpose |
+|-------|---------|
+| /forge-recipe-blueprint | Full spec-to-code lifecycle |
+| /forge-recipe-design | Design spec (Level 2) |
+| /forge-recipe-analyze | Analysis spec (Level 1) |
+| /forge-recipe-fix | Bug fix with diagnosis |
+| /forge-recipe-debug | Multi-perspective debugging |
+| /forge-discover | Intent discovery conversation |
+| /forge-wireframe | Structure design with mermaid diagrams |
+| /forge-research | Codebase and external research |
+| /forge-verify | Logical verification (fork context) |
+| /forge-cross-check | Internal consistency check (fork context) |
+| /forge-audit | Completeness audit (fork context) |
+| /forge-assess | Level assessment and next-action decision |
+| /forge-sync-check | Document synchronization check (fork context) |
+| /forge-debate | Structured 3-expert debate |
+| /forge-adjudicate | Evaluate debate conclusions |
+| /forge-simulate | Scenario walkthrough — document or code (fork context) |
+| /forge-implement | Code generation from finalized spec |
+| /forge-test | Test generation and execution |
+| /forge-review | Multi-perspective code review (fork context, 3 parallel agents) |
+| /forge-sync | Sync spec with implementation |
+| /forge-status | Project status aggregation |
+
+## Models
+
+Main session model handles: drafting, implementing, debating, orchestrating.
+
+Fork context agents handle verification and review (separate AI instance, no shared conversation history):
+
+| Agent | Default | Setting |
+|-------|---------|---------|
+| verifier | sonnet | agents.verifier |
+| auditor | sonnet | agents.auditor |
+| simulator | session model | agents.simulator |
+| reviewer_quality | sonnet | agents.reviewer_quality |
+| reviewer_security | sonnet | agents.reviewer_security |
+| reviewer_arch | sonnet | agents.reviewer_arch |
+
+Configure in `.forge/config/settings.yaml`.
+
+## Completion Gates
+
+Specs complete when: Level 3 assessed, sync-check passes, verify-log shows critical=0 major=0. Output `<forge>DONE</forge>`.
+
+Implementation completes when: all tasks done, tests pass, review.md exists, deviation.md exists. Output `<forge>IMPLEMENT DONE</forge>`.
+
+Fix completes when: fix-spec.md exists, tests pass. Output `<forge>FIX DONE</forge>`.
+
+## Key Rules
+
+1. Every document modification triggers /forge-verify immediately after.
+2. Verification runs in separate agent context (never self-review).
+3. Edit draft.md in place (Edit tool), don't rewrite.
+4. Log every action: `forge recipe log {id} --action [type] --output [path]`.
+5. Run /forge-simulate at least once before Level 3.
+6. Run /forge-adjudicate after every debate.
+7. Run /forge-sync-check before finalizing.
+8. Deviations are reports, not gates — they don't block completion.
+
+## Document Levels
+
+- Level 1 (Understanding): components listed, relationships explained, tech stack specified
+- Level 2 (Design): data flow, error handling, interfaces, rationale for choices
+- Level 3 (Implementation-ready): every file path, function signature, type, edge case, test scenario specified
+
+---
+forge version: 0.2.0
