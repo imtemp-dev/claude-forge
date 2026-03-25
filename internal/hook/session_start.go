@@ -217,7 +217,9 @@ func nextStepHint(root string, recipe *state.RecipeState) string {
 		return "Read scope.md and confirm or adjust scope."
 	case recipe.Phase == "wireframe":
 		return "Run /forge-wireframe to design system structure."
-	case !state.IsImplementPhase(recipe.Phase) && recipe.Phase != "finalize":
+	case recipe.Phase == "finalize":
+		return fmt.Sprintf("Spec finalized. Run /forge-implement %s to start implementation.", recipe.ID)
+	case !state.IsImplementPhase(recipe.Phase):
 		return "Run /forge-assess on draft.md to determine next action."
 	}
 
