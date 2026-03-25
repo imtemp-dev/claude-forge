@@ -362,6 +362,11 @@ func checkPhasePreConditions(root string, recipe *state.RecipeState, newPhase st
 			warn("project-map.md not found — scan codebase to create it")
 		}
 
+	case "draft":
+		if recipe.Type == "blueprint" && !exists("wireframe.md") {
+			warn("wireframe.md not found — run /forge-wireframe to design structure first")
+		}
+
 	case "implement":
 		if !exists("final.md") {
 			warn("final.md not found — complete spec before implementing")

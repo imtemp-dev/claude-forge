@@ -281,13 +281,15 @@ or a fundamental shift in approach. Judge by intent, not by keywords.
 **Starting from scratch (no existing code):**
 1. /research — investigate technology, best practices, libraries.
    Research is scoped by `.forge/state/recipes/{id}/scope.md`.
-2. Write initial draft (Level 1) → **Draft Self-Check** → draft.md → /verify
-3. /assess → loop begins
+2. /forge-wireframe — design high-level structure (component diagram, state machine, data flow, file structure, all execution paths). This creates `wireframe.md`.
+3. Write initial draft (Level 1) referencing wireframe.md → **Draft Self-Check** → draft.md → /verify
+4. /assess → loop begins
 
 **Starting with existing code:**
 1. /research — explore existing codebase, scoped by scope.md constraints.
-2. Write initial draft referencing existing code → **Draft Self-Check** → draft.md → /verify
-3. /assess → loop begins
+2. /forge-wireframe — design structure changes (what to add/modify, state transitions, data flow changes).
+3. Write initial draft referencing wireframe.md → **Draft Self-Check** → draft.md → /verify
+4. /assess → loop begins
 
 ### Draft Self-Check (before /verify)
 
@@ -309,6 +311,13 @@ Cross-section consistency:
 - [ ] **No contradictions**: Error handling strategy is the same across all sections
 - [ ] **Naming consistent**: Same concept uses same name everywhere
 - [ ] **Config matches usage**: Config fields defined match how they're accessed in code
+
+Mermaid flow coverage:
+- [ ] **State machine**: All system states and transitions are in a `stateDiagram-v2`
+- [ ] **No dead ends**: Every state has at least one exit transition
+- [ ] **Error paths**: Every error state has recovery or terminal path
+- [ ] **All paths enumerated**: Draft lists ALL execution paths with triggers and expected behavior
+- [ ] **Wireframe alignment**: Component structure matches `wireframe.md`
 
 If any check fails → fix it in the draft before saving. This is proofreading,
 not verification (which requires a separate context).
