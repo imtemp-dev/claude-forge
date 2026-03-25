@@ -49,30 +49,21 @@ vision:
   max_roadmap_items: 8           # Beyond 8, the roadmap itself becomes hard to track
   min_roadmap_items: 3           # Below 3, decomposition adds overhead without benefit
 
-# Agent models — override the model used for specialist agents.
-# Default: sonnet for verification agents. Options: sonnet, opus, haiku.
-# Opus gives deeper analysis but costs more and is slower.
-# Haiku is fast and cheap but may miss subtle issues.
+# Agent models — options: sonnet, opus, haiku
 # Simulator uses session model by default (deep reasoning required).
 agents:
   verifier: sonnet
   auditor: sonnet
-  # simulator: sonnet           # Uncomment to override (default: session model)
+  # simulator: sonnet
   reviewer_quality: sonnet
   reviewer_security: sonnet
   reviewer_arch: sonnet
 
-# Skill effort levels — override the thinking depth for each skill.
-# Options: low, medium, high, max (max is Opus 4.6 only).
-# Higher effort = deeper reasoning but slower and more expensive.
-# Set in skill frontmatter by default; override here per-project.
+# Skill effort levels — options: low, medium, high, max
 # effort:
-#   verify: max              # Deepest analysis — find logical flaws
-#   simulate: max            # Walk through every scenario thoroughly
-#   debate: high             # Multi-expert deliberation
-#   research: high           # Thorough investigation
-#   review: high             # Deep code review
-#   status: low              # Simple aggregation
+#   verify: max
+#   simulate: max
+#   review: high
 
 # Privacy
 privacy:
