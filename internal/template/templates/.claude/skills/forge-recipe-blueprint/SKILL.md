@@ -45,11 +45,16 @@ If active, check the phase to determine resume strategy:
    re-present if Status is DRAFT, or skip to adaptive loop if CONFIRMED.
 5. If scope.md does not exist → go to Scoping Loop step 1 (start scoping with roadmap context).
 
+**If phase is `wireframe`:** Read `wireframe.md` if it exists.
+- If incomplete → continue wireframe design
+- If complete (all quality gate checks pass) → transition to draft
+
 **If phase is any other (research, draft, verify, debate, etc.):** Resume with **minimum reads**:
 1. `changelog.jsonl` — last 5 entries only (determine current position in the loop)
 2. `draft.md` — the current draft (if not found, check `manifest.json` `current_draft` for legacy path)
-3. `verification.md` — latest verification findings
-4. `scope.md` — confirm scope is still valid
+3. `wireframe.md` — structural reference for draft alignment
+4. `verification.md` — latest verification findings
+5. `scope.md` — confirm scope is still valid
 
 Do NOT read on resume: research documents (already incorporated into the draft).
 
