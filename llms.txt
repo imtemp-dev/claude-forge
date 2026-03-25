@@ -41,7 +41,7 @@ Recipes are structured workflows. Start one inside Claude Code:
 
 | Type | Purpose | Lifecycle |
 |------|---------|-----------|
-| blueprint | New feature (full spec → code) | discover → scope → research → wireframe → draft ←→ verify → finalize → implement ←→ test → simulate → review → sync → complete |
+| blueprint | New feature (full spec → code) | discover → scope → research → wireframe → draft ←→ (assess/improve/verify/debate/simulate/audit) → finalize → implement ←→ test → simulate(code) → review → sync → complete |
 | fix | Known bug | diagnose → fix-spec → implement ←→ test → complete |
 | debug | Unknown bug | 6-perspective analysis → cross-reference → fix-spec → implement ←→ test → complete |
 | design | Feature design (spec only) | research → draft ←→ verify → finalize |
@@ -53,7 +53,7 @@ Blueprint phases in order:
 `discovery` → `scoping` → `research` → `wireframe` → `draft` → `assess` → `improve` → `verify` → `debate` → `simulate` → `audit` → `finalize` → `implement` → `test` → `review` → `sync` → `status` → `complete`
 
 Implementation phases (shared across blueprint, fix, debug):
-`implement` → `test` → `review` → `sync` → `status` → `complete`
+`implement` → `test` → `simulate`(code) → `review` → `sync` → `status` → `complete`
 
 ## File Structure
 
@@ -67,6 +67,7 @@ Implementation phases (shared across blueprint, fix, debug):
 │   ├── roadmap.md
 │   ├── project-status.md
 │   ├── project-map.md
+│   ├── debates/{id}/        # project-level debates (meta.json + rounds)
 │   └── recipes/{id}/
 │       ├── recipe.json         # recipe state (id, type, topic, phase)
 │       ├── intent.md           # discovery output
@@ -83,7 +84,7 @@ Implementation phases (shared across blueprint, fix, debug):
 │       ├── review.md           # code review findings
 │       ├── diagnosis.md        # fix/debug: root cause
 │       ├── fix-spec.md         # fix/debug: change spec
-│       ├── debates/{id}/       # debate rounds + meta.json
+│       ├── debates/{id}/       # recipe-level debates
 │       └── simulations/        # simulation results
 └── local/               # gitignored — runtime data
     ├── metrics.jsonl
@@ -158,7 +159,7 @@ Configure in `.forge/config/settings.yaml`.
 
 ## Completion Gates
 
-Specs complete when: Level 3 assessed, sync-check passes, verify-log shows critical=0 major=0. Output `<forge>DONE</forge>`.
+Specs complete when: verification.md exists, verify-log last entry shows critical=0 major=0. Output `<forge>DONE</forge>`. This sets phase to `finalize`.
 
 Implementation completes when: all tasks done, tests pass, review.md exists, deviation.md exists. Output `<forge>IMPLEMENT DONE</forge>`.
 
