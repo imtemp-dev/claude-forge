@@ -10,11 +10,11 @@ import (
 
 var rootCmd = &cobra.Command{
 	Use:     "forge",
-	Short:   "forge — Bulletproof Technical Specification",
-	Long:    "Verify and refine implementation specs until AI can generate code with high accuracy.",
+	Short:   "forge — Verify before you code",
+	Long:    "Structured AI development for Claude Code — catches spec errors before they become debugging sessions.",
 	Version: version.GetVersion(),
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("forge — Bulletproof Technical Specification")
+		fmt.Println("forge — Verify before you code")
 		fmt.Printf("Version: %s\n\n", version.GetFullVersion())
 		_ = cmd.Help()
 	},
