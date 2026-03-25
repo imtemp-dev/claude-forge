@@ -212,6 +212,43 @@ flowchart LR
 
 **Claude Code 통합** — 21개 스킬이 레시피 프로토콜을, 8개 라이프사이클 훅이 세션 이벤트(재개, 완료 게이트, 메트릭스)를, 6개 규칙이 제약 조건을 처리합니다. 검증은 항상 별도 에이전트 컨텍스트에서 실행됩니다.
 
+## 모델 & 설정
+
+forge는 두 계층의 AI 모델을 사용합니다:
+
+**메인 세션 모델** — Claude Code에서 실행 중인 모델(Opus, Sonnet 등)이 모든 주요 작업을 처리합니다: 스펙 작성, 코드 구현, 토론 진행, 라이프사이클 오케스트레이션.
+
+**전문가 에이전트** — 검증, 감사, 시뮬레이션, 리뷰는 **별도 에이전트 컨텍스트**(fork)에서 실행되어 메인 세션과 맹점을 공유하지 않습니다. 기본 Sonnet이며 `.forge/config/settings.yaml`에서 설정 가능:
+
+```yaml
+agents:
+  verifier: sonnet       # /forge-verify — 논리적 일관성
+  auditor: sonnet        # /forge-audit — 완전성 검사
+  simulator: sonnet      # /forge-simulate — 시나리오 워크스루
+  reviewer_quality: sonnet   # /forge-review — 코드 품질
+  reviewer_security: sonnet  # /forge-review — 보안 리뷰
+  reviewer_arch: sonnet      # /forge-review — 아키텍처 리뷰
+```
+
+옵션: `sonnet` (균형), `opus` (깊은 분석, 높은 비용), `haiku` (빠름, 미묘한 이슈 놓칠 수 있음).
+
+### 각 단계별 모델
+
+| 단계 | 스킬 | Context | 모델 |
+|------|------|---------|------|
+| 탐색, 범위, 조사 | discover, blueprint, research | main | 세션 모델 |
+| 와이어프레임, 초안, 개선 | wireframe, blueprint | main | 세션 모델 |
+| 토론, 판정 | debate, adjudicate | main | 세션 모델 |
+| **검증** | verify | **fork** | `agents.verifier` |
+| **감사** | audit | **fork** | `agents.auditor` |
+| **시뮬레이션** | simulate | **fork** | `agents.simulator` |
+| **교차검증, 동기화검증** | cross-check, sync-check | **fork** | Sonnet |
+| 구현, 테스트, 동기화 | implement, test, sync | main | 세션 모델 |
+| **리뷰** (3 병렬 에이전트) | review | **fork** | `agents.reviewer_*` |
+| 상태 | status | main | 세션 모델 |
+
+fork 컨텍스트가 핵심입니다 — 같은 세션에서 자기 출력을 리뷰하면 같은 맹점을 공유합니다. Fork 에이전트는 문서만 보고, 그 문서를 만든 대화는 보지 않습니다.
+
 ## 핵심 원칙
 
 - **문서 먼저** — 코드가 아닌 스펙을 반복한다

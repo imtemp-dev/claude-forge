@@ -219,6 +219,43 @@ flowchart LR
 
 **Claude Code integration** — 21 skills provide recipe protocols, 8 lifecycle hooks handle session events (resume, completion gates, metrics), 6 rules enforce constraints. Verification always runs in separate agent contexts.
 
+## Models & Configuration
+
+forge uses two tiers of AI models:
+
+**Main session model** — whatever you're running in Claude Code (Opus, Sonnet, etc.) handles all primary work: drafting specs, implementing code, running debates, orchestrating the lifecycle.
+
+**Specialist agents** — verification, audit, simulation, and review run in **separate agent contexts** (fork) so they don't share blind spots with the main session. These default to Sonnet and are configurable in `.forge/config/settings.yaml`:
+
+```yaml
+agents:
+  verifier: sonnet       # /forge-verify — logical consistency
+  auditor: sonnet        # /forge-audit — completeness check
+  simulator: sonnet      # /forge-simulate — scenario walkthrough
+  reviewer_quality: sonnet   # /forge-review — code quality
+  reviewer_security: sonnet  # /forge-review — security review
+  reviewer_arch: sonnet      # /forge-review — architecture review
+```
+
+Options: `sonnet` (balanced), `opus` (deeper analysis, higher cost), `haiku` (fast, may miss subtle issues).
+
+### What runs where
+
+| Phase | Skill | Context | Model |
+|-------|-------|---------|-------|
+| Discover, Scope, Research | discover, blueprint, research | main | Your session model |
+| Wireframe, Draft, Improve | wireframe, blueprint | main | Your session model |
+| Debate, Adjudicate | debate, adjudicate | main | Your session model |
+| **Verify** | verify | **fork** | `agents.verifier` |
+| **Audit** | audit | **fork** | `agents.auditor` |
+| **Simulate** | simulate | **fork** | `agents.simulator` |
+| **Cross-check, Sync-check** | cross-check, sync-check | **fork** | Sonnet |
+| Implement, Test, Sync | implement, test, sync | main | Your session model |
+| **Review** (3 parallel agents) | review | **fork** | `agents.reviewer_*` |
+| Status | status | main | Your session model |
+
+The fork context is key — when the same model reviews its own output in the same session, it shares the same blind spots. Fork agents only see the document, not the conversation that produced it.
+
 ## Key Principles
 
 - **Document first** — Iterate on the spec, not the code

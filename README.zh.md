@@ -212,6 +212,43 @@ flowchart LR
 
 **Claude Code 集成** — 21 个技能提供配方协议，8 个生命周期钩子处理会话事件（恢复、完成门控、指标），6 个规则强制约束。验证始终在独立的代理上下文中运行。
 
+## 模型与配置
+
+forge 使用两层 AI 模型：
+
+**主会话模型** — 你在 Claude Code 中运行的模型（Opus、Sonnet 等）处理所有主要工作：起草规范、实现代码、进行辩论、编排生命周期。
+
+**专家代理** — 验证、审计、模拟和审查在**独立代理上下文**（fork）中运行，不与主会话共享盲点。默认为 Sonnet，可在 `.forge/config/settings.yaml` 中配置：
+
+```yaml
+agents:
+  verifier: sonnet       # /forge-verify — 逻辑一致性
+  auditor: sonnet        # /forge-audit — 完整性检查
+  simulator: sonnet      # /forge-simulate — 场景演练
+  reviewer_quality: sonnet   # /forge-review — 代码质量
+  reviewer_security: sonnet  # /forge-review — 安全审查
+  reviewer_arch: sonnet      # /forge-review — 架构审查
+```
+
+选项：`sonnet`（均衡）、`opus`（更深分析，更高成本）、`haiku`（快速，可能遗漏细微问题）。
+
+### 各阶段使用的模型
+
+| 阶段 | 技能 | 上下文 | 模型 |
+|------|------|--------|------|
+| 发现、范围、调研 | discover, blueprint, research | 主会话 | 会话模型 |
+| 线框、草稿、改进 | wireframe, blueprint | 主会话 | 会话模型 |
+| 辩论、裁决 | debate, adjudicate | 主会话 | 会话模型 |
+| **验证** | verify | **fork** | `agents.verifier` |
+| **审计** | audit | **fork** | `agents.auditor` |
+| **模拟** | simulate | **fork** | `agents.simulator` |
+| **交叉检查、同步检查** | cross-check, sync-check | **fork** | Sonnet |
+| 实现、测试、同步 | implement, test, sync | 主会话 | 会话模型 |
+| **审查**（3 个并行代理） | review | **fork** | `agents.reviewer_*` |
+| 状态 | status | 主会话 | 会话模型 |
+
+fork 上下文是关键——当同一模型在同一会话中审查自己的输出时，它共享相同的盲点。Fork 代理只看到文档，看不到产生该文档的对话。
+
 ## 核心原则
 
 - **文档优先** — 迭代规范，而非代码

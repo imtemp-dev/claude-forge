@@ -212,6 +212,43 @@ flowchart LR
 
 **Claude Code統合** — 21スキルがレシピプロトコルを、8ライフサイクルフックがセッションイベント（再開、完了ゲート、メトリクス）を、6ルールが制約を処理します。検証は常に独立したエージェントコンテキストで実行されます。
 
+## モデルと設定
+
+forgeは2層のAIモデルを使用します：
+
+**メインセッションモデル** — Claude Codeで実行中のモデル（Opus、Sonnetなど）がすべての主要作業を処理します：仕様のドラフト、コード実装、ディベート進行、ライフサイクルのオーケストレーション。
+
+**スペシャリストエージェント** — 検証、監査、シミュレーション、レビューは**独立したエージェントコンテキスト**（fork）で実行され、メインセッションとブラインドスポットを共有しません。デフォルトはSonnetで、`.forge/config/settings.yaml`で設定可能：
+
+```yaml
+agents:
+  verifier: sonnet       # /forge-verify — 論理的一貫性
+  auditor: sonnet        # /forge-audit — 完全性チェック
+  simulator: sonnet      # /forge-simulate — シナリオウォークスルー
+  reviewer_quality: sonnet   # /forge-review — コード品質
+  reviewer_security: sonnet  # /forge-review — セキュリティレビュー
+  reviewer_arch: sonnet      # /forge-review — アーキテクチャレビュー
+```
+
+オプション：`sonnet`（バランス）、`opus`（深い分析、高コスト）、`haiku`（高速、微妙な問題を見逃す可能性）。
+
+### 各フェーズのモデル
+
+| フェーズ | スキル | コンテキスト | モデル |
+|----------|--------|-------------|--------|
+| 発見、スコープ、調査 | discover, blueprint, research | メイン | セッションモデル |
+| ワイヤーフレーム、ドラフト、改善 | wireframe, blueprint | メイン | セッションモデル |
+| ディベート、裁定 | debate, adjudicate | メイン | セッションモデル |
+| **検証** | verify | **fork** | `agents.verifier` |
+| **監査** | audit | **fork** | `agents.auditor` |
+| **シミュレーション** | simulate | **fork** | `agents.simulator` |
+| **クロスチェック、同期チェック** | cross-check, sync-check | **fork** | Sonnet |
+| 実装、テスト、同期 | implement, test, sync | メイン | セッションモデル |
+| **レビュー**（3並列エージェント） | review | **fork** | `agents.reviewer_*` |
+| ステータス | status | メイン | セッションモデル |
+
+forkコンテキストが鍵です — 同じセッションで自分の出力をレビューすると、同じブラインドスポットを共有します。Forkエージェントはドキュメントだけを見て、そのドキュメントを生成した会話は見ません。
+
 ## コア原則
 
 - **ドキュメントファースト** — コードではなく仕様を反復する
