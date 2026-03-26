@@ -39,44 +39,42 @@ Then inside Claude Code:
 
 ## How It Works
 
-Every recipe has a **spec phase** (iterate on documents) and an **implementation phase** (generate and validate code). Errors caught in spec cost a text edit. Errors caught in code cost a build cycle.
+Blueprint lifecycle — the full spec-to-code cycle:
 
-### Spec Phase (per recipe type)
-
-**Blueprint** — full spec for new features:
+### 1. Establish the destination
 
 ```mermaid
 flowchart LR
-    DIS["Discover"] --> SC["Scope"] --> R["Research"] --> W["Wireframe"]
-    W --> D["Draft"] --> V["Verify"]
-    V -->|"issues"| D
+    INT["Discover Intent"] --> VIS["Vision & Roadmap"] --> SC["Scope"] --> WF["Wireframe"]
+```
+
+Before writing anything, bts establishes *what the finished system looks like*. Intent discovery clarifies purpose. Wireframe designs structure with mermaid diagrams. This is the map every later step refers back to.
+
+### 2. Iterate the spec until bulletproof
+
+```mermaid
+flowchart LR
+    D["Draft"] --> V["Verify ↗"]
+    V -->|"issues"| A["Assess"]
+    A -->|"improve"| D
+    A -->|"debate"| DB["Debate"] --> D
+    A -->|"simulate"| SM["Simulate ↗"] --> D
+    A -->|"audit"| AU["Audit ↗"] --> D
     V -->|"pass"| F["Finalize"]
 ```
 
-**Fix** / **Debug** — lightweight:
+The adaptive loop: draft → verify → assess what's needed → act → verify again. **↗ = fork context** (separate AI instance). The loop runs until verification passes with zero critical and zero major issues.
+
+### 3. Generate and validate code
 
 ```mermaid
 flowchart LR
-    DIAG["Diagnose"] --> SPEC["Fix Spec"] --> F["Finalize"]
-```
-
-**Design** / **Analyze** — spec only, no code:
-
-```mermaid
-flowchart LR
-    R["Research"] --> D["Draft"] --> V["Verify"]
-    V -->|"issues"| D
-    V -->|"pass"| F["Finalize"]
-```
-
-### Implementation Phase (shared)
-
-```mermaid
-flowchart LR
-    F["Finalized Spec"] --> IMP["Implement"] --> T["Test"]
+    F["Level 3 Spec"] --> IMP["Implement"] --> T["Test"]
     T -->|"fail"| IMP
-    T -->|"pass"| SIM["Simulate"] --> RV["Review"] --> SY["Sync"] --> DONE["Complete"]
+    T -->|"pass"| SIM["Simulate ↗"] --> RV["Review ↗"] --> SY["Sync"] --> DONE["Complete"]
 ```
+
+Code is generated from a spec that has survived multiple rounds of independent verification. Test failures loop back to implementation. Simulate and review run in fork context. Sync documents any spec-code deviations.
 
 ## Models
 
@@ -93,13 +91,13 @@ agents:
 
 ## Recipes
 
-| Recipe | Purpose | Output |
-|--------|---------|--------|
-| `/bts-recipe-blueprint` | Full implementation spec | Level 3 spec → code → tests |
-| `/bts-recipe-design` | Design a feature | Level 2 design doc |
-| `/bts-recipe-analyze` | Understand existing system | Level 1 analysis doc |
-| `/bts-recipe-fix` | Known bug fix | Fix spec → code → tests |
-| `/bts-recipe-debug` | Unknown bug investigation | 6-perspective analysis → fix |
+| Recipe | Lifecycle | Output |
+|--------|-----------|--------|
+| `/bts-recipe-blueprint` | discover → scope → wireframe → adaptive loop → implement → test → review → sync | Level 3 spec → code → tests |
+| `/bts-recipe-fix` | diagnose → fix-spec → implement → test | Fix spec → code → tests |
+| `/bts-recipe-debug` | 6-perspective analysis → cross-reference → fix-spec → implement → test | Root cause → fix |
+| `/bts-recipe-design` | research → draft ←→ verify → finalize | Level 2 design doc |
+| `/bts-recipe-analyze` | research → draft ←→ verify → finalize | Level 1 analysis doc |
 
 ## CLI
 
