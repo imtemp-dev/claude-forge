@@ -5,8 +5,8 @@ before:
     - go mod tidy
 
 builds:
-  - main: ./cmd/forge/
-    binary: forge
+  - main: ./cmd/bts/
+    binary: bts
     env:
       - CGO_ENABLED=0
     goos:
@@ -17,9 +17,9 @@ builds:
       - arm64
     ldflags:
       - -s -w
-      - -X github.com/imtemp-dev/claude-forge/pkg/version.Version={{.Version}}
-      - -X github.com/imtemp-dev/claude-forge/pkg/version.Commit={{.Commit}}
-      - -X github.com/imtemp-dev/claude-forge/pkg/version.Date={{.Date}}
+      - -X github.com/imtemp-dev/claude-bts/pkg/version.Version={{.Version}}
+      - -X github.com/imtemp-dev/claude-bts/pkg/version.Commit={{.Commit}}
+      - -X github.com/imtemp-dev/claude-bts/pkg/version.Date={{.Date}}
 
 archives:
   - formats:
@@ -40,15 +40,15 @@ brews:
       owner: imtemp-dev
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    homepage: https://github.com/imtemp-dev/claude-forge
-    description: "Document-first AI development — iterate on specs, not code"
+    homepage: https://github.com/imtemp-dev/claude-bts
+    description: "Verify before you code — catches spec errors before they become debugging sessions"
     license: MIT
     install: |
-      bin.install "forge"
+      bin.install "bts"
     test: |
-      system "#{bin}/forge", "--version"
+      system "#{bin}/bts", "--version"
 
 release:
   github:
     owner: imtemp-dev
-    name: claude-forge
+    name: claude-bts

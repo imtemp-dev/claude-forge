@@ -4,24 +4,24 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/imtemp-dev/claude-forge/pkg/version"
+	"github.com/imtemp-dev/claude-bts/pkg/version"
 	"github.com/spf13/cobra"
 )
 
 var rootCmd = &cobra.Command{
-	Use:     "forge",
-	Short:   "forge — Verify before you code",
+	Use:     "bts",
+	Short:   "bts — Verify before you code",
 	Long:    "Structured AI development for Claude Code — catches spec errors before they become debugging sessions.",
 	Version: version.GetVersion(),
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("forge — Verify before you code")
+		fmt.Println("bts — Verify before you code")
 		fmt.Printf("Version: %s\n\n", version.GetFullVersion())
 		_ = cmd.Help()
 	},
 }
 
 func init() {
-	rootCmd.SetVersionTemplate(fmt.Sprintf("forge %s\n", version.GetFullVersion()))
+	rootCmd.SetVersionTemplate(fmt.Sprintf("bts %s\n", version.GetFullVersion()))
 
 	rootCmd.AddGroup(
 		&cobra.Group{ID: "project", Title: "Project Commands:"},
@@ -30,7 +30,7 @@ func init() {
 	)
 }
 
-// Execute is the main entry point for the forge CLI.
+// Execute is the main entry point for the bts CLI.
 func Execute() error {
 	return rootCmd.Execute()
 }

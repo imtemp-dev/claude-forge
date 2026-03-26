@@ -160,11 +160,11 @@ func TestAggregateRecipe_EmptyEvents(t *testing.T) {
 
 func TestAggregateProject(t *testing.T) {
 	root := t.TempDir()
-	os.MkdirAll(filepath.Join(root, ".forge", "specs", "recipes"), 0755)
+	os.MkdirAll(filepath.Join(root, ".bts", "specs", "recipes"), 0755)
 
 	// Create two recipes
 	for _, id := range []string{"r-1000", "r-2000"} {
-		dir := filepath.Join(root, ".forge", "specs", "recipes", id)
+		dir := filepath.Join(root, ".bts", "specs", "recipes", id)
 		os.MkdirAll(dir, 0755)
 		phase := "complete"
 		if id == "r-2000" {
@@ -235,7 +235,7 @@ func TestAggregateProject(t *testing.T) {
 
 func TestAggregateProject_NoMetrics(t *testing.T) {
 	root := t.TempDir()
-	os.MkdirAll(filepath.Join(root, ".forge", "specs", "recipes"), 0755)
+	os.MkdirAll(filepath.Join(root, ".bts", "specs", "recipes"), 0755)
 
 	stats, err := AggregateProject(root)
 	if err != nil {
@@ -251,7 +251,7 @@ func TestAggregateProject_NoMetrics(t *testing.T) {
 
 func TestAggregateProject_TokensLatestSnapshot(t *testing.T) {
 	root := t.TempDir()
-	os.MkdirAll(filepath.Join(root, ".forge", "specs", "recipes"), 0755)
+	os.MkdirAll(filepath.Join(root, ".bts", "specs", "recipes"), 0755)
 
 	// Multiple snapshots — only last should be kept
 	events := []MetricsEvent{
@@ -399,7 +399,7 @@ func TestAggregateSessions_MultiModel(t *testing.T) {
 
 func TestAggregateProject_WithCost(t *testing.T) {
 	root := t.TempDir()
-	os.MkdirAll(filepath.Join(root, ".forge", "specs", "recipes"), 0755)
+	os.MkdirAll(filepath.Join(root, ".bts", "specs", "recipes"), 0755)
 
 	events := []MetricsEvent{
 		{Timestamp: ts(0), Kind: KindSessionStart, SessionID: "s1", Model: "claude-opus-4-6"},

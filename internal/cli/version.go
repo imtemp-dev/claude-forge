@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/imtemp-dev/claude-forge/internal/state"
-	"github.com/imtemp-dev/claude-forge/pkg/version"
+	"github.com/imtemp-dev/claude-bts/internal/state"
+	"github.com/imtemp-dev/claude-bts/pkg/version"
 	"github.com/spf13/cobra"
 )
 
@@ -30,14 +30,14 @@ var versionCmd = &cobra.Command{
 		cwd, _ := os.Getwd()
 		root, err := state.FindRoot(cwd)
 		if err != nil {
-			fmt.Println("Templates: not initialized (run 'forge init')")
+			fmt.Println("Templates: not initialized (run 'bts init')")
 			return nil
 		}
 
-		versionFile := filepath.Join(root, ".forge", "config", ".template-version")
+		versionFile := filepath.Join(root, ".bts", "config", ".template-version")
 		existing, err := os.ReadFile(versionFile)
 		if err != nil {
-			fmt.Println("Templates: not initialized (run 'forge init')")
+			fmt.Println("Templates: not initialized (run 'bts init')")
 			return nil
 		}
 
@@ -47,7 +47,7 @@ var versionCmd = &cobra.Command{
 		if tmplVer == binVer {
 			fmt.Println("Status:    up to date")
 		} else {
-			fmt.Println("Status:    outdated (run 'forge update' to refresh)")
+			fmt.Println("Status:    outdated (run 'bts update' to refresh)")
 		}
 		return nil
 	},

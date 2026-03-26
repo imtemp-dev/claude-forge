@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/imtemp-dev/claude-forge/internal/state"
+	"github.com/imtemp-dev/claude-bts/internal/state"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +28,7 @@ func runGraph(cmd *cobra.Command, args []string) error {
 	cwd, _ := os.Getwd()
 	root, err := state.FindRoot(cwd)
 	if err != nil {
-		return fmt.Errorf("not a forge project: %w", err)
+		return fmt.Errorf("not a bts project: %w", err)
 	}
 
 	if len(args) > 0 {

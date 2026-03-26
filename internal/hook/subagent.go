@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/imtemp-dev/claude-forge/internal/metrics"
-	"github.com/imtemp-dev/claude-forge/internal/state"
+	"github.com/imtemp-dev/claude-bts/internal/metrics"
+	"github.com/imtemp-dev/claude-bts/internal/state"
 )
 
 type subagentStartHandler struct{}

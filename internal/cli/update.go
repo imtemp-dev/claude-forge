@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/imtemp-dev/claude-forge/internal/state"
-	"github.com/imtemp-dev/claude-forge/internal/template"
-	"github.com/imtemp-dev/claude-forge/pkg/version"
+	"github.com/imtemp-dev/claude-bts/internal/state"
+	"github.com/imtemp-dev/claude-bts/internal/template"
+	"github.com/imtemp-dev/claude-bts/pkg/version"
 	"github.com/spf13/cobra"
 )
 
@@ -24,11 +24,11 @@ var updateCmd = &cobra.Command{
 		cwd, _ := os.Getwd()
 		root, err := state.FindRoot(cwd)
 		if err != nil {
-			return fmt.Errorf("not a forge project. Run 'forge init' first")
+			return fmt.Errorf("not a bts project. Run 'bts init' first")
 		}
 
 		current := version.GetTemplateVersion()
-		versionFile := filepath.Join(root, ".forge", "config", ".template-version")
+		versionFile := filepath.Join(root, ".bts", "config", ".template-version")
 		existing, _ := os.ReadFile(versionFile)
 		oldVer := strings.TrimSpace(string(existing))
 
@@ -38,7 +38,7 @@ var updateCmd = &cobra.Command{
 		}
 
 		// DeployForce (same skip list as auto-update and init --force)
-		skipFiles := []string{".forge/config/settings.yaml", ".mcp.json"}
+		skipFiles := []string{".bts/config/settings.yaml", ".mcp.json"}
 		updated, err := template.DeployForce(root, skipFiles)
 		if err != nil {
 			return fmt.Errorf("update templates: %w", err)

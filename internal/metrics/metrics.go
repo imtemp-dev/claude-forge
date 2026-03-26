@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/imtemp-dev/claude-forge/internal/state"
+	"github.com/imtemp-dev/claude-bts/internal/state"
 )
 
 // EventKind categorizes the metric event.

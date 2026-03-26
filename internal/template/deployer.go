@@ -8,7 +8,7 @@ import (
 )
 
 // DeployForce overwrites existing files except those in skipFiles.
-// skipFiles paths are relative to projectRoot (e.g., ".forge/config/settings.yaml").
+// skipFiles paths are relative to projectRoot (e.g., ".bts/config/settings.yaml").
 func DeployForce(projectRoot string, skipFiles []string) ([]string, error) {
 	skip := make(map[string]bool)
 	for _, f := range skipFiles {

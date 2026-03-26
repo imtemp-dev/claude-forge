@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/imtemp-dev/claude-forge/internal/metrics"
-	"github.com/imtemp-dev/claude-forge/internal/state"
+	"github.com/imtemp-dev/claude-bts/internal/metrics"
+	"github.com/imtemp-dev/claude-bts/internal/state"
 )
 
 type stopHandler struct{}
@@ -33,30 +33,30 @@ func (h *stopHandler) Handle(input *HookInput) (*HookOutput, error) {
 		// Check for finalized recipe (ready for implementation)
 		finalized, _ := state.GetFinalizedRecipe(root)
 		if finalized != nil {
-			fmt.Fprintf(os.Stderr, "[forge] Spec finalized. Run /forge-implement %s to start implementation.\n", finalized.ID)
+			fmt.Fprintf(os.Stderr, "[bts] Spec finalized. Run /bts-implement %s to start implementation.\n", finalized.ID)
 		}
 		return &HookOutput{}, nil
 	}
 
 	// Check for fix completion marker
-	if strings.Contains(input.StopHookContent, "<forge>FIX DONE</forge>") {
+	if strings.Contains(input.StopHookContent, "<bts>FIX DONE</bts>") {
 		return h.handleFixDone(root, recipe)
 	}
 
 	// Check for implementation completion marker
-	if strings.Contains(input.StopHookContent, "<forge>IMPLEMENT DONE</forge>") {
+	if strings.Contains(input.StopHookContent, "<bts>IMPLEMENT DONE</bts>") {
 		return h.handleImplementDone(root, recipe)
 	}
 
 	// Check for spec completion marker
-	if strings.Contains(input.StopHookContent, "<forge>DONE</forge>") {
+	if strings.Contains(input.StopHookContent, "<bts>DONE</bts>") {
 		return h.handleSpecDone(root, recipe)
 	}
 
 	// No completion marker — allow stop without blocking.
 	// Print next-step hint to stderr so user sees it immediately.
 	if next := nextStepHint(root, recipe); next != "" {
-		fmt.Fprintf(os.Stderr, "[forge] %s\n", next)
+		fmt.Fprintf(os.Stderr, "[bts] %s\n", next)
 	}
 	return &HookOutput{}, nil
 }
@@ -68,7 +68,7 @@ func (h *stopHandler) handleSpecDone(root string, recipe *state.RecipeState) (*H
 	// 1. Check verification.md exists (proves /verify was actually run)
 	verifyDocPath := filepath.Join(recipeDir, "verification.md")
 	if _, err := os.Stat(verifyDocPath); os.IsNotExist(err) {
-		return blockOutput("No verification.md found. Run /forge-verify on draft.md before completing."), nil
+		return blockOutput("No verification.md found. Run /bts-verify on draft.md before completing."), nil
 	}
 
 	// 2. Check verify-log has passing entry
@@ -103,9 +103,9 @@ func (h *stopHandler) handleSpecDone(root string, recipe *state.RecipeState) (*H
 
 // handleImplementDone validates implementation completion via tasks.json + test-results.json.
 func (h *stopHandler) handleImplementDone(root string, recipe *state.RecipeState) (*HookOutput, error) {
-	implCmd := fmt.Sprintf("/forge-implement %s", recipe.ID)
+	implCmd := fmt.Sprintf("/bts-implement %s", recipe.ID)
 	if recipe.Type == "fix" {
-		implCmd = fmt.Sprintf("/forge-recipe-fix %s", recipe.ID)
+		implCmd = fmt.Sprintf("/bts-recipe-fix %s", recipe.ID)
 	}
 
 	// 1. Check tasks.json
@@ -231,9 +231,9 @@ func roadmapHint(root string, prefix string) *HookOutput {
 	if total > 0 {
 		hint := fmt.Sprintf("Roadmap: %d/%d done.", done, total)
 		if nextItem != "" {
-			hint += fmt.Sprintf(" Next: %s — run /forge-recipe-blueprint to start.", nextItem)
+			hint += fmt.Sprintf(" Next: %s — run /bts-recipe-blueprint to start.", nextItem)
 		}
-		fmt.Fprintf(os.Stderr, "[forge] %s %s\n", prefix, hint)
+		fmt.Fprintf(os.Stderr, "[bts] %s %s\n", prefix, hint)
 	}
 	return &HookOutput{}
 }

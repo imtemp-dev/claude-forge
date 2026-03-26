@@ -1,9 +1,9 @@
-# claude-forge
+# claude-bts
 
-Verify before you code — forge catches spec errors before they become debugging sessions.
+Verify before you code — bts catches spec errors before they become debugging sessions.
 
-[![CI](https://github.com/imtemp-dev/claude-forge/actions/workflows/ci.yml/badge.svg)](https://github.com/imtemp-dev/claude-forge/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/imtemp-dev/claude-forge)](https://github.com/imtemp-dev/claude-forge/releases)
+[![CI](https://github.com/imtemp-dev/claude-bts/actions/workflows/ci.yml/badge.svg)](https://github.com/imtemp-dev/claude-bts/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/imtemp-dev/claude-bts)](https://github.com/imtemp-dev/claude-bts/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.22+-00ADD8.svg)](https://go.dev)
 
@@ -17,19 +17,19 @@ But doing it manually, every time, has real limits:
 
 - **It's inconsistent.** Some sessions you remember to ask for a review. Some you forget. The quality depends on how diligent you are that day.
 - **Errors are cheaper to fix earlier.** When a mistake in the plan goes straight to code, it spreads across files and costs builds, tests, and debugging to fix. The same mistake caught in the plan costs a text edit. But without a verification step, plan-level errors have no chance to be caught before they become code-level problems.
-- **Implementation drowns the destination.** AI can plan, but once it's deep in code — fixing a type error, chasing a test failure — it loses sight of what the finished system should look like as a whole. forge addresses this by starting with intent, scope, and wireframe: establishing the big picture before details consume the context.
+- **Implementation drowns the destination.** AI can plan, but once it's deep in code — fixing a type error, chasing a test failure — it loses sight of what the finished system should look like as a whole. bts addresses this by starting with intent, scope, and wireframe: establishing the big picture before details consume the context.
 
 The pattern is always the same: you're doing quality control through conversation, repeating it from scratch every session, with no guarantee that what was caught last time gets caught again.
 
-## What forge does
+## What bts does
 
-forge is a CLI tool that plugs into Claude Code's lifecycle hooks. It structures the process you're already doing — but makes it automatic, tracked, and verified by separate AI contexts.
+bts is a CLI tool that plugs into Claude Code's lifecycle hooks. It structures the process you're already doing — but makes it automatic, tracked, and verified by separate AI contexts.
 
-**Structured big picture first.** Before any code, forge walks through intent discovery, scope definition, and wireframe design. This gives every later step — drafting, verification, implementation — a destination to refer back to, so AI doesn't optimize for the immediate problem at the expense of the whole.
+**Structured big picture first.** Before any code, bts walks through intent discovery, scope definition, and wireframe design. This gives every later step — drafting, verification, implementation — a destination to refer back to, so AI doesn't optimize for the immediate problem at the expense of the whole.
 
-**Isolated verification.** When AI reviews its own output in the same session, it shares the same blind spots. forge runs verification in a separate agent context — a different AI instance that doesn't share the conversation history that produced the document.
+**Isolated verification.** When AI reviews its own output in the same session, it shares the same blind spots. bts runs verification in a separate agent context — a different AI instance that doesn't share the conversation history that produced the document.
 
-**State tracking across sessions.** forge records every issue found during verification, tracks which ones are resolved, and persists this across sessions and context compactions. When a session resumes, it knows exactly where you left off and what's still open.
+**State tracking across sessions.** bts records every issue found during verification, tracks which ones are resolved, and persists this across sessions and context compactions. When a session resumes, it knows exactly where you left off and what's still open.
 
 **Completion gates.** A spec can't be finalized until verification passes. Implementation can't complete until tests pass, review is done, and spec-code deviations are documented. These gates are enforced automatically — they don't depend on you remembering to check.
 
@@ -42,17 +42,17 @@ Requires [Claude Code](https://docs.anthropic.com/en/docs/claude-code).
 ```bash
 # Homebrew (macOS / Linux)
 brew tap imtemp-dev/tap
-brew install forge
+brew install bts
 
 # Or one-line install
-curl -fsSL https://raw.githubusercontent.com/imtemp-dev/claude-forge/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/imtemp-dev/claude-bts/main/install.sh | bash
 
 # Or build from source (Go 1.22+)
-git clone https://github.com/imtemp-dev/claude-forge.git && cd claude-forge && make install
+git clone https://github.com/imtemp-dev/claude-bts.git && cd claude-bts && make install
 
 # Initialize in your project
 cd your-project
-forge init .
+bts init .
 
 # Start Claude Code
 claude
@@ -62,22 +62,22 @@ Then inside Claude Code:
 
 ```bash
 # Create a bulletproof spec → implement → test → complete
-/forge-recipe-blueprint add OAuth2 authentication
+/bts-recipe-blueprint add OAuth2 authentication
 
 # Fix a known bug
-/forge-recipe-fix login bcrypt hash comparison fails
+/bts-recipe-fix login bcrypt hash comparison fails
 
 # Debug an unknown issue
-/forge-recipe-debug session drops after 5 minutes
+/bts-recipe-debug session drops after 5 minutes
 ```
 
 ## How It Works
 
-forge splits work into two phases: **spec** and **implementation**. Each recipe type has its own spec phase, but all share the same implementation loop.
+bts splits work into two phases: **spec** and **implementation**. Each recipe type has its own spec phase, but all share the same implementation loop.
 
-In the spec phase, forge iterates on documents — discovering intent, researching the codebase, drafting a detailed design, and verifying it through multiple rounds in separate AI contexts. Errors caught here cost a text edit.
+In the spec phase, bts iterates on documents — discovering intent, researching the codebase, drafting a detailed design, and verifying it through multiple rounds in separate AI contexts. Errors caught here cost a text edit.
 
-In the implementation phase, forge generates code from the finalized spec, runs tests (retrying on failure), simulates code paths, reviews for quality, and syncs deviations back to the spec. Each step has an automatic gate that blocks completion until requirements are met.
+In the implementation phase, bts generates code from the finalized spec, runs tests (retrying on failure), simulates code paths, reviews for quality, and syncs deviations back to the spec. Each step has an automatic gate that blocks completion until requirements are met.
 
 See [Recipe Lifecycles](#recipe-lifecycles) for the detailed flow of each recipe type.
 
@@ -85,13 +85,13 @@ See [Recipe Lifecycles](#recipe-lifecycles) for the detailed flow of each recipe
 
 | Recipe | Purpose | Output |
 |--------|---------|--------|
-| `/forge-recipe-blueprint` | Full implementation spec | Level 3 spec → code → tests |
-| `/forge-recipe-design` | Design a feature | Level 2 design doc |
-| `/forge-recipe-analyze` | Understand existing system | Level 1 analysis doc |
-| `/forge-recipe-fix` | Known bug fix | Fix spec → code → tests |
-| `/forge-recipe-debug` | Unknown bug investigation | 6-perspective analysis → spec → code |
+| `/bts-recipe-blueprint` | Full implementation spec | Level 3 spec → code → tests |
+| `/bts-recipe-design` | Design a feature | Level 2 design doc |
+| `/bts-recipe-analyze` | Understand existing system | Level 1 analysis doc |
+| `/bts-recipe-fix` | Known bug fix | Fix spec → code → tests |
+| `/bts-recipe-debug` | Unknown bug investigation | 6-perspective analysis → spec → code |
 
-For multi-feature projects, forge decomposes work into a **vision + roadmap**. Each recipe maps to a roadmap item and completion is tracked automatically.
+For multi-feature projects, bts decomposes work into a **vision + roadmap**. Each recipe maps to a roadmap item and completion is tracked automatically.
 
 ## Features
 
@@ -120,7 +120,7 @@ For multi-feature projects, forge decomposes work into a **vision + roadmap**. E
 ### Metrics & Cost Estimation
 
 ```
-forge stats
+bts stats
 ```
 
 ```
@@ -149,7 +149,7 @@ Session-level and recipe-level token tracking with model-specific cost estimatio
 ### Statusline
 
 ```
-forge v0.1.0 │ JWT auth │ implement 3/5 │ ctx 60%
+bts v0.1.0 │ JWT auth │ implement 3/5 │ ctx 60%
 ```
 
 Real-time recipe progress, phase, and context usage in Claude Code's status bar.
@@ -157,8 +157,8 @@ Real-time recipe progress, phase, and context usage in Claude Code's status bar.
 ### Document Visualization
 
 ```bash
-forge graph              # Project-wide document relationships
-forge graph <recipe-id>  # Recipe-specific document graph
+bts graph              # Project-wide document relationships
+bts graph <recipe-id>  # Recipe-specific document graph
 ```
 
 Generates mermaid diagrams showing document dependencies, debate conclusions, and verification chains.
@@ -204,7 +204,7 @@ flowchart LR
 
 ### Implementation Phase (shared)
 
-All recipes that produce code enter the same implementation loop via `/forge-implement`:
+All recipes that produce code enter the same implementation loop via `/bts-implement`:
 
 ```mermaid
 flowchart LR
@@ -221,11 +221,11 @@ flowchart LR
 
 ## Models & Configuration
 
-forge uses two tiers of AI models:
+bts uses two tiers of AI models:
 
 **Main session model** — whatever you're running in Claude Code (Opus, Sonnet, etc.) handles all primary work: drafting specs, implementing code, running debates, orchestrating the lifecycle.
 
-**Specialist agents** — verification, audit, simulation, and review run in **separate agent contexts** (fork) so they don't share blind spots with the main session. These default to Sonnet and are configurable in `.forge/config/settings.yaml`:
+**Specialist agents** — verification, audit, simulation, and review run in **separate agent contexts** (fork) so they don't share blind spots with the main session. These default to Sonnet and are configurable in `.bts/config/settings.yaml`:
 
 ```yaml
 agents:
@@ -270,20 +270,20 @@ The fork context is key — when the same model reviews its own output in the sa
 ## CLI
 
 ```
-forge init [dir]              Initialize project (deploy skills, hooks, rules)
-forge doctor [recipe-id]      Health check (system, recipe, documents)
-forge validate [recipe-id]    JSON schema compliance check
-forge verify <file>           Check document consistency, assess level
-forge recipe status           Show active recipe
-forge recipe list             All recipes
-forge recipe create           Create a new recipe
-forge recipe log <id>         Record action / phase / iteration
-forge recipe cancel           Cancel active recipe
-forge stats [recipe-id]       Metrics and cost estimation (--json, --csv)
-forge graph [recipe-id]       Document relationship visualization (--all)
-forge sync-check <id>         Verify documents are in sync within a recipe
-forge update                  Update templates to match binary version
-forge version                 Show binary and template versions
+bts init [dir]              Initialize project (deploy skills, hooks, rules)
+bts doctor [recipe-id]      Health check (system, recipe, documents)
+bts validate [recipe-id]    JSON schema compliance check
+bts verify <file>           Check document consistency, assess level
+bts recipe status           Show active recipe
+bts recipe list             All recipes
+bts recipe create           Create a new recipe
+bts recipe log <id>         Record action / phase / iteration
+bts recipe cancel           Cancel active recipe
+bts stats [recipe-id]       Metrics and cost estimation (--json, --csv)
+bts graph [recipe-id]       Document relationship visualization (--all)
+bts sync-check <id>         Verify documents are in sync within a recipe
+bts update                  Update templates to match binary version
+bts version                 Show binary and template versions
 ```
 
 ## Requirements
@@ -292,16 +292,16 @@ forge version                 Show binary and template versions
 - **Claude Code** ([install](https://docs.anthropic.com/en/docs/claude-code))
 - **OS**: macOS, Linux (Windows via WSL)
 
-Run `forge doctor` after installation to verify your environment.
+Run `bts doctor` after installation to verify your environment.
 
 ## Contributing
 
-Contributions welcome. Please open an [issue](https://github.com/imtemp-dev/claude-forge/issues) for bug reports or feature requests.
+Contributions welcome. Please open an [issue](https://github.com/imtemp-dev/claude-bts/issues) for bug reports or feature requests.
 
 ```bash
 # Development setup
-git clone https://github.com/imtemp-dev/claude-forge.git
-cd claude-forge
+git clone https://github.com/imtemp-dev/claude-bts.git
+cd claude-bts
 make install          # build and install to ~/.local/bin
 go test -race ./...   # run tests
 ```

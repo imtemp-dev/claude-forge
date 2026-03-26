@@ -9,8 +9,8 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/imtemp-dev/claude-forge/internal/metrics"
-	"github.com/imtemp-dev/claude-forge/internal/state"
+	"github.com/imtemp-dev/claude-bts/internal/metrics"
+	"github.com/imtemp-dev/claude-bts/internal/state"
 	"github.com/spf13/cobra"
 )
 
@@ -35,7 +35,7 @@ var recipeStatusCmd = &cobra.Command{
 		cwd, _ := os.Getwd()
 		root, err := state.FindRoot(cwd)
 		if err != nil {
-			return fmt.Errorf("not a forge project: %w", err)
+			return fmt.Errorf("not a bts project: %w", err)
 		}
 
 		recipe, err := state.GetActiveRecipe(root)
@@ -70,7 +70,7 @@ var recipeListCmd = &cobra.Command{
 		cwd, _ := os.Getwd()
 		root, err := state.FindRoot(cwd)
 		if err != nil {
-			return fmt.Errorf("not a forge project: %w", err)
+			return fmt.Errorf("not a bts project: %w", err)
 		}
 
 		recipes, err := state.ListRecipes(root)
@@ -102,7 +102,7 @@ var recipeLogCmd = &cobra.Command{
 		cwd, _ := os.Getwd()
 		root, err := state.FindRoot(cwd)
 		if err != nil {
-			return fmt.Errorf("not a forge project: %w", err)
+			return fmt.Errorf("not a bts project: %w", err)
 		}
 
 		recipeID := args[0]
@@ -226,7 +226,7 @@ var recipeCreateCmd = &cobra.Command{
 		cwd, _ := os.Getwd()
 		root, err := state.FindRoot(cwd)
 		if err != nil {
-			return fmt.Errorf("not a forge project: %w", err)
+			return fmt.Errorf("not a bts project: %w", err)
 		}
 
 		recipeType, _ := cmd.Flags().GetString("type")
@@ -274,7 +274,7 @@ var recipeCancelCmd = &cobra.Command{
 		cwd, _ := os.Getwd()
 		root, err := state.FindRoot(cwd)
 		if err != nil {
-			return fmt.Errorf("not a forge project: %w", err)
+			return fmt.Errorf("not a bts project: %w", err)
 		}
 
 		recipe, err := state.GetActiveRecipe(root)
@@ -369,7 +369,7 @@ func checkPhasePreConditions(root string, recipe *state.RecipeState, newPhase st
 
 	case "draft":
 		if recipe.Type == "blueprint" && !exists("wireframe.md") {
-			warn("wireframe.md not found — run /forge-wireframe to design structure first")
+			warn("wireframe.md not found — run /bts-wireframe to design structure first")
 		}
 
 	case "implement":
@@ -379,7 +379,7 @@ func checkPhasePreConditions(root string, recipe *state.RecipeState, newPhase st
 
 	case "test":
 		if recipe.Type != "fix" && !exists("tasks.json") {
-			warn("tasks.json not found — run /forge-implement to decompose tasks")
+			warn("tasks.json not found — run /bts-implement to decompose tasks")
 		}
 
 	case "review":
@@ -392,17 +392,17 @@ func checkPhasePreConditions(root string, recipe *state.RecipeState, newPhase st
 		}
 		simsDir := filepath.Join(recipeDir, "simulations")
 		if entries, err := os.ReadDir(simsDir); err != nil || countNonHidden(entries) == 0 {
-			warn("no code simulation found — run /forge-simulate code first")
+			warn("no code simulation found — run /bts-simulate code first")
 		}
 
 	case "sync":
 		if !exists("review.md") {
-			warn("review.md not found — run /forge-review first")
+			warn("review.md not found — run /bts-review first")
 		}
 
 	case "status":
 		if !exists("deviation.md") {
-			warn("deviation.md not found — run /forge-sync first")
+			warn("deviation.md not found — run /bts-sync first")
 		}
 	}
 

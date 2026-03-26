@@ -11,7 +11,7 @@ import (
 func setupRecipeRoot(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	os.MkdirAll(filepath.Join(root, ".forge", "specs", "recipes"), 0755)
+	os.MkdirAll(filepath.Join(root, ".bts", "specs", "recipes"), 0755)
 	return root
 }
 
@@ -70,7 +70,7 @@ func TestLoadRecipeState_NotFound(t *testing.T) {
 func TestGetActiveRecipe(t *testing.T) {
 	t.Run("no recipes dir", func(t *testing.T) {
 		root := t.TempDir()
-		os.MkdirAll(filepath.Join(root, ".forge", "specs"), 0755)
+		os.MkdirAll(filepath.Join(root, ".bts", "specs"), 0755)
 
 		recipe, err := GetActiveRecipe(root)
 		if err != nil {
@@ -307,7 +307,7 @@ func TestAppendVerifyLog(t *testing.T) {
 
 func TestRecipeDir(t *testing.T) {
 	got := RecipeDir("/project", "r-1000")
-	want := filepath.Join("/project", ".forge", "specs", "recipes", "r-1000")
+	want := filepath.Join("/project", ".bts", "specs", "recipes", "r-1000")
 	if got != want {
 		t.Errorf("got %s, want %s", got, want)
 	}

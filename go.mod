@@ -1,4 +1,4 @@
-module github.com/imtemp-dev/claude-forge
+module github.com/imtemp-dev/claude-bts
 
 go 1.26.1
 

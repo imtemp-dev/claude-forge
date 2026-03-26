@@ -1,2 +1,2 @@
-# forge local data (runtime, not committed)
-.forge/local/
+# bts local data (runtime, not committed)
+.bts/local/

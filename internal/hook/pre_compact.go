@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/imtemp-dev/claude-forge/internal/metrics"
-	"github.com/imtemp-dev/claude-forge/internal/state"
+	"github.com/imtemp-dev/claude-bts/internal/metrics"
+	"github.com/imtemp-dev/claude-bts/internal/state"
 )
 
 type preCompactHandler struct{}
@@ -38,7 +38,7 @@ func (h *preCompactHandler) Handle(input *HookInput) (*HookOutput, error) {
 	if err != nil || ws == nil {
 		return &HookOutput{
 			HookSpecificOutput: &HookSpecificOutput{
-				AdditionalContext: "[forge] Recipe state saved before compaction.",
+				AdditionalContext: "[bts] Recipe state saved before compaction.",
 			},
 		}, nil
 	}
@@ -54,7 +54,7 @@ func (h *preCompactHandler) Handle(input *HookInput) (*HookOutput, error) {
 	})
 
 	// Include next-step hint for post-compaction context
-	msg := fmt.Sprintf("[forge] Context snapshot saved. %s", ws.Summary)
+	msg := fmt.Sprintf("[bts] Context snapshot saved. %s", ws.Summary)
 	nextStep := nextStepHint(root, recipe)
 	if nextStep != "" {
 		msg += fmt.Sprintf("\nNEXT: %s", nextStep)

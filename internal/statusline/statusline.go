@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/imtemp-dev/claude-forge/internal/metrics"
-	"github.com/imtemp-dev/claude-forge/internal/state"
-	"github.com/imtemp-dev/claude-forge/pkg/version"
+	"github.com/imtemp-dev/claude-bts/internal/metrics"
+	"github.com/imtemp-dev/claude-bts/internal/state"
+	"github.com/imtemp-dev/claude-bts/pkg/version"
 )
 
 // StdinData is the JSON Claude Code sends to the statusline hook.
@@ -35,7 +35,7 @@ type CurrentUsage struct {
 	OutputTokens        int `json:"output_tokens"`
 }
 
-// Render reads Claude Code's stdin JSON and forge state, returns a 1-line statusline.
+// Render reads Claude Code's stdin JSON and bts state, returns a 1-line statusline.
 func Render(stdin io.Reader, root string) string {
 	// Parse stdin
 	var data StdinData
@@ -47,7 +47,7 @@ func Render(stdin io.Reader, root string) string {
 	}
 
 	var segments []string
-	segments = append(segments, "forge"+version.GetVersion())
+	segments = append(segments, "bts"+version.GetVersion())
 
 	// Recipe info
 	if root != "" {
