@@ -49,6 +49,10 @@ var updateCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "warning: save template version: %v\n", err)
 		}
 
+		// Clean up legacy forge-* template files and settings
+		cleanupLegacyForge(root)
+		migrateHookSettings(root)
+
 		// Merge statusline settings (same as init)
 		if err := mergeStatusLineSettings(root); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: could not update statusline settings: %v\n", err)
@@ -62,4 +66,55 @@ var updateCmd = &cobra.Command{
 		fmt.Printf("Files updated: %d\n", len(updated))
 		return nil
 	},
+}
+
+// migrateHookSettings replaces forge-handle-* with bts-handle-* in settings.local.json.
+func migrateHookSettings(root string) {
+	path := filepath.Join(root, ".claude", "settings.local.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	content := string(data)
+	if !strings.Contains(content, "forge-handle-") {
+		return
+	}
+	content = strings.ReplaceAll(content, "forge-handle-", "bts-handle-")
+	content = strings.ReplaceAll(content, ".forge/status_line.sh", ".bts/status_line.sh")
+	_ = os.WriteFile(path, []byte(content), 0644)
+	fmt.Println("Migrated hook settings: forge → bts")
+}
+
+// cleanupLegacyForge removes old forge-* template files left from pre-rename versions.
+func cleanupLegacyForge(root string) {
+	claudeDir := filepath.Join(root, ".claude")
+	dirs := []string{"skills", "agents", "rules", "hooks", "commands"}
+	removed := 0
+
+	for _, d := range dirs {
+		base := filepath.Join(claudeDir, d)
+		entries, err := os.ReadDir(base)
+		if err != nil {
+			continue
+		}
+		for _, entry := range entries {
+			if strings.HasPrefix(entry.Name(), "forge-") {
+				path := filepath.Join(base, entry.Name())
+				if err := os.RemoveAll(path); err == nil {
+					removed++
+				}
+			}
+		}
+	}
+
+	// Remove legacy .forge/ status_line.sh if .bts/ version exists
+	oldStatus := filepath.Join(root, ".forge", "status_line.sh")
+	if _, err := os.Stat(oldStatus); err == nil {
+		_ = os.Remove(oldStatus)
+		removed++
+	}
+
+	if removed > 0 {
+		fmt.Printf("Cleaned up %d legacy forge files\n", removed)
+	}
 }
