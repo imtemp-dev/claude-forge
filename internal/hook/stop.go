@@ -50,11 +50,8 @@ func (h *stopHandler) Handle(input *HookInput) (*HookOutput, error) {
 		return h.handleImplementDone(root, recipe)
 	}
 
-	// Check for spec completion marker
-	if strings.Contains(input.StopHookContent, "<bts>DONE</bts>") ||
-		(strings.Contains(input.StopHookContent, "DONE") &&
-			!strings.Contains(input.StopHookContent, "IMPLEMENT DONE") &&
-			!strings.Contains(input.StopHookContent, "FIX DONE")) {
+	// Check for spec completion marker (tagged only — "DONE" alone is too common)
+	if strings.Contains(input.StopHookContent, "<bts>DONE</bts>") {
 		return h.handleSpecDone(root, recipe)
 	}
 
