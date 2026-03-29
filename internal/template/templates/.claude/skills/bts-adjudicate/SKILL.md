@@ -38,15 +38,10 @@ For each dimension, assign: PASS / CONCERN / FAIL
 - Read `.bts/specs/recipes/{id}/scope.md`
 - Does the conclusion stay within the confirmed scope boundaries?
 - Does it introduce items explicitly listed as "Out of Scope"?
-- If the conclusion requires scope expansion → flag it.
-  Do NOT silently accept scope creep. Report:
-  "[SCOPE CHANGE] Debate conclusion requires {item} which is out of scope.
-  User must confirm scope expansion before this conclusion can be accepted."
-- **If user approves scope expansion**: update scope.md (add item to In Scope,
-  remove from Out of Scope, keep Status: CONFIRMED), then ACCEPT the conclusion.
-- **If user rejects scope expansion**: EXTEND the debate with instruction to
-  find an alternative that stays within scope. Add to prep brief:
-  "Must find a solution that does NOT require {out-of-scope item}."
+- If the conclusion requires scope expansion → use AskUserQuestion:
+  "[SCOPE CHANGE] Debate conclusion requires {item} which is out of scope."
+  - "Approve scope expansion" → update scope.md (add to In Scope, remove from Out of Scope, keep Status: CONFIRMED), then ACCEPT the conclusion
+  - "Reject — find alternative within scope" → EXTEND the debate, add to prep brief: "Must find a solution that does NOT require {out-of-scope item}."
 
 ### 2c. Feasibility
 - Can this actually be built with the chosen tech stack?

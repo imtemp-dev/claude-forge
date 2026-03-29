@@ -40,8 +40,7 @@ and **what problem** it solves — through natural conversation with the user.
 
 Do NOT use a fixed questionnaire. Instead, reason about what you need to
 understand based on what the user has told you so far. Ask one or two
-questions at a time using AskUserQuestion. Adapt your questions based on
-each response.
+questions at a time as text output. Adapt your questions based on each response.
 
 **Areas to explore** (not a checklist — pursue what matters for this request):
 - What problem does this solve? What's painful about the current state?

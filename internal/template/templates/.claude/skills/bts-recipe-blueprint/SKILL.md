@@ -131,7 +131,9 @@ Before scoping, check for project-level planning documents:
    - `.bts/specs/roadmap.md` exists? → Read it. Find next pending `- [ ]` item.
      - Both exist and CONFIRMED → set scope target from roadmap's next pending item.
        Skip to Scoping Loop step 1 with context: "Roadmap item {N}/{total}: {description}"
-     - No pending items → all done. Ask user: "Roadmap complete. Add new items or start fresh?"
+     - No pending items → all done. Use AskUserQuestion: "Roadmap complete. What next?"
+       - "Add new roadmap items" → update roadmap.md with new items, pick first new item as scope
+       - "Start fresh as single recipe" → proceed without roadmap context
    - Vision exists but no roadmap → go to step 3b (create roadmap from existing vision).
 
 **2. ASSESS_SIZE (only if no vision.md):**
@@ -145,7 +147,7 @@ Before scoping, check for project-level planning documents:
    |-----------|--------|
    | Greenfield + (files > `vision.size_threshold` (default: 15) OR 2+ independent subsystems) | Vision/Roadmap mandatory → step 3 |
    | Existing project + small addition (files ≤ threshold, single subsystem) | SKIP → Scoping Loop |
-   | Ambiguous | Ask user: "This looks like a multi-recipe project. Create a vision/roadmap to decompose, or proceed as single recipe?" |
+   | Ambiguous | Use AskUserQuestion: "This looks like a multi-recipe project." with options: "Create vision/roadmap to decompose" → step 3 / "Proceed as single recipe" → Scoping Loop |
 
 **3. Create Vision & Roadmap:**
    a. **Vision**: Draft purpose, users, core components, constraints, success criteria.
@@ -231,8 +233,8 @@ bts recipe log {id} --phase scoping
    even before user confirms. This persists the conversation state so it
    survives compaction or session breaks.
 
-**5. Ask user for confirmation** using AskUserQuestion:
-   - "Confirm scope and proceed (Recommended)" → mark Status: CONFIRMED → exit loop
+**5. MUST use AskUserQuestion** to confirm scope — do NOT ask as text output:
+   - "Confirm scope and proceed" → mark Status: CONFIRMED → exit loop
    - "Adjust scope" → user provides feedback → update scope.md → ask again
    - "Cancel recipe" → set phase to cancelled
 

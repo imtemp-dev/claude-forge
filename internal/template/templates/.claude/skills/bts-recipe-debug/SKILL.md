@@ -181,7 +181,7 @@ Choose 3 experts matching the relevant perspectives:
 - Is the fix complete?
 - Are there risks the perspectives missed?
 
-If experts disagree on root cause → ask user for decision.
+If experts disagree on root cause → use AskUserQuestion to present each expert's position and ask user to choose.
 
 ```bash
 bts recipe log {id} --phase debate --action debate --result "{consensus}"

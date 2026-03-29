@@ -65,9 +65,9 @@ Use settings values if present, otherwise use defaults noted in each step.
 If tasks.json exists in the recipe directory:
 
 1. **Stale check**: Compare tasks.json `updated_at` with final.md modification time.
-   If final.md is newer → warn: "Spec changed since last implementation. Re-decompose? [y/n]"
-   - If yes → go to Step 1 (fresh decomposition)
-   - If no → resume below
+   If final.md is newer → use AskUserQuestion:
+   - "Re-decompose tasks from updated spec" → go to Step 1 (fresh decomposition)
+   - "Resume with existing tasks" → resume below
 
 2. **Task status recovery**: Read tasks.json and find resume point:
    - `in_progress` tasks → the last session was interrupted mid-task. Read the actual file
@@ -191,14 +191,10 @@ bts recipe log {id} --action implement --result "task {task-id} done"
 
 Review task status:
 - All `done` or `skipped` → continue to Step 5
-- Any `blocked` → ask user:
-  - "N task(s) blocked. Options:"
-  - "[1] Skip blocked and continue (mark as skipped)"
-  - "[2] Retry blocked tasks (reset retry_count to 0)"
-  - "[3] Stop and review"
-  - If [1] → mark blocked as `skipped`, continue
-  - If [2] → reset retry_count, set status to `pending`, go back to Step 3
-  - If [3] → stop and report details
+- Any `blocked` → use AskUserQuestion ("N task(s) blocked. How to proceed?"):
+  - "Skip blocked and continue" → mark blocked as `skipped`, continue
+  - "Retry blocked tasks" → reset retry_count to 0, set status to `pending`, go back to Step 3
+  - "Stop and review" → stop and report blocked task details
 
 > **Checkpoint**: Implementation tasks complete. Proceed directly to testing.
 > Do NOT /clear — test/simulate/review steps need implementation context.
