@@ -20,10 +20,9 @@ Requirements → Planning → Design → Implementation → Verification → Rel
 ### Phase Flow
 
 ```
-discovery → scoping → research → draft ←→ adaptive loop → finalize
-                                              ↓
-                                   implement → test → simulate(code)
-                                              → review → sync → status → complete
+discovery → scoping → research → wireframe → draft ←→ adaptive loop → finalize
+                                                          ↓
+                                              implement → test → simulate → review → sync → status → complete
 ```
 
 ### Recipe Types and Their Lifecycle

@@ -119,6 +119,10 @@ Produce ranked hypotheses:
 3. [LOW] {hypothesis} — single perspective only
 ```
 
+```bash
+bts recipe log {id} --phase research --action research --output perspectives.md --result "cross-reference: N hypotheses ranked"
+```
+
 ## Step 3: Draft Fix Spec
 
 Based on the top hypothesis, create `.bts/specs/recipes/{id}/draft.md`:

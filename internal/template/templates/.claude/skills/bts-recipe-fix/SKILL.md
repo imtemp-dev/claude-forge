@@ -181,10 +181,7 @@ bts recipe log {id} --phase test --action test --output test-results.json --resu
 
 ## Step 7.3: Simulate
 
-Run /bts-simulate code to verify the fix covers all paths:
-```bash
-/bts-simulate code
-```
+Use Skill("bts-simulate") with arguments: "code" to verify the fix covers all paths.
 
 Focus on: does the fix handle all edge cases from fix-spec.md?
 Are there code paths where the original bug could still occur?
@@ -203,11 +200,7 @@ Update phase:
 bts recipe log {id} --phase review
 ```
 
-Run /bts-review with the files from fix-spec.md's "Changes" section:
-```bash
-# Extract file paths from fix-spec.md Changes section and pass as arguments
-/bts-review [file1] [file2] ...
-```
+Use Skill("bts-review") with the files from fix-spec.md's "Changes" section as arguments.
 
 After review.md is generated, fix [ACTIONABLE] critical and major items.
 Re-test if code was modified.

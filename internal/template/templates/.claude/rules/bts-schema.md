@@ -50,7 +50,7 @@ Required fields:
 - `documents` (object): keys are file paths, values are DocumentEntry objects
 
 DocumentEntry required fields:
-- `type` (string): one of "research", "draft", "debate", "simulation", "verification", "implementation", "test-result", "deviation", "review"
+- `type` (string): one of "research", "wireframe", "scope", "draft", "debate", "simulation", "verification", "implementation", "test-result", "deviation", "review", "final"
 - `created_at` (string): ISO 8601 timestamp
 
 DocumentEntry optional fields:
@@ -124,6 +124,28 @@ Optional fields:
 - `resolves` (array of strings): resolved gaps
 - `result` (string): summary of outcome
 - `level` (number): level after this action
+
+## verify-log.jsonl
+
+Located at `.bts/specs/recipes/{id}/verify-log.jsonl`. Each line is a JSON object:
+
+```json
+{"time":"2026-03-18T10:35:00Z","iteration":1,"critical":2,"major":3,"minor":1}
+{"time":"2026-03-18T11:00:00Z","iteration":2,"critical":0,"major":1,"minor":2}
+{"time":"2026-03-18T11:20:00Z","iteration":3,"critical":0,"major":0,"minor":1}
+```
+
+Required fields:
+- `time` (string): ISO 8601 timestamp
+- `iteration` (number): verify iteration number (1-based)
+- `critical` (number): count of critical issues
+- `major` (number): count of major issues
+
+Optional fields:
+- `minor` (number): count of minor issues
+- `info` (number): count of info suggestions
+
+Used by the stop hook to gate `<bts>DONE</bts>`: last entry must have critical=0, major=0.
 
 ## debate meta.json
 

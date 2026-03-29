@@ -217,10 +217,7 @@ for the list of implemented files.
 
 ## Step 5.3: Simulate
 
-Run /bts-simulate code to verify all code paths are covered:
-```bash
-/bts-simulate code
-```
+Use Skill("bts-simulate") with arguments: "code" to verify all code paths are covered.
 
 This reads tasks.json for implemented files and final.md for expected
 scenarios, then walks through each scenario against the actual code.
@@ -246,7 +243,7 @@ Update phase:
 bts recipe log {id} --phase review
 ```
 
-Run /bts-review (full mode, no arguments — uses tasks.json for scope).
+Use Skill("bts-review") (full mode, no arguments — uses tasks.json for scope).
 
 After review.md is generated, read it and fix all [ACTIONABLE] critical
 and major items:
@@ -289,6 +286,7 @@ When all steps are done:
 - Verify tasks.json shows all tasks as `done` or `skipped`
 - Verify no `blocked` tasks remain (all resolved or skipped)
 - Verify review.md exists (review has run)
+- Verify deviation.md exists (sync has run)
 - Output `<bts>IMPLEMENT DONE</bts>`
 
 If unresolved blocked tasks remain:
