@@ -20,11 +20,12 @@ type StdinData struct {
 
 // ContextWindowInfo holds context window usage data.
 type ContextWindowInfo struct {
-	UsedPercentage    *float64      `json:"used_percentage"`
-	ContextWindowSize int           `json:"context_window_size"`
-	CurrentUsage      *CurrentUsage `json:"current_usage"`
-	Used              int           `json:"used"`  // legacy
-	Total             int           `json:"total"` // legacy
+	RemainingPercentage *float64      `json:"remaining_percentage"` // Claude Code banner uses this
+	UsedPercentage      *float64      `json:"used_percentage"`       // input tokens only
+	ContextWindowSize   int           `json:"context_window_size"`
+	CurrentUsage        *CurrentUsage `json:"current_usage"`
+	Used                int           `json:"used"`  // legacy
+	Total               int           `json:"total"` // legacy
 }
 
 // CurrentUsage holds detailed token usage.
@@ -198,21 +199,27 @@ func getContextPercentage(data *StdinData) float64 {
 	}
 	cw := data.ContextWindow
 
-	// Priority 1: pre-calculated percentage
+	// Priority 1: remaining_percentage — matches Claude Code's own "Context low" banner
+	// (accounts for both input and output tokens)
+	if cw.RemainingPercentage != nil {
+		return 100 - *cw.RemainingPercentage
+	}
+
+	// Priority 2: used_percentage (input tokens only — slightly lower than actual)
 	if cw.UsedPercentage != nil {
 		return *cw.UsedPercentage
 	}
 
-	// Priority 2: current usage tokens / window size
+	// Priority 3: calculate from input tokens only (exclude output_tokens to match
+	// Claude Code's used_percentage definition)
 	if cw.CurrentUsage != nil && cw.ContextWindowSize > 0 {
 		used := cw.CurrentUsage.InputTokens +
 			cw.CurrentUsage.CacheCreationTokens +
-			cw.CurrentUsage.CacheReadTokens +
-			cw.CurrentUsage.OutputTokens
+			cw.CurrentUsage.CacheReadTokens
 		return float64(used) / float64(cw.ContextWindowSize) * 100
 	}
 
-	// Priority 3: legacy used/total
+	// Priority 4: legacy used/total
 	if cw.Total > 0 {
 		return float64(cw.Used) / float64(cw.Total) * 100
 	}
