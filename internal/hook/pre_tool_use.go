@@ -52,6 +52,7 @@ func (h *preToolUseHandler) Handle(input *HookInput) (*HookOutput, error) {
 	// Source code file during spec phase → warn (not block)
 	return &HookOutput{
 		HookSpecificOutput: &HookSpecificOutput{
+			HookEventName: "PreToolUse",
 			AdditionalContext: fmt.Sprintf(
 				"[bts] Writing source code during spec phase (%s). "+
 					"Blueprint creates specs, not code. "+

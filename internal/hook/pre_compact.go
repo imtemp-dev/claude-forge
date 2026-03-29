@@ -36,11 +36,7 @@ func (h *preCompactHandler) Handle(input *HookInput) (*HookOutput, error) {
 	// Build and save work state snapshot
 	ws, err := state.BuildWorkState(root)
 	if err != nil || ws == nil {
-		return &HookOutput{
-			HookSpecificOutput: &HookSpecificOutput{
-				AdditionalContext: "[bts] Recipe state saved before compaction.",
-			},
-		}, nil
+		return &HookOutput{}, nil
 	}
 	if err := state.SaveWorkState(root, ws); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: save work state: %v\n", err)
@@ -53,16 +49,5 @@ func (h *preCompactHandler) Handle(input *HookInput) (*HookOutput, error) {
 		Phase:     recipe.Phase,
 	})
 
-	// Include next-step hint for post-compaction context
-	msg := fmt.Sprintf("[bts] Context snapshot saved. %s", ws.Summary)
-	nextStep := nextStepHint(root, recipe)
-	if nextStep != "" {
-		msg += fmt.Sprintf("\nNEXT: %s", nextStep)
-	}
-
-	return &HookOutput{
-		HookSpecificOutput: &HookSpecificOutput{
-			AdditionalContext: msg,
-		},
-	}, nil
+	return &HookOutput{}, nil
 }

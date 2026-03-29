@@ -23,7 +23,7 @@ node_modules/
 Thumbs.db
 
 # bts state (per-project, not committed)
-.bts/state/
+.bts/local/
 
 # Prototype data
 data/test-turns.json
