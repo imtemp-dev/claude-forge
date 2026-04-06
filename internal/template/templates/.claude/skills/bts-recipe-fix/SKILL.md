@@ -218,6 +218,9 @@ When tests pass and review is done:
 2. Verify fix-spec.md exists
 3. Verify test-results.json shows pass
 4. Output `<bts>FIX DONE</bts>`
+5. Tell the user (plaintext, after the marker):
+   > **Fix complete** — `{id}` done.
+   > Next: run `/bts-recipe-blueprint` to continue roadmap, or `/bts-recipe-fix` for another bug.
 
 **Note:** Fix recipes implement code directly in Step 6, not via /bts-implement.
 fix-spec.md is the authoritative document (not final.md). The original recipe's

@@ -100,6 +100,7 @@ func (h *stopHandler) handleSpecDone(root string, recipe *state.RecipeState) (*H
 		PreviousPhase: prevPhase,
 	})
 
+	fmt.Fprintf(os.Stderr, "[bts] Spec verified ✓ Next: /bts-implement %s\n", recipe.ID)
 	return &HookOutput{}, nil
 }
 

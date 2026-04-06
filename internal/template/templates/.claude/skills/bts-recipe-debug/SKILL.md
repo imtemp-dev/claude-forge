@@ -217,17 +217,16 @@ When verify shows critical=0, major=0:
 1. Copy `draft.md` to `final.md`
 2. Run Skill("bts-status") with arguments: {id}
 3. Output `<bts>DONE</bts>`
+4. Tell the user (plaintext, after the marker):
+   > **Debug spec complete** — `{id}` finalized.
+   > Next: run `/bts-implement {id}` to apply the fix.
 
 Stop hook validates verify-log → phase=finalize.
 
 ## Next: Implement
 
 After finalization, the debug recipe has produced a verified `final.md`.
-Use the standard implement flow:
-
-```
-/bts-implement {id}
-```
+Use Skill("bts-implement") with arguments: {id}
 
 This reuses the entire implement infrastructure:
 - Task decomposition from final.md

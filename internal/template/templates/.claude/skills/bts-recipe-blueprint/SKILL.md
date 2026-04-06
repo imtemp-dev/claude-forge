@@ -426,9 +426,12 @@ When /assess declares Level 3 achieved AND /sync-check passes:
 2. Run Skill("bts-status") with arguments: {id}
    This updates project-status.md, roadmap.md, and project-map.md.
 3. Output `<bts>DONE</bts>`
-3. Stop hook will verify:
+4. Stop hook will verify:
    - verify-log last entry: critical=0, major=0
    - All sync checks passed
+5. Tell the user (plaintext, after the marker):
+   > **Blueprint complete** — `{id}` spec finalized.
+   > Next: run `/bts-implement {id}` to start implementation.
 
 > **Checkpoint**: Blueprint finalized. Proceed directly to output `<bts>DONE</bts>`.
 > Do NOT /clear — clearing loses context and requires re-reading files.

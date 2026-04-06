@@ -288,6 +288,10 @@ When all steps are done:
 - Verify review.md exists (review has run)
 - Verify deviation.md exists (sync has run)
 - Output `<bts>IMPLEMENT DONE</bts>`
+- Tell the user (plaintext, after the marker):
+  > **Implementation complete** — `{id}` done.
+  > Check `deviation.md` for any follow-up items.
+  > Next: run `/bts-recipe-blueprint` to start the next roadmap item, or `/bts-recipe-fix` for any bugs.
 
 If unresolved blocked tasks remain:
 - Report which tasks are blocked and why
