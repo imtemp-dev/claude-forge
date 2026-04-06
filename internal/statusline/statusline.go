@@ -44,6 +44,8 @@ func Render(stdin io.Reader, root string) string {
 		raw, _ := io.ReadAll(stdin)
 		if len(raw) > 0 {
 			_ = json.Unmarshal(raw, &data)
+			// Always save last payload for diagnosis (overwritten each call, low overhead)
+			_ = os.WriteFile("/tmp/bts-sl-last.json", raw, 0644)
 		}
 	}
 
@@ -58,10 +60,10 @@ func Render(stdin io.Reader, root string) string {
 		}
 	}
 
-	// Context bar
-	pct := getContextPercentage(&data)
-	if pct >= 0 {
-		segments = append(segments, renderContextBar(pct))
+	// Context bar (remaining%, matches Claude Code's "Context low" convention)
+	remaining := getContextRemaining(&data)
+	if remaining >= 0 {
+		segments = append(segments, renderContextBar(remaining))
 	}
 
 	// Persist token snapshot to metrics (throttled, fire-and-forget)
@@ -192,44 +194,45 @@ func renderTestDetail(root, recipeID string) string {
 	return fmt.Sprintf("test %d/%d %s", tr.Passed, tr.Total, tr.Status)
 }
 
-// getContextPercentage extracts context usage from Claude Code's JSON.
-func getContextPercentage(data *StdinData) float64 {
+// getContextRemaining extracts remaining context percentage from Claude Code's JSON.
+// Returns remaining% to match Claude Code's own "Context low" banner convention.
+func getContextRemaining(data *StdinData) float64 {
 	if data.ContextWindow == nil {
 		return -1
 	}
 	cw := data.ContextWindow
 
-	// Priority 1: remaining_percentage — matches Claude Code's own "Context low" banner
-	// (accounts for both input and output tokens)
+	// Priority 1: remaining_percentage — direct match with Claude Code's "Context low" banner
 	if cw.RemainingPercentage != nil {
-		return 100 - *cw.RemainingPercentage
+		return *cw.RemainingPercentage
 	}
 
-	// Priority 2: used_percentage (input tokens only — slightly lower than actual)
+	// Priority 2: compute remaining from used_percentage
 	if cw.UsedPercentage != nil {
-		return *cw.UsedPercentage
+		return 100 - *cw.UsedPercentage
 	}
 
-	// Priority 3: calculate from input tokens only (exclude output_tokens to match
-	// Claude Code's used_percentage definition)
+	// Priority 3: calculate remaining from all token counts
 	if cw.CurrentUsage != nil && cw.ContextWindowSize > 0 {
 		used := cw.CurrentUsage.InputTokens +
 			cw.CurrentUsage.CacheCreationTokens +
-			cw.CurrentUsage.CacheReadTokens
-		return float64(used) / float64(cw.ContextWindowSize) * 100
+			cw.CurrentUsage.CacheReadTokens +
+			cw.CurrentUsage.OutputTokens
+		return 100 - float64(used)/float64(cw.ContextWindowSize)*100
 	}
 
 	// Priority 4: legacy used/total
 	if cw.Total > 0 {
-		return float64(cw.Used) / float64(cw.Total) * 100
+		return 100 - float64(cw.Used)/float64(cw.Total)*100
 	}
 
 	return -1
 }
 
-// renderContextBar renders context usage as a short label.
-func renderContextBar(pct float64) string {
-	return fmt.Sprintf("ctx %d%%", int(pct))
+// renderContextBar renders remaining context as a short label.
+// Shows remaining% to match Claude Code's "Context low (X% remaining)" convention.
+func renderContextBar(remaining float64) string {
+	return fmt.Sprintf("ctx %d%%", int(remaining))
 }
 
 func truncate(s string, max int) string {
