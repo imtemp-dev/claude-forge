@@ -44,11 +44,19 @@ var recipeStatusCmd = &cobra.Command{
 		}
 
 		if recipe == nil {
+			recipe, _ = state.GetFinalizedRecipe(root)
+		}
+
+		if recipe == nil {
 			fmt.Println("No active recipe.")
 			return nil
 		}
 
-		fmt.Printf("Active recipe: %s\n", recipe.ID)
+		label := "Active recipe"
+		if recipe.Phase == "finalize" {
+			label = "Finalized recipe (ready for implementation)"
+		}
+		fmt.Printf("%s: %s\n", label, recipe.ID)
 		fmt.Printf("  Type:         %s\n", recipe.Type)
 		fmt.Printf("  Topic:        %s\n", recipe.Topic)
 		fmt.Printf("  Phase:        %s\n", recipe.Phase)
