@@ -8,10 +8,16 @@ import (
 )
 
 // MergeHookSettings ensures all bts hooks and statusline are registered
-// in .claude/settings.local.json. Fixes stale entries (wrong paths,
-// underscore naming) and adds missing hooks.
+// in .claude/settings.local.json. Uses absolute paths to avoid CWD
+// resolution issues. Fixes stale entries (wrong paths, underscore naming)
+// and adds missing hooks.
 func MergeHookSettings(projectRoot string) error {
-	settingsPath := filepath.Join(projectRoot, ".claude", "settings.local.json")
+	absRoot, err := filepath.Abs(projectRoot)
+	if err != nil {
+		absRoot = projectRoot
+	}
+
+	settingsPath := filepath.Join(absRoot, ".claude", "settings.local.json")
 
 	var settings map[string]interface{}
 	data, err := os.ReadFile(settingsPath)
@@ -25,16 +31,18 @@ func MergeHookSettings(projectRoot string) error {
 
 	changed := false
 
-	// StatusLine
-	if _, exists := settings["statusLine"]; !exists {
+	// StatusLine — use absolute path
+	slPath := filepath.Join(absRoot, ".bts", "status_line.sh")
+	sl, _ := settings["statusLine"].(map[string]interface{})
+	if sl == nil || !isAbsolutePath(sl["command"]) {
 		settings["statusLine"] = map[string]interface{}{
 			"type":    "command",
-			"command": ".bts/status_line.sh",
+			"command": slPath,
 		}
 		changed = true
 	}
 
-	// Hooks
+	// Hooks — all use absolute paths
 	hooks, _ := settings["hooks"].(map[string]interface{})
 	if hooks == nil {
 		hooks = make(map[string]interface{})
@@ -47,14 +55,14 @@ func MergeHookSettings(projectRoot string) error {
 	}
 
 	defs := []hookDef{
-		{"SessionStart", ".claude/hooks/bts-handle-session-start.sh", 10},
-		{"PreCompact", ".claude/hooks/bts-handle-pre-compact.sh", 5},
-		{"Stop", ".claude/hooks/bts-handle-stop.sh", 10},
-		{"SessionEnd", ".claude/hooks/bts-handle-session-end.sh", 5},
-		{"SubagentStart", ".claude/hooks/bts-handle-subagent-start.sh", 5},
-		{"SubagentStop", ".claude/hooks/bts-handle-subagent-stop.sh", 5},
-		{"PreToolUse", ".claude/hooks/bts-handle-pre-tool-use.sh", 5},
-		{"PostToolUse", ".claude/hooks/bts-handle-post-tool-use.sh", 5},
+		{"SessionStart", filepath.Join(absRoot, ".claude", "hooks", "bts-handle-session-start.sh"), 10},
+		{"PreCompact", filepath.Join(absRoot, ".claude", "hooks", "bts-handle-pre-compact.sh"), 5},
+		{"Stop", filepath.Join(absRoot, ".claude", "hooks", "bts-handle-stop.sh"), 10},
+		{"SessionEnd", filepath.Join(absRoot, ".claude", "hooks", "bts-handle-session-end.sh"), 5},
+		{"SubagentStart", filepath.Join(absRoot, ".claude", "hooks", "bts-handle-subagent-start.sh"), 5},
+		{"SubagentStop", filepath.Join(absRoot, ".claude", "hooks", "bts-handle-subagent-stop.sh"), 5},
+		{"PreToolUse", filepath.Join(absRoot, ".claude", "hooks", "bts-handle-pre-tool-use.sh"), 5},
+		{"PostToolUse", filepath.Join(absRoot, ".claude", "hooks", "bts-handle-post-tool-use.sh"), 5},
 	}
 
 	makeEntry := func(script string, timeout int) []interface{} {
@@ -150,4 +158,10 @@ func isBtsHookCommand(cmd string) bool {
 		strings.Contains(cmd, "bts_handle_") ||
 		strings.Contains(cmd, "forge-handle-") ||
 		strings.Contains(cmd, "forge_handle_")
+}
+
+// isAbsolutePath checks if a settings value is a string starting with /.
+func isAbsolutePath(v interface{}) bool {
+	s, ok := v.(string)
+	return ok && strings.HasPrefix(s, "/")
 }
