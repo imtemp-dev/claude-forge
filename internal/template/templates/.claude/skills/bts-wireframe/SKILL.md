@@ -23,6 +23,7 @@ Design the high-level structure for: $ARGUMENTS
    - `.bts/specs/recipes/{id}/research/v1.md` (or latest)
    - `.bts/specs/recipes/{id}/scope.md`
    - `.bts/specs/project-map.md` (existing system structure)
+   - `.bts/specs/layers/{name}.md` for affected layers (existing models, APIs, patterns)
 
 ## Step 1: Component Diagram
 

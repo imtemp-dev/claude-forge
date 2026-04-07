@@ -32,6 +32,11 @@ If active:
 - Phase `finalize` → skip to Step 5.
 
 ## Step 1: Research
+
+Read existing project context if available:
+- `.bts/specs/project-map.md` — layer overview, build/test commands
+- `.bts/specs/layers/{name}.md` — detail for layers relevant to this design
+
 Use Skill("bts-research") to understand the current state.
 Save to `.bts/specs/{id}/research/v1.md`.
 

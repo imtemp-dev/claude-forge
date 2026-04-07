@@ -157,10 +157,13 @@ bts recipe log {id} --phase verify --action verify --result "critical=N, major=N
 
 ## Step 6: Implement
 
+Read `.bts/specs/project-map.md` for layer-specific build/test commands.
+When fix spans multiple layers, use each layer's build command for verification.
+
 Apply the fix exactly as described in fix-spec.md:
 - Read each change item
 - Modify the code accordingly
-- Run build to verify compilation
+- Run the appropriate build command to verify compilation
 
 No task decomposition — fix is typically 1-3 files.
 

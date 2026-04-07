@@ -113,7 +113,8 @@ If `.bts/specs/roadmap.md` exists:
 
 1. Read roadmap.md
 2. For each completed recipe (phase=complete):
-   - Match to roadmap item by topic similarity
+   - First, look for `(recipe: {id})` annotation in roadmap items → exact match
+   - If no annotation found, fall back to topic similarity match
    - Mark as `[x]` and add `(recipe: {id})` if not already present
 3. For each active recipe (not complete/cancelled):
    - Add `(recipe: {id})` to matching item if not present
