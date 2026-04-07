@@ -50,8 +50,8 @@ vision:
   min_roadmap_items: 3           # Below 3, decomposition adds overhead without benefit
 
 # Agent models — options: sonnet, opus, haiku
-# Core gates (verify, audit, simulate, review-quality, review-arch) use session model by default.
-# Pattern-based checks (cross-check, sync-check, review-security) use sonnet.
+# Core gates (verify, audit, simulate, review-quality, review-arch, review-rebuttal) use session model by default.
+# Pattern-based checks (cross-check, sync-check, review-security, review-validator) use sonnet.
 agents:
   # verifier: sonnet
   # auditor: sonnet
@@ -59,6 +59,8 @@ agents:
   # reviewer_quality: sonnet
   reviewer_security: sonnet
   # reviewer_arch: sonnet
+  # reviewer_validator: sonnet
+  # reviewer_rebuttal: sonnet
 
 # Skill effort levels — options: low, medium, high, max
 # effort:

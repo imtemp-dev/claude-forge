@@ -88,17 +88,56 @@ Each agent produces a numbered list of findings with severity tags.
 For focused mode, give the single agent a deeper, more thorough prompt
 for its specific domain rather than a broad scan.
 
-## Step 4: Synthesize and Assess Practicality
+## Step 4: Synthesize Raw Findings
 
 After collecting findings from all agents:
 
 1. **Deduplicate**: Same issue found by multiple agents → merge, note all perspectives
-2. **Reclassify severity**: With full context, some findings may be more or less severe
-3. **Practical assessment** for each finding:
-   - Will this actually cause a bug in production?
-   - Is this a real security risk or purely theoretical?
-   - Is fixing this worth the effort vs the risk?
-   - Tag: **[ACTIONABLE]** (should fix) vs **[INFORMATIONAL]** (good to know)
+2. **Assign unified IDs**: [CRT-001], [MAJ-001], [MIN-001], [INF-001]
+3. **Compile findings list**: Each finding with ID, severity, file:line, description, fix suggestion
+
+This is the raw input for adversarial validation. Do NOT assess practicality here.
+
+## Step 4.5: Adversarial Validation
+
+The review agents find problems (prosecution). Now the code gets a defense.
+Configure the validator model via `agents.reviewer_validator` and
+the rebuttal model via `agents.reviewer_rebuttal` in settings.yaml.
+
+### Round 1 — Defense (Validator)
+
+Spawn **Agent(reviewer-validator)** with:
+- The compiled findings list from Step 4
+- The file scope (so the agent can read actual code)
+
+The validator reads the actual code for each finding and returns:
+- **CONFIRM**: Cannot defend the code. Finding is legitimate.
+- **CHALLENGE**: Code-based evidence that this is not a practical problem.
+
+### Round 2 — Rebuttal (only if CHALLENGED items exist)
+
+Collect all CHALLENGED findings. If none, skip to Step 5.
+
+Spawn **Agent(reviewer-rebuttal)** with:
+- Each CHALLENGED finding: original description + validator's defense argument
+- The file scope (so the agent can verify both sides)
+
+The rebuttal agent returns for each:
+- **INSIST**: Concrete scenario proving the issue is real, rebutting the defense.
+- **CONCEDE**: Validator's defense is valid. Finding is not practical.
+
+### Verdict (orchestrator — no agent)
+
+Classify each finding into consensus categories:
+
+| Review | Validator | Rebuttal | Result |
+|--------|-----------|----------|--------|
+| Found  | CONFIRM   | —        | **AGREED**: Real issue |
+| Found  | CHALLENGE | CONCEDE  | **DISMISSED**: Not practical |
+| Found  | CHALLENGE | INSIST   | **DISPUTED**: Orchestrator adjudicates |
+
+For **DISPUTED** items: read the code yourself, evaluate both sides' evidence,
+and make a final call. Include both arguments in the report for transparency.
 
 ## Step 5: Generate Report
 
@@ -112,34 +151,48 @@ Generated: {ISO8601}
 Recipe: {id} (if applicable)
 Mode: {full|security|performance|patterns}
 Perspectives: {quality + security + architecture | single agent}
+Validation: adversarial (2-round debate)
 
 ## Summary
-- Critical: N (N actionable)
-- Major: N (N actionable)
+- Critical: N
+- Major: N
 - Minor: N
-- Info: N
+- Dismissed: N (by adversarial validation)
 
-## Critical — Actionable
+## Critical
 1. [CRT-001] **{title}** in `{file}:{line}`
    Found by: {agent name}
-   Practical: {HIGH|MEDIUM|LOW} — {why}
+   Consensus: AGREED | ADJUDICATED
    {code context}
    → {fix suggestion}
 
-### Major — Actionable
+## Major
 ...
 
-### Minor
+## Minor
 ...
 
-### Informational (non-actionable)
-...
+## Dismissed (validator defended successfully)
+<details>
+<summary>N findings dismissed — click to expand</summary>
+
+1. [MAJ-002] **{title}** in `{file}:{line}`
+   Original: {finding summary}
+   Defense: {validator's evidence}
+   Concession: {why rebuttal agent conceded}
+</details>
+
+## Adjudicated (disputed — orchestrator decided)
+1. [MAJ-003] **{title}** in `{file}:{line}`
+   Prosecution: {rebuttal agent's scenario}
+   Defense: {validator's evidence}
+   Verdict: {INCLUDED|EXCLUDED} — {orchestrator's reasoning}
 ```
 
 Log if inside recipe:
 ```bash
-bts recipe log {id} --action review --output review.md --result "N critical, N major (N actionable)"
+bts recipe log {id} --action review --output review.md --result "N critical, N major, N dismissed"
 ```
 
 Review is a **mandatory step** in implement and fix flows.
-[ACTIONABLE] critical/major items should be fixed before proceeding.
+Critical/major consensus items should be fixed before proceeding.
