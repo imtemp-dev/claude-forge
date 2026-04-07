@@ -197,6 +197,9 @@ func autoUpdateTemplates(root string) bool {
 		".mcp.json",
 	})
 
+	// Ensure hooks are registered in settings.local.json
+	_ = template.MergeHookSettings(root)
+
 	// Clean up legacy forge files if present
 	cleanupLegacyTemplates(root)
 

@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -80,9 +79,9 @@ func runInit(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(os.Stderr, "warning: save template version: %v\n", err)
 	}
 
-	// Merge statusline config into .claude/settings.local.json
-	if err := mergeStatusLineSettings(absRoot); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: could not configure statusline: %v\n", err)
+	// Merge statusline and hook configs into .claude/settings.local.json
+	if err := template.MergeHookSettings(absRoot); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not configure hooks: %v\n", err)
 	}
 
 	fmt.Printf("\nbts initialized successfully.\n")
@@ -96,86 +95,4 @@ func runInit(cmd *cobra.Command, args []string) error {
 	fmt.Printf("\nStart Claude Code and try: /bts-recipe-blueprint \"your feature\"\n")
 
 	return nil
-}
-
-// mergeStatusLineSettings adds statusLine and hook configs to .claude/settings.local.json.
-func mergeStatusLineSettings(projectRoot string) error {
-	settingsPath := filepath.Join(projectRoot, ".claude", "settings.local.json")
-
-	// Read existing settings or start empty
-	var settings map[string]interface{}
-	data, err := os.ReadFile(settingsPath)
-	if err == nil {
-		if err := json.Unmarshal(data, &settings); err != nil {
-			settings = make(map[string]interface{})
-		}
-	} else {
-		settings = make(map[string]interface{})
-	}
-
-	changed := false
-
-	// StatusLine
-	if _, exists := settings["statusLine"]; !exists {
-		settings["statusLine"] = map[string]interface{}{
-			"type":    "command",
-			"command": ".bts/status_line.sh",
-		}
-		changed = true
-	}
-
-	// Hooks for SubagentStart/Stop
-	hooks, _ := settings["hooks"].(map[string]interface{})
-	if hooks == nil {
-		hooks = make(map[string]interface{})
-	}
-
-	hookEntry := func(script string, timeout int) []interface{} {
-		return []interface{}{
-			map[string]interface{}{
-				"hooks": []interface{}{
-					map[string]interface{}{
-						"type":    "command",
-						"command": script,
-						"timeout": timeout,
-					},
-				},
-			},
-		}
-	}
-
-	register := func(event, script string, timeout int) {
-		if _, exists := hooks[event]; !exists {
-			hooks[event] = hookEntry(script, timeout)
-			changed = true
-		}
-	}
-
-	register("SessionStart", ".claude/hooks/bts-handle-session-start.sh", 10)
-	register("PreCompact", ".claude/hooks/bts-handle-pre-compact.sh", 5)
-	register("Stop", ".claude/hooks/bts-handle-stop.sh", 10)
-	register("SessionEnd", ".claude/hooks/bts-handle-session-end.sh", 5)
-	register("SubagentStart", ".claude/hooks/bts-handle-subagent-start.sh", 5)
-	register("SubagentStop", ".claude/hooks/bts-handle-subagent-stop.sh", 5)
-	register("PreToolUse", ".claude/hooks/bts-handle-pre-tool-use.sh", 5)
-	register("PostToolUse", ".claude/hooks/bts-handle-post-tool-use.sh", 5)
-
-	if len(hooks) > 0 {
-		settings["hooks"] = hooks
-	}
-
-	if !changed {
-		return nil
-	}
-
-	out, err := json.MarshalIndent(settings, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	if err := os.MkdirAll(filepath.Dir(settingsPath), 0755); err != nil {
-		return err
-	}
-
-	return os.WriteFile(settingsPath, out, 0644)
 }

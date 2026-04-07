@@ -53,9 +53,9 @@ var updateCmd = &cobra.Command{
 		cleanupLegacyForge(root)
 		migrateHookSettings(root)
 
-		// Merge statusline settings (same as init)
-		if err := mergeStatusLineSettings(root); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: could not update statusline settings: %v\n", err)
+		// Merge statusline and hook settings (same as init)
+		if err := template.MergeHookSettings(root); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not update hook settings: %v\n", err)
 		}
 
 		if oldVer == "" {
