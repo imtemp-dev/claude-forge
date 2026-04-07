@@ -91,7 +91,7 @@ func Render(stdin io.Reader, root string) string {
 	return strings.Join(segments, " │ ")
 }
 
-// renderRecipeSegment returns "topic │ [🟡] phase detail" or empty string.
+// renderRecipeSegment returns "[🟡] phase detail" or empty string.
 func renderRecipeSegment(root string) string {
 	// Check if a subagent is running
 	agentDot := ""
@@ -103,9 +103,8 @@ func renderRecipeSegment(root string) string {
 	// Try work state first (richer info)
 	ws, _ := state.LoadWorkState(root)
 	if ws != nil && ws.RecipeID != "" {
-		topic := truncate(ws.Topic, 20)
 		detail := renderPhaseFromWorkState(ws, root)
-		return topic + " │ " + agentDot + detail
+		return agentDot + detail
 	}
 
 	// Fall back to recipe state
@@ -117,8 +116,7 @@ func renderRecipeSegment(root string) string {
 		return ""
 	}
 
-	topic := truncate(recipe.Topic, 20)
-	return topic + " │ " + agentDot + recipe.Phase
+	return agentDot + recipe.Phase
 }
 
 // renderPhaseFromWorkState builds a detailed phase string.
@@ -233,11 +231,4 @@ func getContextRemaining(data *StdinData) float64 {
 // Shows remaining% to match Claude Code's "Context low (X% remaining)" convention.
 func renderContextBar(remaining float64) string {
 	return fmt.Sprintf("ctx %d%%", int(remaining))
-}
-
-func truncate(s string, max int) string {
-	if len(s) <= max {
-		return s
-	}
-	return s[:max-3] + "..."
 }
