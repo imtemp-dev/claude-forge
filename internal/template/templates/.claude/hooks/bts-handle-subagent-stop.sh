@@ -11,7 +11,7 @@ fi
 
 # Try local binary
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-LOCAL_BIN="${SCRIPT_DIR}/../../../../bin/bts"
+LOCAL_BIN="${SCRIPT_DIR}/../../bin/bts"
 if [ -f "$LOCAL_BIN" ]; then
   "$LOCAL_BIN" hook subagent-stop < "$temp_file"
   exit 0
