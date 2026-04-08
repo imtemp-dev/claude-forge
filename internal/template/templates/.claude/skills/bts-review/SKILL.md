@@ -101,14 +101,38 @@ This is the raw input for adversarial validation. Do NOT assess practicality her
 ## Step 4.5: Adversarial Validation
 
 The review agents find problems (prosecution). Now the code gets a defense.
-Configure the validator model via `agents.reviewer_validator` and
-the rebuttal model via `agents.reviewer_rebuttal` in settings.yaml.
+Configure the validator model via `agents.reviewer_validator` (default: sonnet)
+and the rebuttal model via `agents.reviewer_rebuttal` (default: session model)
+in settings.yaml. Rebuttal uses the session model because constructing concrete
+failure scenarios requires deeper reasoning than pattern-based validation.
+
+**Fallback**: If a validator or rebuttal agent fails (error, timeout), skip the
+adversarial step and proceed to Step 5 with raw findings. Tag all findings as
+`[UNVALIDATED]` in the report so the user knows they were not adversarially checked.
 
 ### Round 1 — Defense (Validator)
 
-Spawn **Agent(reviewer-validator)** with:
-- The compiled findings list from Step 4
-- The file scope (so the agent can read actual code)
+Spawn **Agent(reviewer-validator)** with a structured prompt:
+
+```
+Review the following findings against the actual source code.
+For each finding, read the referenced code and determine if it is
+a real, practical problem.
+
+## Findings
+
+1. [CRT-001] {title}
+   File: {file}:{line}
+   Severity: {critical|major|minor|info}
+   Found by: {agent}
+   Description: {what the reviewer found}
+   Fix suggestion: {suggested fix}
+
+2. [MAJ-001] ...
+
+## Files in scope
+{list of file paths the agent should read}
+```
 
 The validator reads the actual code for each finding and returns:
 - **CONFIRM**: Cannot defend the code. Finding is legitimate.
@@ -118,9 +142,22 @@ The validator reads the actual code for each finding and returns:
 
 Collect all CHALLENGED findings. If none, skip to Step 5.
 
-Spawn **Agent(reviewer-rebuttal)** with:
-- Each CHALLENGED finding: original description + validator's defense argument
-- The file scope (so the agent can verify both sides)
+Spawn **Agent(reviewer-rebuttal)** with a structured prompt:
+
+```
+The following review findings were challenged by a code validator.
+For each, evaluate whether the challenge is valid or the original
+finding stands. You must read the actual code to decide.
+
+## Challenged Findings
+
+1. [MAJ-001] {title}
+   Original finding: {description from reviewer}
+   Validator's defense: {validator's CHALLENGE reasoning with code refs}
+   Files to check: {relevant file paths}
+
+2. [MAJ-002] ...
+```
 
 The rebuttal agent returns for each:
 - **INSIST**: Concrete scenario proving the issue is real, rebutting the defense.

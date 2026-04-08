@@ -2,7 +2,6 @@
 name: reviewer-rebuttal
 description: Rebuttal agent (prosecutor). Defends challenged findings with concrete evidence or concedes when the defense is valid.
 tools: Read, Grep, Glob
-model: sonnet
 memory: project
 ---
 
