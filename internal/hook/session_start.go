@@ -64,7 +64,7 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 				}
 				return &HookOutput{
 					HookSpecificOutput: &HookSpecificOutput{
-						HookEventName:     "UserPromptSubmit",
+						HookEventName:     "SessionStart",
 						AdditionalContext: msg,
 					},
 				}, nil
@@ -79,7 +79,7 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 					}
 					return &HookOutput{
 						HookSpecificOutput: &HookSpecificOutput{
-							HookEventName:     "UserPromptSubmit",
+							HookEventName:     "SessionStart",
 							AdditionalContext: msg,
 						},
 					}, nil
@@ -88,7 +88,7 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 			if updated {
 				return &HookOutput{
 					HookSpecificOutput: &HookSpecificOutput{
-						HookEventName:     "UserPromptSubmit",
+						HookEventName:     "SessionStart",
 						AdditionalContext: fmt.Sprintf("[bts] Templates updated to %s", version.GetTemplateVersion()),
 					},
 				}, nil
@@ -115,7 +115,7 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 
 		return &HookOutput{
 			HookSpecificOutput: &HookSpecificOutput{
-				HookEventName:     "UserPromptSubmit",
+				HookEventName:     "SessionStart",
 				AdditionalContext: msg,
 			},
 		}, nil
@@ -173,7 +173,7 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 
 	return &HookOutput{
 		HookSpecificOutput: &HookSpecificOutput{
-			HookEventName:     "UserPromptSubmit",
+			HookEventName:     "SessionStart",
 			AdditionalContext: msg,
 		},
 	}, nil

@@ -50,7 +50,7 @@ type HookOutput struct {
 }
 
 // HookSpecificOutput contains data to inject into Claude's context.
-// Requires hookEventName matching the event: PreToolUse, UserPromptSubmit, PostToolUse.
+// Requires hookEventName matching the event: SessionStart, PreToolUse, UserPromptSubmit, PostToolUse.
 // PreCompact and SessionEnd do NOT use this — they save state via other means.
 type HookSpecificOutput struct {
 	HookEventName string `json:"hookEventName,omitempty"`
