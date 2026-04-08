@@ -30,6 +30,10 @@ bts recipe status
 ```
 If active fix recipe found, read diagnosis.md and fix-spec.md to resume.
 
+**Autonomous execution**: This recipe runs without stopping between steps.
+Do NOT pause to summarize or ask the user. Only stop for [CONVERGENCE FAILED]
+or when experts disagree on root cause (user decision needed).
+
 If no active recipe, create one:
 ```bash
 bts recipe create --type fix --topic "$ARGUMENTS"
@@ -115,6 +119,8 @@ Use Skill("bts-simulate") on fix-spec.md:
 - Reference the original recipe's final.md for impact analysis
 - 3 scenarios are enough: fix verification, regression, side effect check
 
+When simulation passes, continue immediately to Step 4.
+
 ```bash
 bts recipe log {id} --phase simulate --action simulate
 ```
@@ -148,7 +154,8 @@ Run /verify on fix-spec.md:
 - Are edge cases covered?
 - Could the fix introduce new issues?
 
-If issues found → update fix-spec.md → re-verify.
+If issues found → update fix-spec.md → re-verify. Do NOT stop to report — fix and continue.
+When critical=0, major=0 → continue immediately to Step 6.
 Max `verify.max_iterations` (default: 3) → [CONVERGENCE FAILED] → ask user.
 
 ```bash
@@ -191,6 +198,7 @@ Are there code paths where the original bug could still occur?
 
 If gaps found → fix code → re-test.
 If tests fail after simulate fixes → fix tests → re-test.
+When simulation passes, continue immediately to Step 7.5.
 
 ```bash
 bts recipe log {id} --action simulate --result "N scenarios, N gaps"

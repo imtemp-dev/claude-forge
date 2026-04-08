@@ -26,8 +26,11 @@ Use the output as recipe ID for all subsequent commands.
 
 If active:
 - Phase `research` → read existing research doc, continue from Step 2.
-- Phase `verify` → read draft, run /bts-assess to determine next action.
+- Phase `verify` → read draft, run /bts-assess, then **immediately execute** the recommended action.
 - Phase `finalize` → skip to Step 4.
+
+**Autonomous execution**: This recipe runs without stopping between steps.
+Do NOT pause to summarize or ask the user. Only stop for [CONVERGENCE FAILED].
 
 ## Step 1: Research
 
@@ -53,6 +56,10 @@ Save to `.bts/specs/{id}/draft.md`.
 - Skill("bts-verify"): logical consistency?
 - Skill("bts-audit"): anything missing?
 - Fix issues, re-verify until critical=0, major=0.
+
+After each skill completes, immediately proceed to the next check.
+When all checks pass (critical=0, major=0), continue directly to Step 4.
+If issues found, fix them and re-run the loop — do NOT stop to report.
 
 Max 3 iterations. If same issues persist → [CONVERGENCE FAILED],
 report findings and ask user for guidance.

@@ -34,6 +34,10 @@ bts recipe status
 ```
 If active debug recipe found, read perspectives.md and draft.md to resume.
 
+**Autonomous execution**: This recipe runs without stopping between steps.
+Do NOT pause to summarize or ask the user. Only stop for [CONVERGENCE FAILED]
+or when experts disagree on root cause (user decision needed).
+
 If no active recipe, create one:
 ```bash
 bts recipe create --type debug --topic "$ARGUMENTS"
@@ -172,6 +176,7 @@ Use Skill("bts-simulate") on draft.md:
 - Does it break anything identified in the impact map (perspective 1.6)?
 
 If gaps found → Edit draft.md → /verify → re-simulate.
+When simulation passes, continue immediately to Step 5.
 
 ## Step 5: Expert Review (1 round)
 
@@ -199,7 +204,8 @@ Run /bts-verify on the current draft:
 - Are edge cases covered?
 - Does the evidence support the conclusion?
 
-If issues found → Edit draft.md → re-verify.
+If issues found → Edit draft.md → re-verify. Do NOT stop to report — fix and continue.
+When critical=0, major=0 → continue immediately to Step 7.
 Max `verify.max_iterations` (default: 3) → [CONVERGENCE FAILED] → ask user.
 
 ```bash

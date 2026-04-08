@@ -102,6 +102,9 @@ ASSESS determines what to do next based on the document's current state.
    ```
    This writes to verify-log.jsonl which the stop hook checks at completion.
 8. Run /assess to determine the next action
+9. **IMMEDIATELY execute the action** recommended by /assess. Do NOT output the
+   assessment and stop. The loop is autonomous — continue executing until Level 3
+   is achieved or a human intervention point is reached.
 
 **Refer to `.claude/rules/bts-schema.md` for exact JSON field names, types, and structures.**
 
@@ -289,14 +292,17 @@ or a fundamental shift in approach. Judge by intent, not by keywords.
 1. /research — investigate technology, best practices, libraries.
    Research is scoped by `.bts/specs/recipes/{id}/scope.md`.
 2. /bts-wireframe — design high-level structure (component diagram, state machine, data flow, file structure, all execution paths). This creates `wireframe.md`.
+   > **Checkpoint**: After wireframe completes, continue IMMEDIATELY to step 3.
+   > Do NOT stop, summarize, or ask the user.
 3. Write initial draft (Level 1) referencing wireframe.md → **Draft Self-Check** → draft.md → /verify
-4. /assess → loop begins
+4. /assess → **execute** recommended action → loop runs autonomously until Level 3
 
 **Starting with existing code:**
 1. /research — explore existing codebase, scoped by scope.md constraints.
 2. /bts-wireframe — design structure changes (what to add/modify, state transitions, data flow changes).
+   > **Checkpoint**: After wireframe completes, continue IMMEDIATELY to step 3.
 3. Write initial draft referencing wireframe.md → **Draft Self-Check** → draft.md → /verify
-4. /assess → loop begins
+4. /assess → **execute** recommended action → loop runs autonomously until Level 3
 
 ### Draft Self-Check (before /verify)
 
@@ -438,10 +444,16 @@ When /assess declares Level 3 achieved AND /sync-check passes:
 
 ### Human Intervention Points
 
-The loop runs automatically. It pauses ONLY when:
+The loop runs automatically. **Do NOT stop between steps to summarize progress
+or ask the user if they want to continue.** Execute each step and proceed to the next.
+
+The loop pauses ONLY when:
 - **[DECISION REQUIRED]**: A technical choice needs human judgment
 - **[CONVERGENCE FAILED]**: Same issues persist after N iterations
 - **[DEBATE DEADLOCK]**: Experts can't agree after 3 rounds
+
+Any other reason to stop (including "let the user know what happened") is NOT valid.
+Progress is tracked in changelog.jsonl and the user can check `/status` at any time.
 
 ## Output Target
 

@@ -156,3 +156,7 @@ Before proceeding to draft, the wireframe must have:
 - [ ] ALL execution paths enumerated with triggers and expected behavior
 - [ ] No orphan states (every state reachable)
 - [ ] Every error state has a recovery or terminal path
+
+> **Checkpoint**: Wireframe saved and quality gate passed.
+> If executing as part of a recipe flow, continue IMMEDIATELY to the next step
+> (writing the initial draft). Do NOT stop to summarize or ask the user.

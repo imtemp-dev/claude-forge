@@ -26,10 +26,13 @@ Use the output as recipe ID for all subsequent commands.
 
 If active:
 - Phase `research` → read existing research doc, continue from Step 2.
-- Phase `draft` → read draft, run /bts-assess to determine next action.
+- Phase `draft` → read draft, run /bts-assess, then **immediately execute** the recommended action.
 - Phase `debate` → read debate state, continue deliberation.
-- Phase `verify` → read draft + verification, run /bts-assess.
+- Phase `verify` → read draft + verification, run /bts-assess, then **immediately execute**.
 - Phase `finalize` → skip to Step 5.
+
+**Autonomous execution**: This recipe runs without stopping between steps.
+Do NOT pause to summarize or ask the user. Only stop for [CONVERGENCE FAILED] or [DEBATE DEADLOCK].
 
 ## Step 1: Research
 
@@ -57,6 +60,10 @@ Save to `.bts/specs/{id}/draft.md`.
 - Skill("bts-audit"): missing considerations?
 - Fix issues, re-verify until critical=0, major=0.
 
+After each skill completes, immediately proceed to the next check.
+When all checks pass (critical=0, major=0), continue directly to Step 4.
+If issues found, fix them and re-run the loop — do NOT stop to report.
+
 Max 3 iterations. If same issues persist → [CONVERGENCE FAILED],
 report findings and ask user for guidance.
 
@@ -68,9 +75,9 @@ bts recipe log {id} --iteration N --critical X --major Y --minor Z
 ## Step 4: Decision (if needed)
 If uncertain choices exist:
 1. Use Skill("bts-debate") to deliberate
-2. Run Skill("bts-adjudicate") to evaluate the conclusion
-   - ACCEPT → update design → re-verify
-   - ACCEPT WITH RESERVATIONS → update design + note caveats → re-verify
+2. Immediately after debate completes, run Skill("bts-adjudicate") to evaluate
+   - ACCEPT → update design → re-verify → continue to Step 5
+   - ACCEPT WITH RESERVATIONS → update design + note caveats → re-verify → continue to Step 5
 3. If debate reaches [DEBATE DEADLOCK] → present each position to user,
    user decides, run Skill("bts-adjudicate") on user's decision
 
