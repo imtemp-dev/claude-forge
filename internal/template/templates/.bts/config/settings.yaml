@@ -51,8 +51,8 @@ vision:
 
 # Agent models — options: sonnet, opus, haiku
 # Core gates (verify, audit, simulate, review-quality, review-arch) use session model by default.
-# Deep reasoning (review-rebuttal) uses session model — needs concrete scenario construction.
-# Pattern-based checks (cross-check, sync-check, review-security, review-validator) use sonnet.
+# Deep reasoning (review-rebuttal, simulator-rebuttal) uses session model — needs concrete scenario construction.
+# Pattern-based checks (cross-check, sync-check, review-security, review-validator, simulator-validator) use sonnet.
 agents:
   # verifier: sonnet
   # auditor: sonnet
@@ -62,6 +62,8 @@ agents:
   # reviewer_arch: sonnet
   # reviewer_validator: sonnet
   # reviewer_rebuttal: sonnet
+  # simulator_validator: sonnet
+  # simulator_rebuttal: sonnet
 
 # Skill effort levels — options: low, medium, high, max
 # effort:

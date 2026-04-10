@@ -155,6 +155,10 @@ Core gates use session model for maximum quality. Pattern-based checks use sonne
 | reviewer_quality | session model | agents.reviewer_quality |
 | reviewer_security | sonnet | agents.reviewer_security |
 | reviewer_arch | session model | agents.reviewer_arch |
+| reviewer_validator | sonnet | agents.reviewer_validator |
+| reviewer_rebuttal | session model | agents.reviewer_rebuttal |
+| simulator_validator | sonnet | agents.simulator_validator |
+| simulator_rebuttal | session model | agents.simulator_rebuttal |
 
 Override in `.bts/config/settings.yaml`. Options: sonnet, opus, haiku.
 
