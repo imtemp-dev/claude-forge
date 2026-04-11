@@ -3,8 +3,9 @@ name: bts-recipe-debug
 description: >
   Debug unknown bugs through multi-perspective analysis. Collects 6 "blueprints"
   (data flow, dependencies, design intent, runtime, change history, impact),
-  cross-references them to find root cause, then produces a verified fix spec
-  implementable via /bts-implement.
+  cross-references them to find root cause, runs adversarial validation on
+  the top hypothesis, then produces a verified fix spec implementable via
+  /bts-implement.
 user-invocable: true
 allowed-tools: Read Write Edit Grep Glob Bash Agent AskUserQuestion WebSearch WebFetch mcp__context7__resolve-library-id mcp__context7__get-library-docs
 argument-hint: "\"symptom description\""
@@ -127,9 +128,117 @@ Produce ranked hypotheses:
 bts recipe log {id} --phase research --action research --output perspectives.md --result "cross-reference: N hypotheses ranked"
 ```
 
-## Step 3: Draft Fix Spec
+## Step 3: Adversarial Hypothesis
 
-Based on the top hypothesis, create `.bts/specs/recipes/{id}/draft.md`:
+The ranked hypothesis #1 was chosen by the same orchestrator that collected
+the perspectives — confirmation bias risk. Before committing to a draft
+based on #1, an independent agent challenges the ranking by reading the
+actual code.
+
+Configure the validator model via `agents.diagnosis_validator` (default:
+session model) and the rebuttal model via `agents.diagnosis_rebuttal`
+(default: session model) in settings.yaml. Both default to session model
+because code path tracing requires deeper reasoning than pattern-based checks.
+
+**Fallback**: If a validator or rebuttal agent fails (error, timeout), tag
+the top hypothesis as `[UNVALIDATED]` in perspectives.md and proceed to Step 4.
+
+### Round 1 — Defense (Validator)
+
+Spawn **Agent(diagnosis-validator)** with a structured prompt:
+
+```
+Challenge the following top-ranked hypothesis by reading the actual code and
+tracing execution paths. Is the #1 hypothesis actually the best explanation
+for the symptom, or does another hypothesis from the ranking fit better?
+
+## Mode
+Debug
+
+## Symptom
+{symptom description}
+
+## Reproduction
+{reproduction steps from perspectives.md}
+
+## Ranked Hypotheses
+1. [HIGH] {hypothesis #1} — Evidence: {perspective findings}
+2. [MEDIUM] {hypothesis #2} — Evidence: {perspective findings}
+3. [LOW] {hypothesis #3} — Evidence: {perspective findings}
+
+## Perspectives evidence
+{relevant excerpts from perspectives.md sections 1.1-1.6}
+
+## Files in scope
+{code file paths referenced across perspectives}
+```
+
+The validator reads the actual code and returns:
+- **CONFIRM**: Hypothesis #1 is the best fit for the evidence.
+- **CHALLENGE**: Alternative hypothesis (from the ranking or new) with
+  file:line evidence and confidence.
+
+### Round 2 — Rebuttal (only if CHALLENGED)
+
+If the validator returned CONFIRM, skip to Verdict.
+
+Spawn **Agent(diagnosis-rebuttal)** with a structured prompt:
+
+```
+The top-ranked hypothesis was challenged by a validator with an alternative.
+Defend the original ranking with a concrete execution trace, or concede if
+the alternative is more consistent with the evidence.
+
+## Mode
+Debug
+
+## Symptom and Reproduction
+{from perspectives.md}
+
+## Original Top Hypothesis
+{hypothesis #1 with evidence}
+
+## Validator's Challenge
+{CHALLENGE reasoning, alternative hypothesis, confidence level}
+
+## All Perspectives
+{relevant excerpts from perspectives.md}
+
+## Files to read
+{files from both the original hypothesis and validator's alternative}
+```
+
+The rebuttal agent returns:
+- **INSIST**: Concrete execution trace proving hypothesis #1 is correct.
+- **CONCEDE**: Validator's alternative is more consistent with the evidence.
+
+### Verdict (orchestrator — no agent)
+
+| Orchestrator | Validator | Rebuttal | Result |
+|--------------|-----------|----------|--------|
+| Hypothesis #1 | CONFIRM   | —        | **CONFIRMED**: proceed to Step 4 |
+| Hypothesis #1 | CHALLENGE | CONCEDE  | **RECONSIDERED**: re-rank hypotheses and proceed |
+| Hypothesis #1 | CHALLENGE | INSIST   | **DISPUTED**: proceed with flag |
+
+**If CONFIRMED**: Proceed directly to Step 4 with hypothesis #1.
+
+**If RECONSIDERED**: Update perspectives.md with the new ranking based on
+the validator's alternative. The new #1 hypothesis becomes the basis for Step 4.
+- **Max 1 reconsideration attempt.** If the new #1 is CHALLENGED again in a
+  retry, stop and ask the user to choose between hypotheses.
+
+**If DISPUTED**: Proceed to Step 4 with the original #1, but add a
+`> [!WARNING] Hypothesis DISPUTED` admonition at the top of perspectives.md
+documenting both sides' arguments. The subsequent Expert Review (Step 6)
+should re-examine the dispute.
+
+```bash
+bts recipe log {id} --action research --result "hypothesis: CONFIRMED | RECONSIDERED | DISPUTED"
+```
+
+## Step 4: Draft Fix Spec
+
+Based on the validated top hypothesis, create `.bts/specs/recipes/{id}/draft.md`:
 
 ```markdown
 # Debug Fix: {symptom}
@@ -168,7 +277,7 @@ Apply **Draft Self-Check** before saving (same checklist as blueprint).
 bts recipe log {id} --phase draft --action draft --output draft.md
 ```
 
-## Step 4: Simulate
+## Step 5: Simulate
 
 Use Skill("bts-simulate") on draft.md:
 - Does the fix resolve the original symptom?
@@ -176,9 +285,9 @@ Use Skill("bts-simulate") on draft.md:
 - Does it break anything identified in the impact map (perspective 1.6)?
 
 If gaps found → Edit draft.md → /verify → re-simulate.
-When simulation passes, continue immediately to Step 5.
+When simulation passes, continue immediately to Step 6.
 
-## Step 5: Expert Review (1 round)
+## Step 6: Expert Review (1 round)
 
 Run a focused 1-round debate on draft.md.
 Choose 3 experts matching the relevant perspectives:
@@ -190,13 +299,16 @@ Choose 3 experts matching the relevant perspectives:
 - Is the fix complete?
 - Are there risks the perspectives missed?
 
+If Step 3 returned DISPUTED, the Expert Review must specifically re-examine
+the validator's alternative hypothesis before reaching consensus.
+
 If experts disagree on root cause → use AskUserQuestion to present each expert's position and ask user to choose.
 
 ```bash
 bts recipe log {id} --phase debate --action debate --result "{consensus}"
 ```
 
-## Step 6: Verify Loop
+## Step 7: Verify Loop
 
 Run /bts-verify on the current draft:
 - Is the fix logically sound?
@@ -205,7 +317,7 @@ Run /bts-verify on the current draft:
 - Does the evidence support the conclusion?
 
 If issues found → Edit draft.md → re-verify. Do NOT stop to report — fix and continue.
-When critical=0, major=0 → continue immediately to Step 7.
+When critical=0, major=0 → continue immediately to Step 8.
 Max `verify.max_iterations` (default: 3) → [CONVERGENCE FAILED] → ask user.
 
 ```bash
@@ -217,7 +329,7 @@ Record verify results to verify-log (required for stop hook DONE gate):
 bts recipe log {id} --iteration N --critical X --major Y --minor Z
 ```
 
-## Step 7: Finalize
+## Step 8: Finalize
 
 When verify shows critical=0, major=0:
 1. Copy `draft.md` to `final.md`

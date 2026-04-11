@@ -2,8 +2,9 @@
 name: bts-recipe-fix
 description: >
   Diagnose and fix a bug through document-first approach. Creates fix-spec.md
-  with root cause analysis, simulation, expert review, and verified implementation.
-  Lighter than blueprint — no scoping, no task decomposition, 1-round debate.
+  with root cause analysis, adversarial validation, simulation, expert review,
+  and verified implementation. Lighter than blueprint — no scoping, no task
+  decomposition, 1-round debate.
 user-invocable: true
 allowed-tools: Read Write Edit Grep Glob Bash Agent mcp__context7__resolve-library-id mcp__context7__get-library-docs
 argument-hint: "\"bug description\""
@@ -74,9 +75,111 @@ Investigate the bug and create `.bts/specs/recipes/{id}/diagnosis.md`:
 bts recipe log {id} --phase research --action research --output diagnosis.md --result "root cause: [summary]"
 ```
 
-## Step 2: Fix Spec (document first)
+## Step 2: Adversarial Diagnosis
 
-Based on diagnosis, create `.bts/specs/recipes/{id}/fix-spec.md`:
+A wrong diagnosis wastes the entire downstream fix flow. Before committing to
+a fix spec, an independent agent challenges the root cause by reading the
+actual code and tracing execution paths.
+
+Configure the validator model via `agents.diagnosis_validator` (default:
+session model) and the rebuttal model via `agents.diagnosis_rebuttal`
+(default: session model) in settings.yaml. Both default to session model
+because code path tracing requires deeper reasoning than pattern-based checks.
+
+**Fallback**: If a validator or rebuttal agent fails (error, timeout), tag
+the diagnosis as `[UNVALIDATED]` in diagnosis.md and proceed to Step 3.
+
+### Round 1 — Defense (Validator)
+
+Spawn **Agent(diagnosis-validator)** with a structured prompt:
+
+```
+Challenge the following root cause diagnosis by reading the actual code and
+tracing execution paths. Is the identified cause actually responsible for
+this symptom?
+
+## Mode
+Fix
+
+## Symptom
+{from diagnosis.md Symptom section}
+
+## Reproduction
+{from diagnosis.md Reproduction section}
+
+## Identified Root Cause
+{from diagnosis.md Root Cause section — include file:line}
+
+## Affected Files
+{from diagnosis.md Affected Files section}
+
+## Files in scope
+{all file paths the validator should read — affected files plus callers if needed}
+```
+
+The validator reads the actual code and returns:
+- **CONFIRM**: Execution path matches the diagnosed cause.
+- **CHALLENGE**: Alternative root cause with file:line evidence and confidence.
+
+### Round 2 — Rebuttal (only if CHALLENGED)
+
+If the validator returned CONFIRM, skip to Verdict.
+
+Spawn **Agent(diagnosis-rebuttal)** with a structured prompt:
+
+```
+The original diagnosis was challenged by a validator with an alternative
+hypothesis. Defend the original with a concrete execution trace, or concede
+if the alternative is more consistent with the evidence.
+
+## Mode
+Fix
+
+## Symptom and Reproduction
+{from diagnosis.md}
+
+## Original Diagnosis
+{Root Cause section from diagnosis.md}
+
+## Validator's Challenge
+{CHALLENGE reasoning, alternative hypothesis, confidence level}
+
+## Files to read
+{files from both original diagnosis and validator's alternative}
+```
+
+The rebuttal agent returns:
+- **INSIST**: Concrete execution trace proving the original diagnosis is correct.
+- **CONCEDE**: Validator's alternative is more consistent with the evidence.
+
+### Verdict (orchestrator — no agent)
+
+| Orchestrator | Validator | Rebuttal | Result |
+|--------------|-----------|----------|--------|
+| Diagnosed    | CONFIRM   | —        | **CONFIRMED**: proceed to Step 3 |
+| Diagnosed    | CHALLENGE | CONCEDE  | **RECONSIDERED**: update diagnosis and proceed |
+| Diagnosed    | CHALLENGE | INSIST   | **DISPUTED**: proceed with flag |
+
+**If CONFIRMED**: Proceed directly to Step 3.
+
+**If RECONSIDERED**: The orchestrator must re-read the code using the
+validator's alternative hypothesis, update `diagnosis.md` with the corrected
+root cause, and then proceed to Step 3.
+- **Max 1 reconsideration attempt.** If the updated diagnosis is CHALLENGED
+  again in a retry, stop and ask the user to choose between hypotheses.
+
+**If DISPUTED**: Proceed to Step 3 with the original diagnosis, but add a
+`> [!WARNING] Diagnosis DISPUTED` admonition at the top of diagnosis.md
+documenting both sides' arguments. The subsequent Expert Review (Step 5)
+should re-examine the dispute.
+
+```bash
+bts recipe log {id} --action research --result "diagnosis: CONFIRMED | RECONSIDERED | DISPUTED"
+```
+
+## Step 3: Fix Spec (document first)
+
+Based on the validated diagnosis, create `.bts/specs/recipes/{id}/fix-spec.md`:
 
 ```markdown
 # Fix Spec: {bug description}
@@ -112,14 +215,14 @@ For each file to modify:
 bts recipe log {id} --phase draft --action draft --output fix-spec.md --result "fix for [root cause]"
 ```
 
-## Step 3: Simulate
+## Step 4: Simulate
 
 Use Skill("bts-simulate") on fix-spec.md:
 - Focus scenarios on: does this fix break other functionality?
 - Reference the original recipe's final.md for impact analysis
 - 3 scenarios are enough: fix verification, regression, side effect check
 
-When simulation passes, continue immediately to Step 4.
+When simulation passes, continue immediately to Step 5.
 
 ```bash
 bts recipe log {id} --phase simulate --action simulate
@@ -129,7 +232,7 @@ bts recipe log {id} --phase simulate --action simulate
 
 Read `.bts/config/settings.yaml` for project-specific limits.
 
-## Step 4: Expert Review (`fix.debate_rounds`, default: 1 round)
+## Step 5: Expert Review (`fix.debate_rounds`, default: 1 round)
 
 Run a focused 1-round review on fix-spec.md:
 
@@ -142,11 +245,14 @@ Choose 3 experts relevant to the bug domain. Each expert states:
 
 If experts disagree on root cause → ask user for decision.
 
+If Step 2 returned DISPUTED, the Expert Review must specifically re-examine
+the validator's alternative hypothesis before reaching consensus.
+
 ```bash
 bts recipe log {id} --phase debate --action debate --result "[consensus summary]"
 ```
 
-## Step 5: Verify Loop
+## Step 6: Verify Loop
 
 Run /verify on fix-spec.md:
 - Is the fix logically sound?
@@ -155,14 +261,14 @@ Run /verify on fix-spec.md:
 - Could the fix introduce new issues?
 
 If issues found → update fix-spec.md → re-verify. Do NOT stop to report — fix and continue.
-When critical=0, major=0 → continue immediately to Step 6.
+When critical=0, major=0 → continue immediately to Step 7.
 Max `verify.max_iterations` (default: 3) → [CONVERGENCE FAILED] → ask user.
 
 ```bash
 bts recipe log {id} --phase verify --action verify --result "critical=N, major=N"
 ```
 
-## Step 6: Implement
+## Step 7: Implement
 
 Read `.bts/specs/project-map.md` for layer-specific build/test commands.
 When fix spans multiple layers, use each layer's build command for verification.
@@ -178,18 +284,18 @@ No task decomposition — fix is typically 1-3 files.
 bts recipe log {id} --phase implement --action implement --result "N files modified"
 ```
 
-## Step 7: Test
+## Step 8: Test
 
 Run existing test suite + add regression test from fix-spec.md's
 "Regression Test" section:
-- If all pass → Step 7.3 (Simulate)
-- If fail → re-examine fix-spec.md (back to Step 5)
+- If all pass → Step 9 (Simulate)
+- If fail → re-examine fix-spec.md (back to Step 6)
 
 ```bash
 bts recipe log {id} --phase test --action test --output test-results.json --result "N/N passed"
 ```
 
-## Step 7.3: Simulate
+## Step 9: Simulate (code)
 
 Use Skill("bts-simulate") with arguments: "code" to verify the fix covers all paths.
 
@@ -198,13 +304,13 @@ Are there code paths where the original bug could still occur?
 
 If gaps found → fix code → re-test.
 If tests fail after simulate fixes → fix tests → re-test.
-When simulation passes, continue immediately to Step 7.5.
+When simulation passes, continue immediately to Step 10.
 
 ```bash
 bts recipe log {id} --action simulate --result "N scenarios, N gaps"
 ```
 
-## Step 7.5: Review
+## Step 10: Review
 
 Update phase:
 ```bash
@@ -220,7 +326,7 @@ Re-test if code was modified.
 bts recipe log {id} --action review --output review.md --result "N critical, N major"
 ```
 
-## Step 8: Complete
+## Step 11: Complete
 
 When tests pass and review is done:
 
@@ -233,7 +339,7 @@ When tests pass and review is done:
    > **Fix complete** — `{id}` done.
    > Next: run `/bts-recipe-blueprint` to continue roadmap, or `/bts-recipe-fix` for another bug.
 
-**Note:** Fix recipes implement code directly in Step 6, not via /bts-implement.
+**Note:** Fix recipes implement code directly in Step 7, not via /bts-implement.
 fix-spec.md is the authoritative document (not final.md). The original recipe's
 final.md is preserved unmodified — deviations from spec are tracked in the
 original recipe's deviation.md during future /bts-sync runs.
