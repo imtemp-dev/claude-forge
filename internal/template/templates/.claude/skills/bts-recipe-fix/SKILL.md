@@ -164,9 +164,11 @@ The rebuttal agent returns:
 
 **If RECONSIDERED**: The orchestrator must re-read the code using the
 validator's alternative hypothesis, update `diagnosis.md` with the corrected
-root cause, and then proceed to Step 3.
-- **Max 1 reconsideration attempt.** If the updated diagnosis is CHALLENGED
-  again in a retry, stop and ask the user to choose between hypotheses.
+root cause, and re-run Round 1 + Round 2 once on the updated diagnosis.
+- **Max 1 reconsideration attempt.** On the retry:
+  - Retry returns CONFIRMED → proceed to Step 3 with the updated diagnosis
+  - Retry returns DISPUTED → proceed to Step 3 with the WARNING flag (normal DISPUTED handling)
+  - Retry would trigger another RECONSIDERED → stop and ask the user to choose between the original, first alternative, and second alternative
 
 **If DISPUTED**: Proceed to Step 3 with the original diagnosis, but add a
 `> [!WARNING] Diagnosis DISPUTED` admonition at the top of diagnosis.md
@@ -174,7 +176,7 @@ documenting both sides' arguments. The subsequent Expert Review (Step 5)
 should re-examine the dispute.
 
 ```bash
-bts recipe log {id} --action research --result "diagnosis: CONFIRMED | RECONSIDERED | DISPUTED"
+bts recipe log {id} --action research --result "diagnosis: CONFIRMED | RECONSIDERED | DISPUTED | UNVALIDATED"
 ```
 
 ## Step 3: Fix Spec (document first)

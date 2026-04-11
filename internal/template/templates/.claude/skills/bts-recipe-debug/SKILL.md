@@ -222,10 +222,14 @@ The rebuttal agent returns:
 
 **If CONFIRMED**: Proceed directly to Step 4 with hypothesis #1.
 
-**If RECONSIDERED**: Update perspectives.md with the new ranking based on
-the validator's alternative. The new #1 hypothesis becomes the basis for Step 4.
-- **Max 1 reconsideration attempt.** If the new #1 is CHALLENGED again in a
-  retry, stop and ask the user to choose between hypotheses.
+**If RECONSIDERED**: Update perspectives.md with the new ranking — promote
+the validator's alternative to #1, demote the original, and note "reconsidered
+after adversarial challenge" in the ranking. Re-run Round 1 + Round 2 once on
+the new #1.
+- **Max 1 reconsideration attempt.** On the retry:
+  - Retry returns CONFIRMED → proceed to Step 4 with the new #1
+  - Retry returns DISPUTED → proceed to Step 4 with the WARNING flag (normal DISPUTED handling)
+  - Retry would trigger another RECONSIDERED → stop and ask the user to choose between the original, first alternative, and second alternative
 
 **If DISPUTED**: Proceed to Step 4 with the original #1, but add a
 `> [!WARNING] Hypothesis DISPUTED` admonition at the top of perspectives.md
@@ -233,7 +237,7 @@ documenting both sides' arguments. The subsequent Expert Review (Step 6)
 should re-examine the dispute.
 
 ```bash
-bts recipe log {id} --action research --result "hypothesis: CONFIRMED | RECONSIDERED | DISPUTED"
+bts recipe log {id} --action research --result "hypothesis: CONFIRMED | RECONSIDERED | DISPUTED | UNVALIDATED"
 ```
 
 ## Step 4: Draft Fix Spec
