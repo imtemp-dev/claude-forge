@@ -366,6 +366,14 @@ This keeps session-start hints accurate if session breaks mid-loop.
    and ask the user for guidance. Check verify-log.jsonl iteration count.
 2. **Every debate conclusion → /adjudicate → if accepted → update draft → /verify.**
 3. **Every simulation gap found → update draft → /verify.**
+3a. **Citation discipline on IMPROVE.** When /verify findings include `Source:`
+   citations, the IMPROVE step copies the citation verbatim into draft.md
+   where the claim is made. Do NOT add speculative justification prose to
+   defend the claim — the citation is the justification. Extra prose expands
+   the claim surface that the next verify iteration must re-check.
+   Findings without citations (framework-silent, downgraded to MINOR) should
+   be addressed with one concise acknowledgment line, not extensive
+   rationalization.
 4. **/simulate early**: Run after the FIRST verify cycle that produces critical=0.
    Simulation catches scenario-level gaps (failure modes, race conditions, edge cases)
    that structural verification cannot find. Running it early prevents late-stage rework.

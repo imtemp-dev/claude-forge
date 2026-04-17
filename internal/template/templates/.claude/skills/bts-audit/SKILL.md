@@ -5,7 +5,7 @@ description: >
   edge cases, and hidden assumptions. Includes mermaid branch completeness
   analysis. Use after verify and cross-check.
 user-invocable: true
-allowed-tools: Read Grep Glob Agent
+allowed-tools: Read Grep Glob Agent WebSearch WebFetch mcp__context7__resolve-library-id mcp__context7__get-library-docs
 argument-hint: "[file-path]"
 context: fork
 ---
@@ -46,13 +46,57 @@ If `agents.auditor` is explicitly set in `.bts/config/settings.yaml`, use that m
    - For each error state: is the error message/response defined? Is cleanup specified?
    - Count: total decision nodes, branches specified, branches missing.
 
+   **Evidence policy for framework/platform claims:**
+
+   Before classifying a claim about framework or platform internals
+   (animation timing, reconciler behavior, async runtime semantics,
+   memory/lifecycle rules, OS-level UI dismissal windows, known failure
+   modes, etc.) as CRITICAL or MAJOR, attempt evidence gathering in this
+   order:
+
+   1. Context7 MCP (preferred): mcp__context7__resolve-library-id then
+      mcp__context7__get-library-docs with a topic from the claim.
+   2. WebFetch on OFFICIAL domains only when Context7 misses:
+      developer.apple.com, developer.android.com, react.dev, nodejs.org,
+      docs.swift.org, kotlinlang.org, pytorch.org, tensorflow.org,
+      learn.microsoft.com, docs.oracle.com, official GitHub RFCs/issues
+      in the framework's own repo, WWDC / Google I/O official transcripts.
+   3. WebSearch as last resort, always with site: filters on the same
+      official domains. Never generic queries.
+
+   NOT evidence: Medium, dev.to, personal blogs, StackOverflow (lead only),
+   unofficial tutorials, unversioned docs.
+
+   Reclassify by outcome:
+   - Official source CONTRADICTS → CRITICAL, cite URL.
+   - Official source CONFIRMS → REMOVE finding.
+   - Official source SILENT, affects user code → keep as MAJOR (defensive).
+   - Official source SILENT, purely framework-internal → downgrade to MINOR.
+   - Only non-official sources found → downgrade to MINOR, note why.
+
+   Citations:
+   - Each evidence-resolved finding MUST include a `Source:` line with URLs.
+   - Never invent citations. If a fetch fails, write "Evidence unavailable"
+     and keep the conservative classification from the table above.
+   - For every claim you attempted to evidence, include a line
+     `Gathered: [Context7:<hit|miss> | WebFetch:<url>:<status> | WebSearch:<n>]`
+     so downstream improve cycles can see what was tried.
+
+   Budget: evidence-gather only CRITICAL/MAJOR candidates, cap at 5 findings
+   per run to keep iteration time bounded. Minor findings need no evidence.
+
    For each missing item, classify:
    - critical: Will cause runtime failure if not addressed
    - major: Important gap that should be filled before implementation
    - minor: Nice to have but not blocking
 
    Output findings as a numbered list with severity tags.
-   Include: "Branch coverage: N/M decision branches specified (N%)."
+   For each finding also include (when applicable):
+     Source: <URL> | <URL>
+     Gathered: <Context7|WebFetch|WebSearch summary>
+
+   Include: "Branch coverage: N/M decision branches specified (N%).
+   Evidence-resolved: X (removed Y, downgraded Z). Framework-claim findings: W."
    ```
 
 3. Collect the auditor's findings

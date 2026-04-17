@@ -4,7 +4,7 @@ description: >
   Verify a document for logical errors, contradictions, and unsupported claims.
   Includes mermaid flow path enumeration to find unspecified execution paths.
 user-invocable: true
-allowed-tools: Read Grep Glob Agent
+allowed-tools: Read Grep Glob Agent WebSearch WebFetch mcp__context7__resolve-library-id mcp__context7__get-library-docs
 argument-hint: "[file-path]"
 context: fork
 effort: max
@@ -46,6 +46,44 @@ If `agents.verifier` is explicitly set in `.bts/config/settings.yaml`, use that 
    - Check for missing transitions: at each state, what happens on
      timeout? invalid input? resource exhaustion? concurrent access?
 
+   **Evidence policy for framework/platform claims:**
+
+   Before classifying a claim about framework or platform internals
+   (animation timing, reconciler behavior, async runtime semantics,
+   memory/lifecycle rules, OS-level UI dismissal windows, etc.) as
+   CRITICAL or MAJOR, attempt evidence gathering in this order:
+
+   1. Context7 MCP (preferred): mcp__context7__resolve-library-id then
+      mcp__context7__get-library-docs with a topic from the claim.
+   2. WebFetch on OFFICIAL domains only when Context7 misses:
+      developer.apple.com, developer.android.com, react.dev, nodejs.org,
+      docs.swift.org, kotlinlang.org, pytorch.org, tensorflow.org,
+      learn.microsoft.com, docs.oracle.com, official GitHub RFCs/issues
+      in the framework's own repo, WWDC / Google I/O official transcripts.
+   3. WebSearch as last resort, always with site: filters on the same
+      official domains. Never generic queries.
+
+   NOT evidence: Medium, dev.to, personal blogs, StackOverflow (lead only),
+   unofficial tutorials, unversioned docs.
+
+   Reclassify by outcome:
+   - Official source CONTRADICTS → CRITICAL, cite URL.
+   - Official source CONFIRMS → REMOVE finding.
+   - Official source SILENT, affects user code → keep as MAJOR (defensive).
+   - Official source SILENT, purely framework-internal → downgrade to MINOR.
+   - Only non-official sources found → downgrade to MINOR, note why.
+
+   Citations:
+   - Each evidence-resolved finding MUST include a `Source:` line with URLs.
+   - Never invent citations. If a fetch fails, write "Evidence unavailable"
+     and keep the conservative classification from the table above.
+   - For every claim you attempted to evidence, include a line
+     `Gathered: [Context7:<hit|miss> | WebFetch:<url>:<status> | WebSearch:<n>]`
+     so downstream improve cycles can see what was tried.
+
+   Budget: evidence-gather only CRITICAL/MAJOR candidates, cap at 5 findings
+   per run to keep iteration time bounded. Minor findings need no evidence.
+
    **Report format:**
    For each issue found, classify severity:
    - critical: Factually impossible, self-contradicting, or execution path leads to undefined behavior
@@ -53,7 +91,13 @@ If `agents.verifier` is explicitly set in `.bts/config/settings.yaml`, use that 
    - minor: Ambiguous or imprecise but not wrong
 
    Output your findings as a numbered list with severity tags.
-   Include a summary: "Text issues: N. Flow path issues: N. Total paths analyzed: N."
+   For each finding also include (when applicable):
+     Source: <URL> | <URL>
+     Gathered: <Context7|WebFetch|WebSearch summary>
+
+   Summary line:
+     Text issues: N. Flow path issues: N. Total paths analyzed: N.
+     Evidence-resolved: X (removed Y, downgraded Z). Framework-claim findings: W.
    ```
 
 3. Collect the verifier's findings
