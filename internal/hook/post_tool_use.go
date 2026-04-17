@@ -57,5 +57,17 @@ func (h *postToolUseHandler) Handle(input *HookInput) (*HookOutput, error) {
 	}
 
 	_ = metrics.Append(root, event)
+
+	// Tool-trace breadcrumb for post-compact recovery
+	if isTrackedTool(input.ToolName) {
+		entry := &state.ToolTraceEntry{
+			Phase:    "post",
+			ToolName: input.ToolName,
+			File:     event.ToolFile,
+			ExitCode: event.ExitCode,
+		}
+		_ = state.AppendToolTrace(root, entry)
+	}
+
 	return &HookOutput{}, nil
 }

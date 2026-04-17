@@ -20,6 +20,22 @@ type WorkState struct {
 	Summary     string    `json:"summary"`
 	ScopeStatus string    `json:"scope_status,omitempty"`
 	SavedAt     string    `json:"saved_at"`
+
+	// Extended fields for richer post-compact recovery
+	Iteration       int              `json:"iteration,omitempty"`
+	NextAction      string           `json:"next_action,omitempty"`
+	PendingFindings int              `json:"pending_findings,omitempty"`
+	SubState        *SubStateInfo    `json:"sub_state,omitempty"`
+	RecentTools     []ToolTraceEntry `json:"recent_tools,omitempty"`
+	OpenFiles       []string         `json:"open_files,omitempty"`
+}
+
+// SubStateInfo describes the position within a recipe sub-phase
+// (debate, simulate, verify) so the session can resume precisely.
+type SubStateInfo struct {
+	Kind     string `json:"kind"`
+	ID       string `json:"id,omitempty"`
+	Position string `json:"position,omitempty"`
 }
 
 // TaskInfo captures the active task for context recovery.
@@ -63,9 +79,10 @@ func BuildWorkState(root string) (*WorkState, error) {
 	}
 
 	ws := &WorkState{
-		RecipeID: recipe.ID,
-		Phase:    recipe.Phase,
-		Topic:    recipe.Topic,
+		RecipeID:  recipe.ID,
+		Phase:     recipe.Phase,
+		Topic:     recipe.Topic,
+		Iteration: recipe.Iteration,
 	}
 
 	// Find in-progress task if in implementation phase
@@ -114,6 +131,19 @@ func BuildWorkState(root string) (*WorkState, error) {
 		}
 	}
 
+	// Extended enrichments — all best-effort
+	ws.NextAction = LoadAssessNextAction(root, recipe.ID)
+	ws.PendingFindings = pendingFindingsFromVerifyLog(root, recipe.ID)
+	ws.SubState = loadSubStateForRecipe(root, recipe)
+	if tail, _ := TailToolTrace(root, 8); len(tail) > 0 {
+		for _, e := range tail {
+			if e != nil {
+				ws.RecentTools = append(ws.RecentTools, *e)
+			}
+		}
+		ws.OpenFiles = openFilesFromTrace(tail)
+	}
+
 	// Build human-readable summary
 	ws.Summary = buildSummary(ws, recipe)
 
@@ -139,6 +169,20 @@ func buildSummary(ws *WorkState, recipe *RecipeState) string {
 		parts = append(parts, taskDesc+".")
 	}
 
+	// Sub-state (debate/simulate)
+	if ws.SubState != nil {
+		s := fmt.Sprintf("In %s", ws.SubState.Kind)
+		if ws.SubState.Position != "" {
+			s += ": " + ws.SubState.Position
+		}
+		parts = append(parts, s+".")
+	}
+
+	// Pending findings from verify loop
+	if ws.PendingFindings > 0 {
+		parts = append(parts, fmt.Sprintf("Pending findings: %d.", ws.PendingFindings))
+	}
+
 	// Last actions
 	if len(ws.LastActions) > 0 {
 		parts = append(parts, "Last: "+strings.Join(ws.LastActions, " → ")+".")
@@ -147,6 +191,21 @@ func buildSummary(ws *WorkState, recipe *RecipeState) string {
 	// Scope
 	if ws.ScopeStatus != "" {
 		parts = append(parts, "Scope: "+ws.ScopeStatus+".")
+	}
+
+	// Assess-driven next action
+	if ws.NextAction != "" {
+		parts = append(parts, "Next (assess): "+ws.NextAction+".")
+	}
+
+	// Most recent tool breadcrumb (1 entry)
+	if len(ws.RecentTools) > 0 {
+		last := ws.RecentTools[len(ws.RecentTools)-1]
+		detail := last.ToolName
+		if last.File != "" {
+			detail += "(" + last.File + ")"
+		}
+		parts = append(parts, "Last tool: "+detail+".")
 	}
 
 	return strings.Join(parts, " ")
@@ -189,4 +248,89 @@ func readLastChangelog(path string, n int) []string {
 		entries = entries[len(entries)-n:]
 	}
 	return entries
+}
+
+// LoadAssessNextAction reads .bts/specs/recipes/<id>/assess.json and returns
+// the recommended next_action string. Returns "" if missing or malformed.
+// The file is expected to be written by the bts-assess skill when it runs.
+// Exported so callers (SessionStart) can fetch a fresh value instead of
+// the possibly-stale one cached in work-state.
+func LoadAssessNextAction(root, recipeID string) string {
+	path := filepath.Join(RecipeDir(root, recipeID), "assess.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	var raw map[string]interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return ""
+	}
+	if s, ok := raw["next_action"].(string); ok {
+		return strings.TrimSpace(s)
+	}
+	return ""
+}
+
+// pendingFindingsFromVerifyLog reads the last entry of verify-log.jsonl and
+// returns critical+major. Returns 0 if no log or on parse failure.
+func pendingFindingsFromVerifyLog(root, recipeID string) int {
+	path := filepath.Join(RecipeDir(root, recipeID), "verify-log.jsonl")
+	f, err := os.Open(path)
+	if err != nil {
+		return 0
+	}
+	defer f.Close()
+
+	var lastLine string
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line != "" {
+			lastLine = line
+		}
+	}
+	if lastLine == "" {
+		return 0
+	}
+	var entry VerifyLogEntry
+	if err := json.Unmarshal([]byte(lastLine), &entry); err != nil {
+		return 0
+	}
+	if entry.Status == "converged" {
+		return 0
+	}
+	return entry.Critical + entry.Major
+}
+
+// loadSubStateForRecipe checks for an active debate or simulate state file
+// under the recipe directory and returns a summary pointer.
+//
+// The recipe phase gates which sub-state to consult, so a leftover
+// debate-state.json from an earlier phase does not pollute the hint once
+// the recipe has moved on (e.g., to implement). Skills should still clean
+// up their state files when done, but this filter is a safety net.
+func loadSubStateForRecipe(root string, recipe *RecipeState) *SubStateInfo {
+	if recipe == nil {
+		return nil
+	}
+	if recipe.Phase == "debate" {
+		if ds, _ := LoadDebateRound(root, recipe.ID); ds != nil {
+			pos := fmt.Sprintf("round %d/%d", ds.Round, ds.TotalRounds)
+			if ds.NextPersona != "" {
+				pos += ", next: " + ds.NextPersona
+			}
+			return &SubStateInfo{Kind: "debate", ID: ds.DebateID, Position: pos}
+		}
+	}
+	if recipe.Phase == "simulate" {
+		if ss, _ := LoadSimulateProgress(root, recipe.ID); ss != nil {
+			pos := fmt.Sprintf("scenario %d/%d", ss.ScenarioIdx, ss.TotalScenarios)
+			if ss.FoundGaps > 0 {
+				pos += fmt.Sprintf(", gaps: %d", ss.FoundGaps)
+			}
+			return &SubStateInfo{Kind: "simulate", ID: ss.SimulateID, Position: pos}
+		}
+	}
+	return nil
 }

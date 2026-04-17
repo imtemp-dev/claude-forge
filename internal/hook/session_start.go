@@ -32,9 +32,12 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 	// Auto-update templates if binary version changed
 	updated := autoUpdateTemplates(root)
 
-	// Try to load work state for rich context recovery
+	// Try to load work state for rich context recovery.
+	// ws may reference a recipe that has since been cancelled/deleted; we
+	// validate below after loading the actual active recipe and discard
+	// ws if it is stale so it never taints the recovery message.
 	ws, _ := state.LoadWorkState(root)
-	source := detectSource(input, ws)
+	source := detectSource(root, input, ws)
 
 	// Emit session_start metric (fire-and-forget)
 	metricsEvent := &metrics.MetricsEvent{
@@ -50,6 +53,18 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 		// Check for finalized recipes ready for implementation
 		recipe, err = state.GetFinalizedRecipe(root)
 		if err != nil || recipe == nil {
+			// No recipe at all — handle non-recipe post-compact recovery first
+			if source == "compact" {
+				if msg := buildNonRecipeCompactMsg(root, updated); msg != "" {
+					return &HookOutput{
+						HookSpecificOutput: &HookSpecificOutput{
+							HookEventName:     "SessionStart",
+							AdditionalContext: msg,
+						},
+					}, nil
+				}
+			}
+
 			// Check roadmap for next-item hint
 			done, total, nextItem := state.RoadmapProgress(root)
 			if total > 0 {
@@ -99,6 +114,12 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 		metricsEvent.RecipeID = recipe.ID
 		metricsEvent.Phase = recipe.Phase
 
+		// Discard ws if it points to a different recipe than the one we
+		// just found — otherwise ws.Summary would describe the wrong one.
+		if ws != nil && ws.RecipeID != recipe.ID {
+			ws = nil
+		}
+
 		msg := fmt.Sprintf(
 			"[bts] Recipe ready for implementation: %s \"%s\" (ID: %s)\nRun /bts-implement %s to start coding.",
 			recipe.Type, recipe.Topic, recipe.ID, recipe.ID,
@@ -124,24 +145,17 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 	metricsEvent.RecipeID = recipe.ID
 	metricsEvent.Phase = recipe.Phase
 
+	// Discard ws if it points to a different recipe than the active one —
+	// e.g. a previous recipe was cancelled and a new one started. The ws
+	// snapshot is frozen at PreCompact time and would otherwise show the
+	// old recipe's summary alongside the new recipe's hint.
+	if ws != nil && ws.RecipeID != recipe.ID {
+		ws = nil
+	}
+
 	// Build hint — actionable content only, no source prefix.
 	// All sources (startup, resume, compact) get the same hint quality.
-	var hint string
-	if recipe.Phase == "discovery" {
-		hint = fmt.Sprintf("Read .bts/specs/recipes/%s/intent.md and continue intent discovery.", recipe.ID)
-	} else if recipe.Phase == "scoping" {
-		hint = fmt.Sprintf("Read .bts/specs/recipes/%s/scope.md and confirm or adjust scope.", recipe.ID)
-	} else if next := nextStepHint(root, recipe); next != "" {
-		hint = next
-	} else if state.IsImplementPhase(recipe.Phase) {
-		implCmd := fmt.Sprintf("/bts-implement %s", recipe.ID)
-		if recipe.Type == "fix" {
-			implCmd = fmt.Sprintf("/bts-recipe-fix %s", recipe.ID)
-		}
-		hint = fmt.Sprintf("Run %s to continue.", implCmd)
-	} else {
-		hint = fmt.Sprintf("Run /bts-recipe-%s to re-enter the recipe, or /recipe cancel to abort.", recipe.Type)
-	}
+	hint := buildHint(root, recipe, ws)
 
 	// Build message — source prefix in msg, hint appended with NEXT:
 	var msg string
@@ -177,6 +191,88 @@ func (h *sessionStartHandler) Handle(input *HookInput) (*HookOutput, error) {
 			AdditionalContext: msg,
 		},
 	}, nil
+}
+
+// buildHint chooses the most actionable next-step description.
+// Priority: fresh assess.json → cached ws.NextAction → sub-state guidance → phase heuristics.
+func buildHint(root string, recipe *state.RecipeState, ws *state.WorkState) string {
+	// 1a. Re-read assess.json for freshness — it may have been updated
+	// after the PreCompact snapshot was taken.
+	if fresh := state.LoadAssessNextAction(root, recipe.ID); fresh != "" {
+		return fresh
+	}
+	// 1b. Fallback to cached value if somehow fresh read fails but ws had it.
+	if ws != nil && ws.NextAction != "" {
+		return ws.NextAction
+	}
+
+	// 2. Sub-state guidance (debate/simulate in progress)
+	if ws != nil && ws.SubState != nil {
+		switch ws.SubState.Kind {
+		case "debate":
+			return fmt.Sprintf("Resume debate (%s). Run /bts-debate to continue.", ws.SubState.Position)
+		case "simulate":
+			return fmt.Sprintf("Resume simulation (%s). Run /bts-simulate to continue.", ws.SubState.Position)
+		}
+	}
+
+	// 3. Phase-specific hints (existing logic)
+	if recipe.Phase == "discovery" {
+		return fmt.Sprintf("Read .bts/specs/recipes/%s/intent.md and continue intent discovery.", recipe.ID)
+	}
+	if recipe.Phase == "scoping" {
+		return fmt.Sprintf("Read .bts/specs/recipes/%s/scope.md and confirm or adjust scope.", recipe.ID)
+	}
+	if next := nextStepHint(root, recipe); next != "" {
+		return next
+	}
+	if state.IsImplementPhase(recipe.Phase) {
+		implCmd := fmt.Sprintf("/bts-implement %s", recipe.ID)
+		if recipe.Type == "fix" {
+			implCmd = fmt.Sprintf("/bts-recipe-fix %s", recipe.ID)
+		}
+		return fmt.Sprintf("Run %s to continue.", implCmd)
+	}
+	return fmt.Sprintf("Run /bts-recipe-%s to re-enter the recipe, or /recipe cancel to abort.", recipe.Type)
+}
+
+// buildNonRecipeCompactMsg returns a recovery message for compactions that
+// happened with no active or finalized recipe. Returns empty string if
+// there is nothing useful to say (falls through to the default branches).
+func buildNonRecipeCompactMsg(root string, templatesUpdated bool) string {
+	ss, err := state.LoadSessionState(root)
+	if err != nil || ss == nil {
+		return ""
+	}
+	if len(ss.RecentTools) == 0 && ss.PendingPlan == "" {
+		return ""
+	}
+	var b strings.Builder
+	if templatesUpdated {
+		b.WriteString(fmt.Sprintf("[bts] Templates updated to %s\n", version.GetTemplateVersion()))
+	}
+	b.WriteString("[bts] Context compacted (no active recipe).")
+	if len(ss.OpenFiles) > 0 {
+		b.WriteString("\nOpen files: ")
+		b.WriteString(strings.Join(ss.OpenFiles, ", "))
+		b.WriteString(".")
+	}
+	if len(ss.RecentTools) > 0 {
+		last := ss.RecentTools[len(ss.RecentTools)-1]
+		detail := last.ToolName
+		if last.File != "" {
+			detail += "(" + last.File + ")"
+		}
+		b.WriteString("\nLast tool: ")
+		b.WriteString(detail)
+		b.WriteString(".")
+	}
+	if ss.PendingPlan != "" {
+		b.WriteString("\nPending plan: ")
+		b.WriteString(ss.PendingPlan)
+	}
+	b.WriteString("\nContinue from where you were.")
+	return b.String()
 }
 
 // autoUpdateTemplates checks if templates need updating and deploys if so.
@@ -316,13 +412,21 @@ func nextStepHint(root string, recipe *state.RecipeState) string {
 }
 
 // detectSource determines the session source.
-func detectSource(input *HookInput, ws *state.WorkState) string {
+// Order: explicit input.Source → compact marker → SavedAt heuristic.
+func detectSource(root string, input *HookInput, ws *state.WorkState) string {
 	// Use explicit source if Claude Code provides it
 	if input.Source != "" {
 		return input.Source
 	}
 
-	// Infer from work state freshness
+	// Deterministic marker from PreCompact — consume it so we don't
+	// misidentify a subsequent startup as another compaction.
+	if m, err := state.ConsumeCompactMarker(root); err == nil && m != nil {
+		return "compact"
+	}
+
+	// Fallback heuristic for older Claude Code versions that didn't run
+	// PreCompact or that drop the source field.
 	if ws == nil {
 		return "startup"
 	}
@@ -339,4 +443,3 @@ func detectSource(input *HookInput, ws *state.WorkState) string {
 
 	return "resume"
 }
-

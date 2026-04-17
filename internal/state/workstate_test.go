@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func setupWorkStateRoot(t *testing.T) string {
@@ -204,5 +205,191 @@ func TestWorkStatePath(t *testing.T) {
 	want := filepath.Join("/project", ".bts", "local", "work-state.json")
 	if got != want {
 		t.Errorf("got %s, want %s", got, want)
+	}
+}
+
+func TestBuildWorkState_NextActionFromAssess(t *testing.T) {
+	root := setupWorkStateRoot(t)
+	recipeID := "r-5000"
+	saveTestRecipe(t, root, recipeID, "draft")
+
+	assessPath := filepath.Join(RecipeDir(root, recipeID), "assess.json")
+	payload := `{"next_action":"Add data flow diagram to section 3."}`
+	if err := os.WriteFile(assessPath, []byte(payload), 0644); err != nil {
+		t.Fatalf("seed assess: %v", err)
+	}
+
+	ws, err := BuildWorkState(root)
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	if ws.NextAction != "Add data flow diagram to section 3." {
+		t.Errorf("NextAction: %q", ws.NextAction)
+	}
+	if !strings.Contains(ws.Summary, "Next (assess):") {
+		t.Errorf("Summary missing assess hint: %s", ws.Summary)
+	}
+}
+
+func TestBuildWorkState_PendingFindings(t *testing.T) {
+	root := setupWorkStateRoot(t)
+	recipeID := "r-5100"
+	saveTestRecipe(t, root, recipeID, "verify")
+
+	logPath := filepath.Join(RecipeDir(root, recipeID), "verify-log.jsonl")
+	lines := `{"iteration":1,"critical":1,"major":2,"minor":0,"status":"continue"}` + "\n" +
+		`{"iteration":2,"critical":0,"major":3,"minor":1,"status":"continue"}` + "\n"
+	if err := os.WriteFile(logPath, []byte(lines), 0644); err != nil {
+		t.Fatalf("seed verify-log: %v", err)
+	}
+
+	ws, err := BuildWorkState(root)
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	if ws.PendingFindings != 3 {
+		t.Errorf("PendingFindings: got %d, want 3 (0 critical + 3 major)", ws.PendingFindings)
+	}
+}
+
+func TestBuildWorkState_PendingFindings_Converged(t *testing.T) {
+	root := setupWorkStateRoot(t)
+	recipeID := "r-5110"
+	saveTestRecipe(t, root, recipeID, "verify")
+
+	logPath := filepath.Join(RecipeDir(root, recipeID), "verify-log.jsonl")
+	line := `{"iteration":3,"critical":0,"major":0,"minor":1,"status":"converged"}` + "\n"
+	if err := os.WriteFile(logPath, []byte(line), 0644); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	ws, err := BuildWorkState(root)
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	if ws.PendingFindings != 0 {
+		t.Errorf("converged should yield 0, got %d", ws.PendingFindings)
+	}
+}
+
+func TestBuildWorkState_SubStateDebate(t *testing.T) {
+	root := setupWorkStateRoot(t)
+	recipeID := "r-5200"
+	saveTestRecipe(t, root, recipeID, "debate")
+
+	_ = SaveDebateRound(root, recipeID, &DebateRoundState{
+		DebateID:    "d-1",
+		Round:       2,
+		TotalRounds: 3,
+		NextPersona: "security",
+	})
+
+	ws, err := BuildWorkState(root)
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	if ws.SubState == nil {
+		t.Fatal("expected SubState")
+	}
+	if ws.SubState.Kind != "debate" || ws.SubState.ID != "d-1" {
+		t.Errorf("SubState: %+v", ws.SubState)
+	}
+	if !strings.Contains(ws.SubState.Position, "round 2/3") || !strings.Contains(ws.SubState.Position, "security") {
+		t.Errorf("Position: %q", ws.SubState.Position)
+	}
+	if !strings.Contains(ws.Summary, "In debate:") {
+		t.Errorf("Summary missing sub-state: %s", ws.Summary)
+	}
+}
+
+func TestBuildWorkState_SubStateIgnoredOutsidePhase(t *testing.T) {
+	// Leftover debate-state.json from an earlier phase should NOT surface
+	// once the recipe has moved on (e.g., to implement). Otherwise hints
+	// would wrongly say "Resume debate" during implementation.
+	root := setupWorkStateRoot(t)
+	recipeID := "r-5210"
+	saveTestRecipe(t, root, recipeID, "implement")
+
+	_ = SaveDebateRound(root, recipeID, &DebateRoundState{
+		DebateID: "d-stale", Round: 2, TotalRounds: 3, NextPersona: "security",
+	})
+
+	ws, err := BuildWorkState(root)
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	if ws.SubState != nil {
+		t.Errorf("SubState should be nil in implement phase, got %+v", ws.SubState)
+	}
+	if strings.Contains(ws.Summary, "In debate") {
+		t.Errorf("Summary should not mention debate: %s", ws.Summary)
+	}
+}
+
+func TestBuildWorkState_SubStateSimulate(t *testing.T) {
+	root := setupWorkStateRoot(t)
+	recipeID := "r-5220"
+	saveTestRecipe(t, root, recipeID, "simulate")
+
+	_ = SaveSimulateProgress(root, recipeID, &SimulateProgressState{
+		SimulateID: "s-1", ScenarioIdx: 3, TotalScenarios: 8, FoundGaps: 2,
+	})
+
+	ws, err := BuildWorkState(root)
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	if ws.SubState == nil {
+		t.Fatal("expected simulate SubState")
+	}
+	if ws.SubState.Kind != "simulate" {
+		t.Errorf("Kind: %s", ws.SubState.Kind)
+	}
+	if !strings.Contains(ws.SubState.Position, "scenario 3/8") {
+		t.Errorf("Position: %q", ws.SubState.Position)
+	}
+	if !strings.Contains(ws.SubState.Position, "gaps: 2") {
+		t.Errorf("gaps missing: %q", ws.SubState.Position)
+	}
+}
+
+func TestBuildWorkState_RecentTools(t *testing.T) {
+	root := setupWorkStateRoot(t)
+	recipeID := "r-5300"
+	saveTestRecipe(t, root, recipeID, "draft")
+
+	_ = AppendToolTrace(root, &ToolTraceEntry{Phase: "post", ToolName: "Read", File: "draft.md"})
+	_ = AppendToolTrace(root, &ToolTraceEntry{Phase: "post", ToolName: "Edit", File: "spec.md"})
+
+	ws, err := BuildWorkState(root)
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	if len(ws.RecentTools) != 2 {
+		t.Errorf("RecentTools: want 2, got %d", len(ws.RecentTools))
+	}
+	if len(ws.OpenFiles) != 2 {
+		t.Errorf("OpenFiles: want 2, got %v", ws.OpenFiles)
+	}
+	if !strings.Contains(ws.Summary, "Last tool: Edit(spec.md)") {
+		t.Errorf("Summary missing last tool: %s", ws.Summary)
+	}
+}
+
+func TestBuildWorkState_Iteration(t *testing.T) {
+	root := setupWorkStateRoot(t)
+	recipeID := "r-5400"
+	r := &RecipeState{
+		ID: recipeID, Type: "blueprint", Topic: "x", Phase: "verify", Iteration: 3,
+		StartedAt: time.Now().UTC().Format(time.RFC3339),
+	}
+	if err := SaveRecipeState(root, r); err != nil {
+		t.Fatalf("save recipe: %v", err)
+	}
+	ws, err := BuildWorkState(root)
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	if ws.Iteration != 3 {
+		t.Errorf("Iteration: got %d, want 3", ws.Iteration)
 	}
 }

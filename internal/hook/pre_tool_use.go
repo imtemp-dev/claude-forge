@@ -18,13 +18,16 @@ func (h *preToolUseHandler) EventType() EventType {
 }
 
 func (h *preToolUseHandler) Handle(input *HookInput) (*HookOutput, error) {
-	// Only care about Write and Edit tools
-	if input.ToolName != "Write" && input.ToolName != "Edit" {
+	root, err := state.FindRoot(input.CWD)
+	if err != nil {
 		return &HookOutput{}, nil
 	}
 
-	root, err := state.FindRoot(input.CWD)
-	if err != nil {
+	// Record a breadcrumb for any tracked tool — helps post-compact recovery.
+	appendToolTraceBreadcrumb(root, "pre", input)
+
+	// Spec-phase write protection: only care about Write and Edit tools
+	if input.ToolName != "Write" && input.ToolName != "Edit" {
 		return &HookOutput{}, nil
 	}
 
@@ -61,4 +64,54 @@ func (h *preToolUseHandler) Handle(input *HookInput) (*HookOutput, error) {
 			),
 		},
 	}, nil
+}
+
+// appendToolTraceBreadcrumb records a single tool-trace entry for a subset
+// of tools that carry meaningful "what I was doing" context. Failures are
+// silent — breadcrumbs are best-effort.
+func appendToolTraceBreadcrumb(root, phase string, input *HookInput) {
+	if !isTrackedTool(input.ToolName) {
+		return
+	}
+	entry := &state.ToolTraceEntry{
+		Phase:    phase,
+		ToolName: input.ToolName,
+	}
+	if fp, ok := input.ToolInput["file_path"].(string); ok && fp != "" {
+		entry.File = fp
+	} else if pat, ok := input.ToolInput["pattern"].(string); ok && pat != "" {
+		entry.File = pat
+	}
+	if cmd, ok := input.ToolInput["command"].(string); ok && cmd != "" {
+		if len(cmd) > 100 {
+			cmd = cmd[:100]
+		}
+		entry.Command = cmd
+	}
+	// Task delegation: capture subagent_type + short description so the
+	// breadcrumb is actually useful for post-compact recovery. Task's
+	// ToolInput has no file_path/command; without this the entry would
+	// be an uninformative bare "Task".
+	if input.ToolName == "Task" {
+		if st, ok := input.ToolInput["subagent_type"].(string); ok && st != "" {
+			entry.File = st
+		}
+		if desc, ok := input.ToolInput["description"].(string); ok && desc != "" {
+			if len(desc) > 100 {
+				desc = desc[:100]
+			}
+			entry.Summary = desc
+		}
+	}
+	_ = state.AppendToolTrace(root, entry)
+}
+
+// isTrackedTool returns true for tools whose invocation reveals user intent
+// worth replaying after compaction. Excludes noisy/trivial tools.
+func isTrackedTool(name string) bool {
+	switch name {
+	case "Read", "Edit", "Write", "Bash", "Grep", "Glob", "Task", "NotebookEdit":
+		return true
+	}
+	return false
 }
