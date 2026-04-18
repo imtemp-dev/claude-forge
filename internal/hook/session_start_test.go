@@ -1,7 +1,6 @@
 package hook
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -176,12 +175,6 @@ func TestSessionStart_StartupDoesNotConsumeMarker(t *testing.T) {
 	}
 	// With no active recipe and no roadmap/vision, output can be empty — that's fine.
 	_ = out
-}
-
-// Small helper: marshal any value to a string (for debug assertions).
-func jsonStr(v any) string {
-	b, _ := json.Marshal(v)
-	return string(b)
 }
 
 // TestSessionStart_StaleWorkStateIsDiscarded verifies that a work-state
