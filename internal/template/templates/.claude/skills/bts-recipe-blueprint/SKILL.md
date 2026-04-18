@@ -374,6 +374,18 @@ This keeps session-start hints accurate if session breaks mid-loop.
    Findings without citations (framework-silent, downgraded to MINOR) should
    be addressed with one concise acknowledgment line, not extensive
    rationalization.
+3b. **Minor handling split.** /verify and /audit tag minors as either
+   [resolvable] or [deferred]:
+   - [resolvable] minors → fix directly in draft.md, then re-verify normally.
+   - [deferred] minors → append to a "## Known Uncertainties" section at the
+     end of draft.md. Each entry: finding description + the `Why-deferred:`
+     observation copied verbatim from the verifier output. Do NOT run IMPROVE
+     or another /verify cycle for [deferred] minors — they are implementation
+     watch-items, not spec defects.
+   - Loop exit: when /verify shows ONLY [deferred] minors (no critical, no
+     major, no [resolvable] minors), do NOT call IMPROVE again. Proceed to
+     /sync-check → finalize. The deferred items carry into /bts-implement
+     as a watch-list.
 4. **/simulate early**: Run after the FIRST verify cycle that produces critical=0.
    Simulation catches scenario-level gaps (failure modes, race conditions, edge cases)
    that structural verification cannot find. Running it early prevents late-stage rework.

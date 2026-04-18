@@ -59,6 +59,16 @@ Assess the document and decide the next action.
    **If Level 3 criteria all met** → recommend `/sync-check` then finalize
    "Document appears complete. Run sync-check before finalizing."
 
+   **If only [deferred] minors remain** → recommend FINALIZE
+   Read verification.md — if every remaining finding is tagged
+   `MINOR [deferred]` (or no findings at all) with zero critical,
+   zero major, and zero resolvable minors, do NOT recommend IMPROVE.
+   The deferred items are runtime-observable uncertainties and belong
+   in the draft's "## Known Uncertainties" section (per blueprint rule 3b).
+   Recommendation: "Level 3 achieved with N runtime-deferred watch items.
+   Run /bts-sync-check, then finalize. Deferred items will be validated
+   during /bts-implement's test/simulate loop."
+
 5. Output your assessment:
    ```
    ## Assessment

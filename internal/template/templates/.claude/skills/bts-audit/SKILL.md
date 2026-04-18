@@ -85,18 +85,40 @@ If `agents.auditor` is explicitly set in `.bts/config/settings.yaml`, use that m
    Budget: evidence-gather only CRITICAL/MAJOR candidates, cap at 5 findings
    per run to keep iteration time bounded. Minor findings need no evidence.
 
+   **Minor sub-classification:**
+
+   Every MINOR finding must be tagged as either [resolvable] or [deferred]:
+   - MINOR [resolvable]: fixable in the spec itself — missing edge case
+     documentation, unspecified minor branches, incomplete error messages,
+     cross-reference gaps that do not block implementation.
+   - MINOR [deferred]: the missing information can only be produced at
+     implementation/runtime — device-specific behavior, actual measured
+     thresholds, empirical limits, framework-version-specific quirks.
+
+   Rule: if filling the gap requires executing the code (or observing it
+   on a physical device) to resolve, it is [deferred], not an IMPROVE
+   target. Every [deferred] minor MUST include a `Why-deferred:` line
+   naming the specific runtime observation that would resolve it.
+
+   CRITICAL and MAJOR are never [deferred] — if a gap would cause runtime
+   failure AND is unknowable pre-implementation, it stays MAJOR and the
+   spec must document the uncertainty as a defensive design decision.
+
    For each missing item, classify:
    - critical: Will cause runtime failure if not addressed
    - major: Important gap that should be filled before implementation
-   - minor: Nice to have but not blocking
+   - minor [resolvable]: Nice to have, fixable in the spec
+   - minor [deferred]: Nice to have, only confirmable at implementation/runtime
 
    Output findings as a numbered list with severity tags.
    For each finding also include (when applicable):
      Source: <URL> | <URL>
      Gathered: <Context7|WebFetch|WebSearch summary>
+     Why-deferred: <runtime observation that would resolve it>   (deferred only)
 
    Include: "Branch coverage: N/M decision branches specified (N%).
-   Evidence-resolved: X (removed Y, downgraded Z). Framework-claim findings: W."
+   Evidence-resolved: X (removed Y, downgraded Z). Framework-claim findings: W.
+   Minors: R resolvable, D deferred."
    ```
 
 3. Collect the auditor's findings

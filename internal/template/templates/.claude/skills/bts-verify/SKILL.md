@@ -84,20 +84,43 @@ If `agents.verifier` is explicitly set in `.bts/config/settings.yaml`, use that 
    Budget: evidence-gather only CRITICAL/MAJOR candidates, cap at 5 findings
    per run to keep iteration time bounded. Minor findings need no evidence.
 
+   **Minor sub-classification:**
+
+   Every MINOR finding must be tagged as either [resolvable] or [deferred]:
+   - MINOR [resolvable]: fixable in the spec itself — metadata, typos,
+     internal inconsistencies, cross-reference errors, unused declarations,
+     outdated level/version headers, misused terminology.
+   - MINOR [deferred]: can only be verified at implementation or runtime —
+     actual rendering outcomes, measured timing, real allocator behavior,
+     observable race windows on a specific device, framework-version-specific
+     edge cases that require running the code to confirm/deny.
+
+   Rule: if a finding requires executing the code (or observing it on a
+   physical device) to resolve, it is [deferred], not an IMPROVE target.
+   Every [deferred] minor MUST include a `Why-deferred:` line naming the
+   specific runtime observation that would confirm or deny the finding.
+
+   CRITICAL and MAJOR are never [deferred] — if something is unknowable
+   pre-implementation AND would cause failure, it stays MAJOR and the
+   spec must document the uncertainty as a defensive design decision.
+
    **Report format:**
    For each issue found, classify severity:
    - critical: Factually impossible, self-contradicting, or execution path leads to undefined behavior
    - major: Logically flawed, or important execution path not specified
-   - minor: Ambiguous or imprecise but not wrong
+   - minor [resolvable]: Ambiguous or imprecise but fixable in the spec
+   - minor [deferred]: Only resolvable at implementation/runtime
 
    Output your findings as a numbered list with severity tags.
    For each finding also include (when applicable):
      Source: <URL> | <URL>
      Gathered: <Context7|WebFetch|WebSearch summary>
+     Why-deferred: <runtime observation that would resolve it>   (deferred only)
 
    Summary line:
      Text issues: N. Flow path issues: N. Total paths analyzed: N.
      Evidence-resolved: X (removed Y, downgraded Z). Framework-claim findings: W.
+     Minors: R resolvable, D deferred.
    ```
 
 3. Collect the verifier's findings

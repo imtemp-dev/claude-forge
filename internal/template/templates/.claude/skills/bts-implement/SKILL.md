@@ -59,6 +59,13 @@ Use settings values if present, otherwise use defaults noted in each step.
    - Read project-map.md (at `.bts/specs/project-map.md`) for layer-specific
      build and test commands. When implementing files across multiple layers,
      use each layer's build command for verification (not a single global command).
+   - Read the "## Known Uncertainties" section of final.md (if present).
+     These are runtime-observable items deferred from spec verification — each
+     entry has a finding description and a `Why-deferred:` observation that
+     would confirm or deny it. Keep this list as an in-memory watch-list for
+     Steps 5 (Test), 5.3 (Simulate), and 5.5 (Review). Do NOT treat them as
+     implementation tasks; they are things to VALIDATE during normal test/
+     simulate/review, not things to build.
 
 ## Resume Protocol
 
@@ -259,6 +266,38 @@ If no actionable items → proceed directly to Step 6.
 bts recipe log {id} --action review --output review.md --result "N critical, N major (N actionable)"
 ```
 
+## Step 5.7: Resolve Known Uncertainties
+
+If final.md has a "## Known Uncertainties" section (loaded in Prerequisites
+Step 4), walk each entry now that tests, simulation, and review have all
+run. For each Uncertainty entry:
+
+1. Check whether the test suite, simulation walkthrough, or review
+   actually exercised the `Why-deferred:` observation.
+2. Classify each entry inline in final.md by appending ONE line:
+   - `Resolved: <observation>` — a test/simulate/review confirmed the
+     expected behavior. Reference the specific test name or simulation
+     scenario ID where possible.
+   - `Diverged: <observation>` — actual behavior differs from what the
+     spec assumed. The spec needs to be synced with reality in Step 6.
+   - `Still-unknown: <reason>` — none of the phases exercised this path
+     (e.g., requires a specific device, network condition, or user action
+     that the test suite does not simulate). Keep in the watch-list for
+     post-deploy validation.
+3. Do NOT delete entries. The Known Uncertainties section is a persistent
+   audit trail showing which runtime concerns were raised and how they
+   were addressed.
+
+Log:
+```bash
+bts recipe log {id} --action resolve-uncertainties --result "N resolved, N diverged, N still-unknown"
+```
+
+If any Diverged entries exist, Step 6 (Sync) will propagate the
+divergence into deviation.md automatically (sync already finds spec-code
+drift). No extra action needed here — just make sure the `Diverged:`
+line is committed to final.md before sync runs.
+
 ## Step 6: Sync
 
 Always run sync (even if deviation.md exists from a previous run — code may have
@@ -287,10 +326,14 @@ When all steps are done:
 - Verify no `blocked` tasks remain (all resolved or skipped)
 - Verify review.md exists (review has run)
 - Verify deviation.md exists (sync has run)
+- If final.md has a "## Known Uncertainties" section, confirm every entry
+  carries a `Resolved:`, `Diverged:`, or `Still-unknown:` line from Step 5.7.
 - Output `<bts>IMPLEMENT DONE</bts>`
 - Tell the user (plaintext, after the marker):
   > **Implementation complete** — `{id}` done.
   > Check `deviation.md` for any follow-up items.
+  > If final.md has Known Uncertainties with `Still-unknown:` entries,
+  > mention them here so the user knows what to watch post-deploy.
   > Next: run `/bts-recipe-blueprint` to start the next roadmap item, or `/bts-recipe-fix` for any bugs.
 
 If unresolved blocked tasks remain:
