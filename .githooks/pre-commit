@@ -8,6 +8,17 @@ go build ./...
 echo "pre-commit: go vet..."
 go vet ./...
 
+echo "pre-commit: golangci-lint..."
+LINT_BIN="$(go env GOPATH)/bin/golangci-lint"
+if [ -x "$LINT_BIN" ]; then
+  "$LINT_BIN" run ./...
+elif command -v golangci-lint >/dev/null 2>&1; then
+  golangci-lint run ./...
+else
+  echo "pre-commit: WARNING golangci-lint not installed — CI will still run it."
+  echo "  install with: brew install golangci-lint  (or)  go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"
+fi
+
 echo "pre-commit: go test..."
 go test -race ./...
 
