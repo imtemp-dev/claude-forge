@@ -366,14 +366,22 @@ This keeps session-start hints accurate if session breaks mid-loop.
    and ask the user for guidance. Check verify-log.jsonl iteration count.
 2. **Every debate conclusion → /adjudicate → if accepted → update draft → /verify.**
 3. **Every simulation gap found → update draft → /verify.**
-3a. **Citation discipline on IMPROVE.** When /verify findings include `Source:`
-   citations, the IMPROVE step copies the citation verbatim into draft.md
-   where the claim is made. Do NOT add speculative justification prose to
-   defend the claim — the citation is the justification. Extra prose expands
-   the claim surface that the next verify iteration must re-check.
-   Findings without citations (framework-silent, downgraded to MINOR) should
-   be addressed with one concise acknowledgment line, not extensive
-   rationalization.
+3a. **Prose-minimal IMPROVE — avoid amplification.** Each IMPROVE step
+   resolves findings with the MINIMAL text change required. Adding prose
+   around a fix expands the claim surface that the next /verify must
+   re-check, which is the loop pattern that drove r-012's 13-iteration
+   thrash.
+   - Finding includes `Source:` citation → copy the citation verbatim
+     into draft.md where the claim is made. The citation IS the
+     justification; do NOT add speculative defense prose.
+   - Finding has no citation (internal inconsistency, metadata error,
+     duplicate declaration, `[resolvable]` minor without external claim)
+     → fix in the smallest possible edit: one-line change or a strict
+     delete. Do NOT add explanatory prose around the fix. The fix IS
+     the resolution.
+   - Framework-silent finding downgraded to MINOR → one concise
+     acknowledgment line, not extensive rationalization.
+   - `[deferred]` minors are never IMPROVE targets (see rule 3b).
 3b. **Minor handling split.** /verify and /audit tag minors as either
    [resolvable] or [deferred]:
    - [resolvable] minors → fix directly in draft.md, then re-verify normally.

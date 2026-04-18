@@ -46,6 +46,10 @@ Assess the document and decide the next action.
 
    **If content needs to be added** → recommend IMPROVE
    "Add [specific items] to reach Level [N]. Then run /verify."
+   (Do NOT use this branch for `MINOR [deferred]` findings — those are
+   runtime-observable items, not missing spec content. If the only gaps
+   are [deferred] minors, skip to the "only [deferred] minors remain"
+   branch below and recommend FINALIZE instead.)
 
    **If contradictions are suspected** → recommend `/verify`
    "Check sections [X] and [Y] for consistency."

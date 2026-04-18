@@ -46,9 +46,13 @@ Use settings values if present, otherwise use defaults noted in each step.
      - test-results.json (pass) + simulations/ exists → Step 5.5 (review)
      - test-results.json (pass) → Step 5.3 (simulate)
      - otherwise → Step 5 (test)
-   - If phase is "review" → check review.md:
-     - review.md exists → Step 6 (sync)
-     - otherwise → Step 5.5 (review)
+   - If phase is "review" → check review.md and Known Uncertainties:
+     - review.md exists AND final.md has no "## Known Uncertainties" section
+       OR every Uncertainty entry already carries a `Resolved:` / `Diverged:`
+       / `Still-unknown:` line → Step 6 (sync)
+     - review.md exists AND at least one Uncertainty entry lacks a
+       resolution line → Step 5.7 (resolve uncertainties)
+     - review.md does not exist → Step 5.5 (review)
    - If phase is "sync" → Step 6
    - If phase is "status" → check completion requirements:
      - tasks done + test-results pass + review.md + deviation.md → skip to Completion
@@ -293,10 +297,12 @@ Log:
 bts recipe log {id} --action resolve-uncertainties --result "N resolved, N diverged, N still-unknown"
 ```
 
-If any Diverged entries exist, Step 6 (Sync) will propagate the
-divergence into deviation.md automatically (sync already finds spec-code
-drift). No extra action needed here — just make sure the `Diverged:`
-line is committed to final.md before sync runs.
+Diverged entries stay inline in final.md's Known Uncertainties section as
+documentation of what changed during implementation. `bts-sync` compares
+code against spec and generates deviation.md from code-vs-spec diff; it
+does NOT inspect Known Uncertainties entries. The Completion step below
+reports Diverged and Still-unknown counts so the user is alerted to both
+kinds of runtime findings even though deviation.md won't list them.
 
 ## Step 6: Sync
 
@@ -331,9 +337,13 @@ When all steps are done:
 - Output `<bts>IMPLEMENT DONE</bts>`
 - Tell the user (plaintext, after the marker):
   > **Implementation complete** — `{id}` done.
-  > Check `deviation.md` for any follow-up items.
-  > If final.md has Known Uncertainties with `Still-unknown:` entries,
-  > mention them here so the user knows what to watch post-deploy.
+  > Check `deviation.md` for any follow-up items (code-vs-spec drift).
+  > If final.md has a Known Uncertainties section, separately report:
+  >   - `Diverged:` entries — runtime behavior differs from spec assumption;
+  >     these do NOT appear in deviation.md (sync only handles code-vs-spec),
+  >     so call them out explicitly here.
+  >   - `Still-unknown:` entries — not exercised by tests/simulation/review;
+  >     watch for these post-deploy.
   > Next: run `/bts-recipe-blueprint` to start the next roadmap item, or `/bts-recipe-fix` for any bugs.
 
 If unresolved blocked tasks remain:
