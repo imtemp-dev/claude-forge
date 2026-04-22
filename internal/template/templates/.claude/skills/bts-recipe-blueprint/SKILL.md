@@ -291,51 +291,54 @@ or a fundamental shift in approach. Judge by intent, not by keywords.
 **Starting from scratch (no existing code):**
 1. /research — investigate technology, best practices, libraries.
    Research is scoped by `.bts/specs/recipes/{id}/scope.md`.
-2. /bts-wireframe — design high-level structure (component diagram, state machine, data flow, file structure, all execution paths). This creates `wireframe.md`.
-   > **Checkpoint**: After wireframe completes, continue IMMEDIATELY to step 3.
-   > Do NOT stop, summarize, or ask the user.
-3. Write initial draft (Level 1) referencing wireframe.md → **Draft Self-Check** → draft.md → /verify
-4. /assess → **execute** recommended action → loop runs autonomously until Level 3
+2. **/bts-domain-model — define entities, invariants (single owner),
+   state partitioning, and illegal state cells. Creates `domain.md`.
+   CANNOT skip — wireframe and architect gates require it.**
+   > **Checkpoint**: After domain-model completes, continue IMMEDIATELY.
+3. /bts-wireframe — design structure referencing `domain.md` entities.
+   Component responsibilities MUST honor the invariant owners declared
+   in domain.md § 2.
+   > **Checkpoint**: After wireframe completes, continue IMMEDIATELY.
+4. Write initial draft (Level 1) referencing wireframe.md + domain.md
+   → **Draft Self-Check** → draft.md → /verify
+5. /assess → **execute** recommended action → loop runs autonomously
+   until Level 3.
 
 **Starting with existing code:**
 1. /research — explore existing codebase, scoped by scope.md constraints.
-2. /bts-wireframe — design structure changes (what to add/modify, state transitions, data flow changes).
-   > **Checkpoint**: After wireframe completes, continue IMMEDIATELY to step 3.
-3. Write initial draft referencing wireframe.md → **Draft Self-Check** → draft.md → /verify
-4. /assess → **execute** recommended action → loop runs autonomously until Level 3
+2. **/bts-domain-model** — model the ADDED or CHANGED domain pieces.
+   If existing domain docs live in `.bts/specs/layers/{name}.md`, load
+   them and add only the delta for this recipe.
+3. /bts-wireframe — design structure changes honoring domain.md invariants.
+4. Write initial draft referencing wireframe.md + domain.md → **Draft
+   Self-Check** → draft.md → /verify.
+5. /assess → **execute** recommended action → loop runs autonomously
+   until Level 3.
 
 ### Draft Self-Check (before /verify)
 
-After writing a draft, run through this checklist BEFORE saving and running /verify.
-This catches obvious errors that would waste a verify cycle (~5 min each).
+The previous self-check duplicated logic already covered by other
+skills and broke `bts-verification-protocol.md`'s "never verify your
+own output in the same context" rule. It is now split by responsibility:
 
-Every function/method in the draft must pass:
-- [ ] **Defined**: Body is specified (no `...` or `pass` placeholders)
-- [ ] **Callable**: All functions it calls are also defined in the draft
-- [ ] **Importable**: All imports reference real packages (verified in research)
-- [ ] **Typed**: Parameters and return types are explicit, not inferred
-- [ ] **Connected**: Every function has at least one caller or is a public API entry
+- **Mechanical checks** run via `bts verify draft.md`:
+  - Wireframe path anchor matching (every `<!-- path-id: X -->` in
+    wireframe.md has a `<!-- path: wireframe.md#X -->` section in
+    draft.md, and vice versa) — `engine/wireframe_anchor_checker.go`
+  - File path / dependency declarations — existing consistency checker
+  - Level criteria coverage — existing level assessor
 
-Every file in the draft must pass:
-- [ ] **Path valid**: File path is consistent with project structure
-- [ ] **Dependencies listed**: All external packages in pyproject.toml / package.json / go.mod
+- **Semantic checks** stay in fork context (separate Claude instance):
+  - Contradiction detection, naming consistency, error-handling
+    uniformity → `/bts-verify`
+  - Completeness, missing cases, branch coverage → `/bts-audit`
+  - Behavioral gaps, cross-boundary scenarios → `/bts-simulate`
 
-Cross-section consistency:
-- [ ] **No contradictions**: Error handling strategy is the same across all sections
-- [ ] **Naming consistent**: Same concept uses same name everywhere
-- [ ] **Config matches usage**: Config fields defined match how they're accessed in code
+After saving draft.md, run `bts verify .bts/specs/recipes/{id}/draft.md`
+for the mechanical pass, then run `/bts-verify` for the semantic pass.
+Do NOT re-implement either set inline here.
 
-Mermaid flow coverage:
-- [ ] **State machine**: All system states and transitions are in a `stateDiagram-v2`
-- [ ] **No dead ends**: Every state has at least one exit transition
-- [ ] **Error paths**: Every error state has recovery or terminal path
-- [ ] **All paths enumerated**: Draft lists ALL execution paths with triggers and expected behavior
-- [ ] **Wireframe alignment**: Component structure matches `wireframe.md`
-
-If any check fails → fix it in the draft before saving. This is proofreading,
-not verification (which requires a separate context).
-
-Also apply this checklist after every IMPROVE step, before /verify.
+Also apply after every IMPROVE step, before the next /bts-verify run.
 
 ### ASSESS Decision Tree
 

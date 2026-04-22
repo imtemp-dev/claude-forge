@@ -360,6 +360,20 @@ func actionToDocType(action string) string {
 		return "deviation"
 	case "adjudicate":
 		return "verification"
+	case "domain-model":
+		return "domain"
+	case "wireframe":
+		return "wireframe"
+	case "architect":
+		return "architect-decision"
+	case "discover":
+		return "discover"
+	case "resolve-uncertainties":
+		return "verification"
+	case "review":
+		return "review"
+	case "finalize":
+		return "final"
 	default:
 		return action
 	}
@@ -395,9 +409,26 @@ func checkPhasePreConditions(root string, recipe *state.RecipeState, newPhase st
 			warn("project-map.md not found — scan codebase to create it")
 		}
 
+	case "wireframe":
+		// domain.md is a strict precondition for wireframe in blueprint/design
+		// recipes. See bts-recipe-blueprint § "Entering the Adaptive Loop".
+		// The intent: wireframe components must honor the invariant owners
+		// declared in domain.md, so domain.md must exist first.
+		if (recipe.Type == "blueprint" || recipe.Type == "design") && !exists("domain.md") && !force {
+			fmt.Fprintf(os.Stderr, "✗ domain.md not found — run /bts-domain-model before /bts-wireframe.\n")
+			fmt.Fprintf(os.Stderr, "  Use --force to override (e.g., for legacy recipes).\n")
+			return fmt.Errorf("domain.md required before phase 'wireframe'")
+		}
+
 	case "draft":
 		if recipe.Type == "blueprint" && !exists("wireframe.md") {
 			warn("wireframe.md not found — run /bts-wireframe to design structure first")
+		}
+		if (recipe.Type == "blueprint" || recipe.Type == "design") && !exists("domain.md") && !force {
+			// Same rationale as wireframe — draft references domain entities.
+			fmt.Fprintf(os.Stderr, "✗ domain.md not found — run /bts-domain-model before drafting.\n")
+			fmt.Fprintf(os.Stderr, "  Use --force to override (e.g., for legacy recipes).\n")
+			return fmt.Errorf("domain.md required before phase 'draft'")
 		}
 
 	case "implement":

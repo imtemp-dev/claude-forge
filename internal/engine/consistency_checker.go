@@ -108,7 +108,42 @@ func VerifyDocument(docPath string, projectRoot string) (*VerifyResult, error) {
 		checkCodeReferences(content, projectRoot, result)
 	}
 
+	// 4. Domain-specific structural checks.
+	// domain.md: every invariant must have exactly one owner (Phase 4.4).
+	base := filepath.Base(docPath)
+	if strings.EqualFold(base, "domain.md") {
+		appendIssues(result, CheckInvariantOwnership(docPath))
+	}
+
+	// 5. Wireframe anchor matching (Phase 3.3).
+	// draft.md: every wireframe path-id must have a corresponding
+	// `<!-- path: wireframe.md#id -->` anchor, and every draft anchor
+	// must resolve to a wireframe id. Enforced 1:1.
+	if strings.EqualFold(base, "draft.md") {
+		appendIssues(result, WireframeAnchorsForDraft(docPath))
+	}
+
 	return result, nil
+}
+
+// appendIssues merges issues into the VerifyResult, incrementing the
+// summary counters so the CLI exit code (which gates on critical/major)
+// reflects all checker outputs, not just consistency.
+func appendIssues(result *VerifyResult, issues []Issue) {
+	for _, issue := range issues {
+		result.Issues = append(result.Issues, issue)
+		switch issue.Severity {
+		case "critical":
+			result.Summary.Critical++
+		case "major":
+			result.Summary.Major++
+		case "minor":
+			result.Summary.Minor++
+		case "info":
+			result.Summary.Info++
+		}
+		result.Summary.Checked++
+	}
 }
 
 // assessLevel evaluates the document against level criteria checklists.

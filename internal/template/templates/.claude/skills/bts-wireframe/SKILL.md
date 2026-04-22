@@ -103,34 +103,54 @@ Rules:
 
 ## Step 5: Execution Path Enumeration
 
-**This is the key verification step.** List ALL execution paths from the state machine:
+**This is the key verification step.** List ALL execution paths from the
+state machine. **Each path MUST carry a stable anchor** so draft.md can
+reference it; the anchor lets `bts verify --check wireframe-anchors`
+detect paths that exist in the wireframe but are never specified in
+draft.md, and vice versa.
 
 ```markdown
 ### All Execution Paths
 
+<!-- path-id: path-1 -->
 1. **Happy path**: [*] → State1 → State2 → State1 (loop)
    - Triggers: normal request
    - Expected: process and return result
 
+<!-- path-id: path-2 -->
 2. **Error + recovery**: State2 → Error → State1
    - Triggers: processing failure
    - Expected: log error, clean up, return to ready state
 
+<!-- path-id: path-3 -->
 3. **Fatal error**: State2 → Error → [*]
    - Triggers: unrecoverable failure
    - Expected: log, notify, graceful shutdown
 
+<!-- path-id: path-4 -->
 4. **Timeout**: State2 → Error (after N seconds)
    - Triggers: no response within deadline
    - Expected: cancel operation, return timeout error
 
-(continue until ALL paths are enumerated)
+(continue until ALL paths are enumerated, each with a unique path-id)
 ```
+
+Rules for path-id:
+- Use lowercase kebab-case: `path-1`, `path-2`, … or semantic like
+  `path-happy`, `path-timeout`.
+- Each id MUST be unique within wireframe.md.
+- Once assigned, path-ids are stable — renaming breaks draft references
+  and forces re-verify.
 
 For each path, verify:
 - Is the trigger defined?
 - Is the expected behavior described?
 - Are side effects (logging, cleanup, notifications) specified?
+- Does the path-id appear exactly once in wireframe.md?
+
+draft.md will later reference these with
+`<!-- path: wireframe.md#path-N -->` headers on the sections that
+specify each path in detail. The anchor check enforces 1:1 coverage.
 
 ## Step 6: Save and Log
 

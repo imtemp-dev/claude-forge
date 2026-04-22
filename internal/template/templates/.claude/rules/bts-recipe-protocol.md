@@ -63,15 +63,27 @@ ASSESS → decide action → execute → VERIFY (mandatory) → ASSESS → ...
 
 ## Mandatory Rules
 
-1. **Check for resume first**: `bts recipe status` before starting any recipe.
-2. **Edit draft.md in place**: Use Edit tool for incremental modifications, not full rewrites.
-3. **VERIFY after every modification**: No exceptions. This includes post-debate and post-simulation fixes.
-4. **Log every action**: `bts recipe log {id}` after every step.
-5. **Simulate at least once**: Before declaring Level 3, run /simulate with 5+ scenarios.
-6. **Debate uncertain choices**: Don't guess. Use /debate for technology decisions.
-7. **Adjudicate every debate**: After /debate, ALWAYS run /adjudicate to evaluate the conclusion. Never accept a debate result without adjudication.
-8. **Sync-check before finalizing**: All debates reflected, all gaps resolved, all drafts verified.
-9. **Run /bts-status at finalization**: Every recipe calls bts-status before completion to update roadmap, project-status, and project-map.
+Each rule below carries a `{gate: ...}` tag indicating how it is enforced.
+- `hard` — a deterministic mechanism (stop hook, validator, CLI gate) blocks
+  progress when violated. Listed in `engine/gate_registry.go`.
+- `invariant` — a domain-level check fails and surfaces as a critical
+  finding in `bts verify`.
+- `practice` — a heuristic. Not machine-enforced; violations are surfaced
+  as major/minor findings but do not block completion.
+
+When context or time is tight, `hard` gates MUST be upheld first;
+`practice` items are negotiable.
+
+1. **Check for resume first**: `bts recipe status` before starting any recipe. {gate: practice}
+2. **Edit draft.md in place**: Use Edit tool for incremental modifications, not full rewrites. {gate: practice}
+3. **VERIFY after every modification**: No exceptions. This includes post-debate and post-simulation fixes. {gate: hard}
+4. **Log every action**: `bts recipe log {id}` after every step. {gate: hard}
+5. **Simulate at least once**: Before declaring Level 3, run /simulate with 5+ scenarios. {gate: hard}
+6. **Debate uncertain choices**: Don't guess. Use /debate for technology decisions. {gate: practice}
+7. **Adjudicate every debate**: After /debate, ALWAYS run /adjudicate to evaluate the conclusion. Never accept a debate result without adjudication. {gate: hard}
+8. **Sync-check before finalizing**: All debates reflected, all gaps resolved, all drafts verified. {gate: hard}
+9. **Run /bts-status at finalization**: Every recipe calls bts-status before completion to update roadmap, project-status, and project-map. {gate: hard}
+10. **Domain model precedes wireframe** (blueprint/design types): `domain.md` must exist and pass the invariant-owner check before `/bts-wireframe` runs. {gate: invariant}
 
 ## Human Intervention
 
