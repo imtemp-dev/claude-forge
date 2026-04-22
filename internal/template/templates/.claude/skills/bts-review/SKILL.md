@@ -2,11 +2,11 @@
 name: bts-review
 description: >
   Multi-perspective code review with quality, security, and architecture agents.
-  Basic review (all perspectives) by default, or focused review with category.
-  Includes practical assessment of findings.
+  Basic review (all perspectives) by default, focused review with category,
+  or lightweight mid-run checkpoint during implementation.
 user-invocable: true
 allowed-tools: Read Grep Glob Bash Agent AskUserQuestion
-argument-hint: "[security|performance|patterns] [file-path]"
+argument-hint: "[security|performance|patterns|--mid-run {window}] [file-path]"
 effort: high
 ---
 
@@ -23,9 +23,17 @@ Security review uses sonnet (pattern-based). Override any agent model via `.bts/
 ## Step 1: Determine Review Mode
 
 Parse $ARGUMENTS:
-- If first word is `security`, `performance`, or `patterns` → **focused mode**
-  Remaining words = file scope (or all if empty)
-- Otherwise → **full mode** (all perspectives), arguments = file scope
+- If first word is `--mid-run` → **mid-run mode** (Phase 11).
+  The second argument is a window like `t-006..t-010` — review ONLY the
+  files those tasks touched, plus the files they import. Architecture
+  perspective only; quality + security agents are skipped. Adversarial
+  Round 2 (rebuttal) is skipped to keep mid-run cost bounded.
+  Output goes to `.bts/specs/recipes/{id}/reviews/midrun-{timestamp}.md`,
+  NOT to `review.md` — the terminal review (no --mid-run) still runs
+  once at implementation completion.
+- If first word is `security`, `performance`, or `patterns` → **focused mode**.
+  Remaining words = file scope (or all if empty).
+- Otherwise → **full mode** (all perspectives), arguments = file scope.
 
 ## Step 2: Identify Scope and Context
 
@@ -251,3 +259,40 @@ bts recipe log {id} --action review --output review.md --result "N critical, N m
 
 Review is a **mandatory step** in implement and fix flows.
 Critical/major consensus items should be fixed before proceeding.
+
+## Mid-Run Mode (Phase 11)
+
+When invoked as `/bts-review --mid-run {window}`:
+
+1. Parse `{window}` — `t-006..t-010` means tasks t-006 through t-010
+   inclusive. Single id (`t-007`) also accepted.
+2. Load the recipe's tasks.json. Collect:
+   - The files listed in those tasks.
+   - The files those tasks import (one hop deep via
+     `bts graph --import --recipe {id}`).
+   - Any per-task `structure_findings` already recorded by Phase 10's
+     MINI-CHECK — include them verbatim as pre-existing findings so the
+     reviewer can corroborate or dismiss.
+3. Skip the security + quality agents (architecture only).
+4. Skip the adversarial rebuttal round — mid-run is cheap on purpose.
+   Adversarial validator round 1 (defense) still runs to dismiss
+   obviously-wrong findings.
+5. Write the output to:
+   `.bts/specs/recipes/{id}/reviews/midrun-{ISO8601}.md`
+   NOT to `review.md`. The terminal review at /bts-implement Step 5.5
+   still runs once at the end with all perspectives + full adversarial.
+6. Interpret findings severity for the implement loop:
+   - critical → flip the offending task(s) back to `pending` with
+     `last_error: "midrun_critical: {short}"` so the loop retries with
+     this context.
+   - major   → append to the task's `structure_findings`. Surface in
+     the final review later.
+   - minor   → log only.
+7. Log the invocation:
+   ```bash
+   bts recipe log {id} --action midrun-review --output reviews/midrun-<ts>.md --result "N critical, N major, N dismissed"
+   ```
+
+The mid-run review exists to catch structural drift before it spreads
+across many tasks. Run it every `settings.implement.midrun_review_every`
+tasks (see bts-implement SKILL.md Step 3).

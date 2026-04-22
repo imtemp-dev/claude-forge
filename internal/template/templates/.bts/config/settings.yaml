@@ -24,6 +24,7 @@ simulate:
 implement:
   max_build_retries: 5           # 5 attempts: enough to try different approaches, not enough to spin
   max_test_iterations: 5         # Same rationale — if 5 fix cycles don't resolve it, human help needed
+  midrun_review_every: 5         # Run a lightweight structural review every N tasks. 0 disables.
 
 # Fix recipe
 fix:

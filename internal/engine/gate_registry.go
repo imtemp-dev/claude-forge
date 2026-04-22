@@ -136,4 +136,10 @@ var InvariantGates = []HardGate{
 		Enforcement: "internal/engine/domain_checker.go:CheckInvariantOwnership",
 		Summary:     "Every invariant in domain.md §2 must have exactly one owner; duplicates raise critical",
 	},
+	{
+		ID:          "midrun_review_scheduled",
+		Rule:        "bts-implement/SKILL.md §Step 3 MID-RUN REVIEW + settings.implement.midrun_review_every",
+		Enforcement: "bts-implement/SKILL.md orchestrator (advisory — not hook-blocked)",
+		Summary:     "Implementations above the configured task threshold should produce at least one reviews/midrun-*.md; monitored in Phase 17",
+	},
 }

@@ -45,18 +45,31 @@ type TaskState struct {
 // symbols outside this list raise `scope_violation` at `bts verify`
 // time.
 type Task struct {
-	ID           string   `json:"id"`
-	File         string   `json:"file"`
-	Action       string   `json:"action"`      // create, modify, delete
-	Status       string   `json:"status"`      // pending, in_progress, done, blocked, skipped
-	Description  string   `json:"description"`
-	Anchor       string   `json:"anchor,omitempty"` // "path action" — matches <!-- task-anchor: path action -->
-	ModifyScope  []string `json:"modify_scope,omitempty"` // required when Action=="modify"
-	PreImageSha  string   `json:"pre_image_sha,omitempty"` // sha256 of file before IMPLEMENT
-	PostImageSha string   `json:"post_image_sha,omitempty"` // sha256 after VERIFY build pass
-	DependsOn    []string `json:"depends_on,omitempty"`
-	RetryCount   int      `json:"retry_count,omitempty"` // persisted build retry count
-	LastError    string   `json:"last_error,omitempty"`  // last build error for stagnation detection
+	ID                string             `json:"id"`
+	File              string             `json:"file"`
+	Action            string             `json:"action"`      // create, modify, delete
+	Status            string             `json:"status"`      // pending, in_progress, done, blocked, skipped
+	Description       string             `json:"description"`
+	Anchor            string             `json:"anchor,omitempty"` // "path action" — matches <!-- task-anchor: path action -->
+	ModifyScope       []string           `json:"modify_scope,omitempty"` // required when Action=="modify"
+	PreImageSha       string             `json:"pre_image_sha,omitempty"` // sha256 of file before IMPLEMENT
+	PostImageSha      string             `json:"post_image_sha,omitempty"` // sha256 after VERIFY build pass
+	StructureFindings []StructureFinding `json:"structure_findings,omitempty"` // per-task mini-check results (Phase 10)
+	DependsOn         []string           `json:"depends_on,omitempty"`
+	RetryCount        int                `json:"retry_count,omitempty"` // persisted build retry count
+	LastError         string             `json:"last_error,omitempty"`  // last build error for stagnation detection
+}
+
+// StructureFinding records one per-task structural issue surfaced by
+// Phase 10's MINI-CHECK. Categories: import_drift, symbol_missing,
+// owner_drift. Severity stays below the task-blocking threshold
+// (major/minor) unless the category is a hard invariant breach
+// (critical).
+type StructureFinding struct {
+	TaskID   string `json:"task_id"`
+	Category string `json:"category"` // import_drift | symbol_missing | owner_drift
+	Severity string `json:"severity"` // critical | major | minor
+	Detail   string `json:"detail"`
 }
 
 // TestResults represents the test-results.json file.

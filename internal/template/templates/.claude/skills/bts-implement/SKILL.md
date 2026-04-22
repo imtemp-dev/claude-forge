@@ -216,7 +216,46 @@ Run the project's build command:
 **If build passes:**
 - Update task status to `done`, clear `last_error`
 - Update tasks.json `updated_at`
-- Move to next task
+
+**MINI-CHECK (Phase 10)** — run before moving to next task:
+
+```bash
+bts check task --recipe {id} --task {task-id} --write
+```
+
+Interpret results:
+  - 0 findings → continue to next task.
+  - severity=major (e.g. import_drift) → persist via `--write` so the
+    mid-run review (Step 5.5 / Phase 11) and final review can cite
+    them. Do NOT flip the task to blocked — majors are advisory.
+  - severity=critical (e.g. symbol_missing, owner_drift) → flip the
+    task back to `pending` with `last_error: "structure_critical: {detail}"`.
+    These indicate spec-vs-code drift big enough to warrant rework.
+  - `bts check task` exits 2 on critical, so shells checking `$?`
+    see the failure.
+
+- Move to next task.
+
+**MID-RUN REVIEW (Phase 11)** — after each task transition, check the
+mid-run cadence:
+
+```
+completed_since_last_midrun += 1
+if settings.implement.midrun_review_every > 0 AND
+   completed_since_last_midrun >= settings.implement.midrun_review_every:
+    window = "{first-task-in-window}..{just-completed-task}"
+    Use Skill("bts-review") with arguments: "--mid-run {window}"
+    Read the resulting reviews/midrun-*.md. For each AGREED finding:
+      - critical → flip task(s) back to pending with last_error
+                   "midrun_critical: {short}" and restart the loop for
+                   that window.
+      - major    → append to per-task structure_findings.
+      - minor    → log only.
+    completed_since_last_midrun = 0
+```
+
+The counter resets after each mid-run run. When `midrun_review_every=0`
+the entire block is skipped; the terminal Step 5.5 review still runs.
 
 **Crash safety**: tasks.json is the source of truth for implementation progress.
 It is written to disk (via Write tool) after every task status change. If the session
