@@ -501,7 +501,7 @@ func validateTasksJSON(path string) []ValidationError {
 
 		if action, ok := taskMap["action"].(string); ok {
 			if !validActions[action] {
-				errs = append(errs, ValidationError{File: "tasks.json", Field: fmt.Sprintf("tasks[%d].action", i), Message: fmt.Sprintf("invalid value '%s', must be create/modify", action)})
+				errs = append(errs, ValidationError{File: "tasks.json", Field: fmt.Sprintf("tasks[%d].action", i), Message: fmt.Sprintf("invalid value '%s', must be create/modify/delete", action)})
 			}
 		}
 
@@ -509,6 +509,34 @@ func validateTasksJSON(path string) []ValidationError {
 			if !validStatuses[status] {
 				errs = append(errs, ValidationError{File: "tasks.json", Field: fmt.Sprintf("tasks[%d].status", i), Message: fmt.Sprintf("invalid value '%s', must be pending/in_progress/done/blocked/skipped", status)})
 			}
+		}
+	}
+
+	// Phase 9: anchor contract — tasks.json ↔ final.md 1:1.
+	// Only runs when tasks.json lives inside a recipe directory that
+	// also has final.md. Missing final.md is silently skipped so that
+	// loose test fixtures (e.g. standalone tasks.json) validate.
+	finalPath := filepath.Join(filepath.Dir(path), "final.md")
+	if _, err := os.Stat(finalPath); err == nil {
+		for _, issue := range CheckTaskAnchors(finalPath, path) {
+			errs = append(errs, ValidationError{
+				File:    "tasks.json → final.md",
+				Field:   issue.Category,
+				Message: issue.Claim + " — " + issue.Detail,
+			})
+		}
+
+		// Phase 14: modify scope. Runs after anchor check so missing
+		// anchors are reported there first; modify scope adds the
+		// scope=/ModifyScope consistency layer. projectRoot is passed
+		// as "" to skip the scope_symbol_missing filesystem check in
+		// static validation — the stop hook wires the real root later.
+		for _, issue := range CheckModifyScope(finalPath, path, "") {
+			errs = append(errs, ValidationError{
+				File:    "tasks.json → final.md",
+				Field:   issue.Category,
+				Message: issue.Claim + " — " + issue.Detail,
+			})
 		}
 	}
 

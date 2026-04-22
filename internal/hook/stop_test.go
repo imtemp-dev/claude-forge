@@ -117,3 +117,107 @@ func TestStopSpecDone_LegacyMinorFieldBlocks(t *testing.T) {
 		t.Fatalf("legacy Minor=3 must block; got decision=%q", out.Decision)
 	}
 }
+
+// setupImplementRoot prepares a recipe directory with the four artifacts
+// that handleImplementDone checks unconditionally. Tests then add or omit
+// final.md Known Uncertainties to exercise Phase 8's new gate.
+func setupImplementRoot(t *testing.T) (root, recipeID string) {
+	t.Helper()
+	root = t.TempDir()
+	recipeID = "r-001-impl"
+	recipeDir := filepath.Join(root, ".bts", "specs", "recipes", recipeID)
+	if err := os.MkdirAll(recipeDir, 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, ".bts", "local"), 0755); err != nil {
+		t.Fatalf("mkdir local: %v", err)
+	}
+	configDir := filepath.Join(root, ".bts", "config")
+	_ = os.MkdirAll(configDir, 0755)
+	_ = os.WriteFile(filepath.Join(configDir, ".template-version"), []byte("test"), 0644)
+	t.Setenv("HOME", t.TempDir())
+
+	recipe := &state.RecipeState{ID: recipeID, Type: "blueprint", Phase: "implement"}
+	if err := state.SaveRecipeState(root, recipe); err != nil {
+		t.Fatalf("save recipe: %v", err)
+	}
+
+	// tasks.json — one done task keeps handleImplementDone past the
+	// blocked/pending gate.
+	tasks := &state.TaskState{RecipeID: recipeID, Tasks: []state.Task{
+		{ID: "t-001", File: "src/a.go", Action: "create", Status: "done", Description: "x"},
+	}}
+	data, _ := json.MarshalIndent(tasks, "", "  ")
+	_ = os.WriteFile(filepath.Join(recipeDir, "tasks.json"), data, 0644)
+
+	// test-results.json — pass.
+	tr := &state.TestResults{RecipeID: recipeID, Status: "pass", Total: 1, Passed: 1}
+	data, _ = json.MarshalIndent(tr, "", "  ")
+	_ = os.WriteFile(filepath.Join(recipeDir, "test-results.json"), data, 0644)
+
+	// review.md + deviation.md — presence only (content not inspected).
+	_ = os.WriteFile(filepath.Join(recipeDir, "review.md"), []byte("stub"), 0644)
+	_ = os.WriteFile(filepath.Join(recipeDir, "deviation.md"), []byte("stub"), 0644)
+	return root, recipeID
+}
+
+// Phase 8 gate: missing resolution marker on a Known Uncertainty entry
+// must block IMPLEMENT DONE and cite the offending U-NNN id.
+func TestStopImplementDone_BlocksOnUnresolvedUncertainty(t *testing.T) {
+	root, recipeID := setupImplementRoot(t)
+	final := `# Spec
+
+## Known Uncertainties
+
+### U-001: no resolution marker here
+Why-deferred: needs a physical device to verify.
+`
+	_ = os.WriteFile(filepath.Join(state.RecipeDir(root, recipeID), "final.md"), []byte(final), 0644)
+
+	h := NewStopHandler()
+	out, err := h.Handle(&HookInput{CWD: root, StopHookContent: "<bts>IMPLEMENT DONE</bts>"})
+	if err != nil {
+		t.Fatalf("handle: %v", err)
+	}
+	if out.Decision != "block" {
+		t.Fatalf("expected block, got decision=%q", out.Decision)
+	}
+	if !strings.Contains(out.Reason, "U-001") {
+		t.Errorf("reason should cite U-001, got %q", out.Reason)
+	}
+}
+
+// Resolved uncertainty → gate passes.
+func TestStopImplementDone_AllowsResolvedUncertainty(t *testing.T) {
+	root, recipeID := setupImplementRoot(t)
+	final := `## Known Uncertainties
+
+### U-001: example
+Resolved: verified via integration test T-042.
+`
+	_ = os.WriteFile(filepath.Join(state.RecipeDir(root, recipeID), "final.md"), []byte(final), 0644)
+
+	h := NewStopHandler()
+	out, err := h.Handle(&HookInput{CWD: root, StopHookContent: "<bts>IMPLEMENT DONE</bts>"})
+	if err != nil {
+		t.Fatalf("handle: %v", err)
+	}
+	if out.Decision == "block" {
+		t.Fatalf("resolved uncertainty should not block: %s", out.Reason)
+	}
+}
+
+// No Known Uncertainties section → gate passes (tracking is optional).
+func TestStopImplementDone_NoUncertaintySectionPasses(t *testing.T) {
+	root, recipeID := setupImplementRoot(t)
+	_ = os.WriteFile(filepath.Join(state.RecipeDir(root, recipeID), "final.md"), []byte("# Spec\n\nNo uncertainties here.\n"), 0644)
+
+	h := NewStopHandler()
+	out, err := h.Handle(&HookInput{CWD: root, StopHookContent: "<bts>IMPLEMENT DONE</bts>"})
+	if err != nil {
+		t.Fatalf("handle: %v", err)
+	}
+	if out.Decision == "block" {
+		t.Fatalf("absent uncertainty section should not block: %s", out.Reason)
+	}
+}

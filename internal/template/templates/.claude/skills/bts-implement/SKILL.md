@@ -75,8 +75,14 @@ Use settings values if present, otherwise use defaults noted in each step.
 
 If tasks.json exists in the recipe directory:
 
-1. **Stale check**: Compare tasks.json `updated_at` with final.md modification time.
-   If final.md is newer → use AskUserQuestion:
+1. **Anchor staleness** (Phase 9): run `bts validate`. If `task_anchor`
+   errors (missing_anchor / orphan_anchor / duplicate_anchor /
+   action_mismatch) appear, the final.md anchors have diverged from
+   tasks.json either direction — re-decompose. This check runs first
+   because mtime-based detection misses cases where both files were
+   updated but drifted.
+2. **Mtime staleness**: compare tasks.json `updated_at` with final.md
+   modification time. If final.md is newer → use AskUserQuestion:
    - "Re-decompose tasks from updated spec" → go to Step 1 (fresh decomposition)
    - "Resume with existing tasks" → resume below
 
@@ -95,7 +101,20 @@ If tasks.json exists in the recipe directory:
 1. Read `.bts/specs/recipes/{id}/final.md`
 2. Extract file-level tasks: each file to create or modify becomes a task
 3. Determine dependency order (shared types first, then modules, then integration)
-4. Save task list to `.bts/specs/recipes/{id}/tasks.json`:
+4. **Anchor every decomposition** (Phase 9 contract): for each task you
+   intend to add, locate the spec block in final.md that describes that
+   file and insert an HTML comment immediately above the heading:
+   ```
+   <!-- task-anchor: {file} {action} -->
+   ### `{file}`
+   ```
+   If the anchor is already present, reuse it. If the spec block does
+   not exist yet, EDIT final.md to add the block and the anchor together.
+   Every Task MUST carry an `"anchor": "{file} {action}"` field matching
+   its comment verbatim. `bts verify` enforces a 1:1 mapping — a missing
+   anchor in final.md or tasks.json is a critical finding.
+
+5. Save task list to `.bts/specs/recipes/{id}/tasks.json`:
    ```json
    {
      "recipe_id": "{id}",
@@ -108,6 +127,7 @@ If tasks.json exists in the recipe directory:
          "action": "create",
          "status": "pending",
          "description": "Auth type definitions — see final.md Section 3.1",
+         "anchor": "src/auth/types.ts create",
          "depends_on": [],
          "retry_count": 0,
          "last_error": ""
@@ -162,7 +182,17 @@ auto-skip it with status `"skipped"` and last_error `"dependency blocked: {id}"`
 ### IMPLEMENT
 - Write the code exactly as specified in final.md
 - Follow function signatures, types, error handling from the spec
-- Preserve existing code when modifying files
+- **Modify scope (Phase 14)**: when `task.action == "modify"`, touch
+  ONLY the symbols listed in `task.modify_scope` (the same list that
+  the final.md anchor carries after `scope=`). Adding, removing, or
+  renaming any other symbol in the same file is a scope violation.
+  If a required change exceeds scope:
+    1. Stop work on the task.
+    2. Mark it `blocked` with `last_error: "scope_expansion: needs {new_symbols}"`.
+    3. Defer to the user — either widen the anchor's `scope=` list in
+       final.md (and mirror it in `task.modify_scope`) or split the
+       task into two. Do not silently widen scope.
+- For other actions, preserve unrelated code when modifying existing files.
 
 ### VERIFY
 Run the project's build command:
@@ -180,7 +210,7 @@ Run the project's build command:
    If the error message is substantially the same as the previous attempt →
    try a fundamentally different approach (different algorithm, different API, etc.)
    Do NOT repeat the same fix.
-3. Rebuild (check `retry_count` < `implement.max_build_retries` from settings, default: 5)
+3. Rebuild (check `retry_count` < `settings.implement.max_build_retries` — authoritative source is `.bts/config/settings.yaml`; do NOT hardcode a default here)
 4. If retry_count reaches the limit → mark task as `blocked`, save error, move to next task
 
 **If build passes:**

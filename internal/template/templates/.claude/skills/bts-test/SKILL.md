@@ -84,7 +84,7 @@ On resume (Steps 1-2 skipped), this step is also skipped.
 
 Track failure history for oscillation detection.
 
-Repeat the following (max `implement.max_test_iterations` from settings, default: 5):
+Repeat the following (max `settings.implement.max_test_iterations` — authoritative source is `.bts/config/settings.yaml`; do NOT hardcode a default here):
 
 ### RUN
 Execute the test suite:

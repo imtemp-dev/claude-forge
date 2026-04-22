@@ -1,0 +1,172 @@
+package engine
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func writeFinalAndTasks(t *testing.T, finalBody, tasksBody string) (finalPath, tasksPath string) {
+	t.Helper()
+	dir := t.TempDir()
+	finalPath = filepath.Join(dir, "final.md")
+	tasksPath = filepath.Join(dir, "tasks.json")
+	if err := os.WriteFile(finalPath, []byte(finalBody), 0644); err != nil {
+		t.Fatalf("write final: %v", err)
+	}
+	if err := os.WriteFile(tasksPath, []byte(tasksBody), 0644); err != nil {
+		t.Fatalf("write tasks: %v", err)
+	}
+	return finalPath, tasksPath
+}
+
+// Happy path: anchors in final.md 1:1 match Task.Anchor in tasks.json.
+func TestCheckTaskAnchors_OneToOne(t *testing.T) {
+	finalMd := `## Components
+
+<!-- task-anchor: src/auth/oauth.ts create -->
+### src/auth/oauth.ts
+
+<!-- task-anchor: src/app.ts modify -->
+### src/app.ts
+`
+	tasksJson := `{
+  "recipe_id": "r-1",
+  "tasks": [
+    {"id": "t-001", "file": "src/auth/oauth.ts", "action": "create", "status": "done", "description": "x", "anchor": "src/auth/oauth.ts create"},
+    {"id": "t-002", "file": "src/app.ts", "action": "modify", "status": "done", "description": "y", "anchor": "src/app.ts modify"}
+  ]
+}`
+	finalPath, tasksPath := writeFinalAndTasks(t, finalMd, tasksJson)
+	issues := CheckTaskAnchors(finalPath, tasksPath)
+	if len(issues) != 0 {
+		t.Fatalf("expected 0 issues, got %d: %v", len(issues), issues)
+	}
+}
+
+// tasks.json has a task with no matching anchor in final.md → critical.
+func TestCheckTaskAnchors_MissingAnchor(t *testing.T) {
+	finalMd := `<!-- task-anchor: src/a.ts create -->`
+	tasksJson := `{
+  "recipe_id": "r-1",
+  "tasks": [
+    {"id": "t-001", "file": "src/a.ts", "action": "create", "status": "done", "description": "x", "anchor": "src/a.ts create"},
+    {"id": "t-002", "file": "src/b.ts", "action": "create", "status": "done", "description": "y", "anchor": "src/b.ts create"}
+  ]
+}`
+	finalPath, tasksPath := writeFinalAndTasks(t, finalMd, tasksJson)
+	issues := CheckTaskAnchors(finalPath, tasksPath)
+	if len(issues) != 1 {
+		t.Fatalf("expected 1 issue, got %d: %v", len(issues), issues)
+	}
+	if issues[0].Severity != "critical" {
+		t.Errorf("want critical, got %s", issues[0].Severity)
+	}
+	if !strings.Contains(issues[0].Claim, "missing_anchor: src/b.ts create") {
+		t.Errorf("wrong claim: %s", issues[0].Claim)
+	}
+}
+
+// final.md has an anchor with no matching task → critical orphan.
+func TestCheckTaskAnchors_OrphanAnchor(t *testing.T) {
+	finalMd := `<!-- task-anchor: src/a.ts create -->
+<!-- task-anchor: src/ghost.ts create -->`
+	tasksJson := `{
+  "recipe_id": "r-1",
+  "tasks": [
+    {"id": "t-001", "file": "src/a.ts", "action": "create", "status": "done", "description": "x", "anchor": "src/a.ts create"}
+  ]
+}`
+	finalPath, tasksPath := writeFinalAndTasks(t, finalMd, tasksJson)
+	issues := CheckTaskAnchors(finalPath, tasksPath)
+	if len(issues) != 1 {
+		t.Fatalf("expected 1 issue, got %d", len(issues))
+	}
+	if !strings.Contains(issues[0].Claim, "orphan_anchor: src/ghost.ts create") {
+		t.Errorf("wrong claim: %s", issues[0].Claim)
+	}
+}
+
+func TestCheckTaskAnchors_DuplicateAnchor(t *testing.T) {
+	finalMd := `<!-- task-anchor: src/a.ts create -->
+<!-- task-anchor: src/a.ts create -->`
+	tasksJson := `{
+  "recipe_id": "r-1",
+  "tasks": [
+    {"id": "t-001", "file": "src/a.ts", "action": "create", "status": "done", "description": "x", "anchor": "src/a.ts create"}
+  ]
+}`
+	finalPath, tasksPath := writeFinalAndTasks(t, finalMd, tasksJson)
+	issues := CheckTaskAnchors(finalPath, tasksPath)
+	if len(issues) != 1 {
+		t.Fatalf("expected 1 duplicate, got %d", len(issues))
+	}
+	if issues[0].Severity != "major" || !strings.Contains(issues[0].Claim, "duplicate_anchor") {
+		t.Errorf("unexpected: %+v", issues[0])
+	}
+}
+
+func TestCheckTaskAnchors_ActionMismatch(t *testing.T) {
+	finalMd := `<!-- task-anchor: src/a.ts modify -->`
+	tasksJson := `{
+  "recipe_id": "r-1",
+  "tasks": [
+    {"id": "t-001", "file": "src/a.ts", "action": "modify", "status": "done", "description": "x", "anchor": "src/a.ts create"}
+  ]
+}`
+	finalPath, tasksPath := writeFinalAndTasks(t, finalMd, tasksJson)
+	issues := CheckTaskAnchors(finalPath, tasksPath)
+
+	// Expect: action_mismatch (anchor claims create but task is modify) AND
+	// missing_anchor (anchor "src/a.ts create" doesn't exist in final.md).
+	// Validator reports both so the user sees the whole picture.
+	var gotMismatch, gotMissing bool
+	for _, i := range issues {
+		if strings.Contains(i.Claim, "action_mismatch") {
+			gotMismatch = true
+		}
+		if strings.Contains(i.Claim, "missing_anchor") {
+			gotMissing = true
+		}
+	}
+	if !gotMismatch || !gotMissing {
+		t.Fatalf("want mismatch+missing, got %+v", issues)
+	}
+}
+
+// Legacy recipes have Task.Anchor empty. The checker falls back to
+// File+Action so migration can happen lazily.
+func TestCheckTaskAnchors_LegacyAnchorEmpty(t *testing.T) {
+	finalMd := `<!-- task-anchor: src/a.ts create -->`
+	tasksJson := `{
+  "recipe_id": "r-1",
+  "tasks": [
+    {"id": "t-001", "file": "src/a.ts", "action": "create", "status": "done", "description": "x"}
+  ]
+}`
+	finalPath, tasksPath := writeFinalAndTasks(t, finalMd, tasksJson)
+	issues := CheckTaskAnchors(finalPath, tasksPath)
+	if len(issues) != 0 {
+		t.Fatalf("legacy empty-anchor task should match via File+Action, got %v", issues)
+	}
+}
+
+// Empty or malformed anchor grammar should be ignored by the parser
+// rather than silently matching something surprising.
+func TestCheckTaskAnchors_MalformedAnchorIgnored(t *testing.T) {
+	finalMd := `<!-- task-anchor -->
+<!-- task-anchor: just-a-path -->
+<!-- task-anchor: src/ok.ts create -->`
+	tasksJson := `{
+  "recipe_id": "r-1",
+  "tasks": [
+    {"id": "t-001", "file": "src/ok.ts", "action": "create", "status": "done", "description": "x", "anchor": "src/ok.ts create"}
+  ]
+}`
+	finalPath, tasksPath := writeFinalAndTasks(t, finalMd, tasksJson)
+	issues := CheckTaskAnchors(finalPath, tasksPath)
+	if len(issues) != 0 {
+		t.Fatalf("malformed anchors should be ignored, got %v", issues)
+	}
+}

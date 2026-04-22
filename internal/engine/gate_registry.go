@@ -94,6 +94,30 @@ var HardGates = []HardGate{
 		Enforcement: "internal/engine/validator.go:validateTasksJSON",
 		Summary:     "tasks.json schema validated; status enum forces the state machine",
 	},
+	{
+		ID:          "uncertainties_resolved",
+		Rule:        "bts-implement/SKILL.md §Step 5.7 + §Completion",
+		Enforcement: "internal/hook/stop.go:handleImplementDone",
+		Summary:     "IMPLEMENT DONE blocked unless every `## Known Uncertainties` entry carries Resolved:/Diverged:/Still-unknown:",
+	},
+	{
+		ID:          "task_anchor_coverage",
+		Rule:        "bts-implement/SKILL.md §Step 1 + bts-schema.md tasks.json",
+		Enforcement: "internal/engine/task_anchor_checker.go:CheckTaskAnchors",
+		Summary:     "tasks.json and final.md must share a 1:1 `<!-- task-anchor: path action -->` ↔ Task.anchor mapping",
+	},
+	{
+		ID:          "modify_scope_declared",
+		Rule:        "bts-implement/SKILL.md §Step 3 IMPLEMENT (Phase 14)",
+		Enforcement: "internal/engine/task_anchor_checker.go:CheckModifyScope",
+		Summary:     "Action=modify tasks must declare ModifyScope and the final.md anchor must carry a matching scope= suffix",
+	},
+	{
+		ID:          "modify_scope_respected",
+		Rule:        "bts-implement/SKILL.md §Step 3 IMPLEMENT (Phase 14)",
+		Enforcement: "internal/hook/stop.go:handleImplementDone (via CheckModifyScope with projectRoot)",
+		Summary:     "IMPLEMENT DONE blocked when declared scope symbols do not exist in the target file",
+	},
 }
 
 // InvariantGates lists domain-level checks enforced via `bts verify`.

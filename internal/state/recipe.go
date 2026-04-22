@@ -32,15 +32,31 @@ type TaskState struct {
 }
 
 // Task represents a single implementation task.
+//
+// Anchor carries the exact `<!-- task-anchor: {file} {action} -->` string
+// minus the HTML comment wrapper — i.e. the "path action" body. Phase 9
+// requires every Task to reference an anchor declared in final.md and
+// `bts verify` enforces the 1:1 mapping (CheckTaskAnchors).
+//
+// ModifyScope (Phase 14) is required when Action=="modify": the list of
+// symbol names the task is authorized to touch. The anchor comment
+// records the same list after a `scope=` suffix (e.g.
+// `<!-- task-anchor: foo.ts modify scope=a,b -->`). Changes that reach
+// symbols outside this list raise `scope_violation` at `bts verify`
+// time.
 type Task struct {
-	ID          string   `json:"id"`
-	File        string   `json:"file"`
-	Action      string   `json:"action"`      // create, modify
-	Status      string   `json:"status"`      // pending, in_progress, done, blocked, skipped
-	Description string   `json:"description"`
-	DependsOn   []string `json:"depends_on,omitempty"`
-	RetryCount  int      `json:"retry_count,omitempty"` // persisted build retry count
-	LastError   string   `json:"last_error,omitempty"`  // last build error for stagnation detection
+	ID           string   `json:"id"`
+	File         string   `json:"file"`
+	Action       string   `json:"action"`      // create, modify, delete
+	Status       string   `json:"status"`      // pending, in_progress, done, blocked, skipped
+	Description  string   `json:"description"`
+	Anchor       string   `json:"anchor,omitempty"` // "path action" — matches <!-- task-anchor: path action -->
+	ModifyScope  []string `json:"modify_scope,omitempty"` // required when Action=="modify"
+	PreImageSha  string   `json:"pre_image_sha,omitempty"` // sha256 of file before IMPLEMENT
+	PostImageSha string   `json:"post_image_sha,omitempty"` // sha256 after VERIFY build pass
+	DependsOn    []string `json:"depends_on,omitempty"`
+	RetryCount   int      `json:"retry_count,omitempty"` // persisted build retry count
+	LastError    string   `json:"last_error,omitempty"`  // last build error for stagnation detection
 }
 
 // TestResults represents the test-results.json file.

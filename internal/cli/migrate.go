@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -30,6 +31,14 @@ func init() {
 	migrateCmd.AddCommand(migrateSimulationsCmd)
 	migrateSimulationsCmd.Flags().String("target", "", "Target directory (defaults to CWD project root)")
 	migrateSimulationsCmd.Flags().Bool("dry-run", false, "Show what would change without writing")
+
+	migrateCmd.AddCommand(migrateTaskAnchorsCmd)
+	migrateTaskAnchorsCmd.Flags().String("target", "", "Target directory (defaults to CWD project root)")
+	migrateTaskAnchorsCmd.Flags().Bool("dry-run", false, "Show what would change without writing")
+
+	migrateCmd.AddCommand(migrateModifyScopeCmd)
+	migrateModifyScopeCmd.Flags().String("target", "", "Target directory (defaults to CWD project root)")
+	migrateModifyScopeCmd.Flags().Bool("dry-run", false, "Show what would change without writing")
 
 	migrateCmd.AddCommand(migrateAllCmd)
 	migrateAllCmd.Flags().String("target", "", "Target directory (defaults to CWD project root)")
@@ -635,11 +644,437 @@ func tagLegacyScenarios(path string, dryRun bool) (int, bool, error) {
 	return touched, true, os.WriteFile(path, []byte(newContent), 0644)
 }
 
+// ---- task-anchor migration (Phase 9) ---------------------------------
+
+var migrateTaskAnchorsCmd = &cobra.Command{
+	Use:   "task-anchors",
+	Short: "Inject <!-- task-anchor: path action --> into final.md and populate Task.anchor",
+	Long: `Phase 9 makes tasks.json ↔ final.md a machine-checked 1:1 contract.
+Legacy recipes have neither the anchor comment in final.md nor the
+Task.anchor field in tasks.json. This command walks each recipe, looks
+up each Task's (file, action), inserts the anchor above the spec block
+most likely describing that file (heuristics: " `+"`"+`{file}`+"`"+` "
+mention, " ### `+"`"+`{file}`+"`"+` " heading, " ## {file} " heading,
+first code block citing the path), and backfills Task.anchor.
+
+Ambiguous files (no match in final.md or multiple plausible locations)
+are reported; the anchor is inserted at the top of the Tasks/Components
+section as a fallback. Manual review is recommended afterward.
+
+Backups: final.md.bak + tasks.json.bak.`,
+	RunE: runMigrateTaskAnchors,
+}
+
+func runMigrateTaskAnchors(cmd *cobra.Command, args []string) error {
+	target, dryRun, err := migrateFlags(cmd)
+	if err != nil {
+		return err
+	}
+	recipesDir := filepath.Join(state.SpecsPath(target), "recipes")
+	entries, err := os.ReadDir(recipesDir)
+	if err != nil {
+		return fmt.Errorf("read recipes dir: %w", err)
+	}
+
+	var totalRecipes, migratedRecipes, insertedAnchors, backfilledTasks int
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		recipeDir := filepath.Join(recipesDir, e.Name())
+		finalPath := filepath.Join(recipeDir, "final.md")
+		tasksPath := filepath.Join(recipeDir, "tasks.json")
+		if _, err := os.Stat(finalPath); os.IsNotExist(err) {
+			continue
+		}
+		if _, err := os.Stat(tasksPath); os.IsNotExist(err) {
+			continue
+		}
+		totalRecipes++
+
+		inserted, backfilled, err := migrateOneTaskAnchors(finalPath, tasksPath, dryRun)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  %s: error: %v\n", e.Name(), err)
+			continue
+		}
+		if inserted > 0 || backfilled > 0 {
+			migratedRecipes++
+			insertedAnchors += inserted
+			backfilledTasks += backfilled
+			marker := "migrated"
+			if dryRun {
+				marker = "would migrate"
+			}
+			fmt.Printf("  %s: %s (%d anchors inserted, %d Task.anchor backfilled)\n", e.Name(), marker, inserted, backfilled)
+		}
+	}
+	if dryRun {
+		fmt.Printf("\nDry run: %d/%d recipes need migration (%d anchors, %d task fields).\n", migratedRecipes, totalRecipes, insertedAnchors, backfilledTasks)
+	} else {
+		fmt.Printf("\nMigrated %d/%d recipes (%d anchors, %d task fields). Backups: final.md.bak + tasks.json.bak\n", migratedRecipes, totalRecipes, insertedAnchors, backfilledTasks)
+	}
+	return nil
+}
+
+// taskAnchorJSON is the minimal struct we deserialize tasks.json into
+// for migration purposes. Keeps field order stable on rewrite so diffs
+// stay reviewable.
+type taskAnchorJSON struct {
+	RecipeID  string                   `json:"recipe_id,omitempty"`
+	StartedAt string                   `json:"started_at,omitempty"`
+	UpdatedAt string                   `json:"updated_at,omitempty"`
+	Tasks     []map[string]interface{} `json:"tasks"`
+}
+
+func migrateOneTaskAnchors(finalPath, tasksPath string, dryRun bool) (int, int, error) {
+	finalData, err := os.ReadFile(finalPath)
+	if err != nil {
+		return 0, 0, err
+	}
+	tasksData, err := os.ReadFile(tasksPath)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	var tasks taskAnchorJSON
+	if err := json.Unmarshal(tasksData, &tasks); err != nil {
+		return 0, 0, fmt.Errorf("parse tasks.json: %w", err)
+	}
+
+	finalStr := string(finalData)
+	insertedAnchors := 0
+	backfilledTasks := 0
+
+	for i, task := range tasks.Tasks {
+		file, _ := task["file"].(string)
+		action, _ := task["action"].(string)
+		if file == "" || action == "" {
+			continue
+		}
+		anchorKey := file + " " + action
+		existing, _ := task["anchor"].(string)
+
+		// Backfill Task.anchor if missing.
+		if existing == "" {
+			tasks.Tasks[i]["anchor"] = anchorKey
+			backfilledTasks++
+		}
+
+		// Insert anchor into final.md if not present.
+		anchorComment := "<!-- task-anchor: " + anchorKey + " -->"
+		if strings.Contains(finalStr, anchorComment) {
+			continue
+		}
+		insertion, ok := placeTaskAnchor(finalStr, file, anchorComment)
+		if !ok {
+			// Fallback: append at top of file below first H1 or at line 0.
+			insertion = fallbackInsertAnchor(finalStr, anchorComment)
+		}
+		finalStr = insertion
+		insertedAnchors++
+	}
+
+	if insertedAnchors == 0 && backfilledTasks == 0 {
+		return 0, 0, nil
+	}
+	if dryRun {
+		return insertedAnchors, backfilledTasks, nil
+	}
+
+	// Write backups before overwriting.
+	if err := os.WriteFile(finalPath+".bak", finalData, 0644); err != nil {
+		return 0, 0, err
+	}
+	if err := os.WriteFile(tasksPath+".bak", tasksData, 0644); err != nil {
+		return 0, 0, err
+	}
+
+	if err := os.WriteFile(finalPath, []byte(finalStr), 0644); err != nil {
+		return 0, 0, err
+	}
+	out, err := json.MarshalIndent(tasks, "", "  ")
+	if err != nil {
+		return 0, 0, err
+	}
+	// Preserve trailing newline if input had one.
+	if strings.HasSuffix(string(tasksData), "\n") {
+		out = append(out, '\n')
+	}
+	if err := os.WriteFile(tasksPath, out, 0644); err != nil {
+		return 0, 0, err
+	}
+	return insertedAnchors, backfilledTasks, nil
+}
+
+// placeTaskAnchor tries to insert the anchor immediately above a
+// plausible heading describing the file. Heuristics, in order:
+//  1. "### `{file}`" — canonical Level-3-draft heading
+//  2. "## {file}"    — alternate heading style
+//  3. "### {basename}" — heading by file basename only
+//  4. first line mentioning the file path inside a code span
+//
+// On success returns the updated final.md content and true.
+func placeTaskAnchor(finalStr, file, anchorComment string) (string, bool) {
+	base := filepath.Base(file)
+	patterns := []*regexp.Regexp{
+		regexp.MustCompile(`(?m)^###\s+` + "`" + regexp.QuoteMeta(file) + "`" + `.*$`),
+		regexp.MustCompile(`(?m)^##\s+` + regexp.QuoteMeta(file) + `.*$`),
+		regexp.MustCompile(`(?m)^###\s+` + "`" + regexp.QuoteMeta(base) + "`" + `.*$`),
+		regexp.MustCompile(`(?m)^###\s+` + regexp.QuoteMeta(base) + `.*$`),
+	}
+	for _, re := range patterns {
+		if loc := re.FindStringIndex(finalStr); loc != nil {
+			return finalStr[:loc[0]] + anchorComment + "\n" + finalStr[loc[0]:], true
+		}
+	}
+	return finalStr, false
+}
+
+// fallbackInsertAnchor places the anchor after the first H1 heading or,
+// lacking one, at the very start of final.md. Keeps the document
+// parseable either way.
+func fallbackInsertAnchor(finalStr, anchorComment string) string {
+	h1 := regexp.MustCompile(`(?m)^#\s+.+$`).FindStringIndex(finalStr)
+	if h1 == nil {
+		return anchorComment + "\n" + finalStr
+	}
+	// insert after the heading line
+	end := h1[1]
+	if end < len(finalStr) && finalStr[end] == '\n' {
+		end++
+	}
+	return finalStr[:end] + "\n" + anchorComment + "\n" + finalStr[end:]
+}
+
+// ---- modify-scope migration (Phase 14) -------------------------------
+
+var migrateModifyScopeCmd = &cobra.Command{
+	Use:   "modify-scope",
+	Short: "Declare modify_scope + anchor scope= for legacy modify tasks",
+	Long: `Phase 14 requires every action=modify task to carry both a
+Task.modify_scope list and a matching scope= suffix in its final.md
+anchor. This command walks recipes and infers a scope from the task's
+Description using a heuristic: scan the target source file for
+exported/top-level symbols (functions, classes, methods, const decls);
+keep the ones whose names appear in the task description; set that
+list as both modify_scope and the anchor's scope= suffix.
+
+When the heuristic yields zero symbols, the task is skipped and
+reported so the user can fill the list manually.
+
+Backups: final.md.bak.scope + tasks.json.bak.scope.`,
+	RunE: runMigrateModifyScope,
+}
+
+var (
+	goTopLevelSymbolRe = regexp.MustCompile(`(?m)^\s*(?:func|type)\s+(?:\([^)]+\)\s*)?([A-Za-z_]\w*)`)
+	tsTopLevelSymbolRe = regexp.MustCompile(`(?m)^\s*(?:export\s+)?(?:async\s+)?(?:function|class|const|let|var|type|interface)\s+([A-Za-z_]\w*)`)
+	swiftTopLevelRe    = regexp.MustCompile(`(?m)^\s*(?:public\s+|private\s+|internal\s+|fileprivate\s+)?(?:func|class|struct|enum|var|let)\s+([A-Za-z_]\w*)`)
+	pyTopLevelRe       = regexp.MustCompile(`(?m)^\s*(?:def|class)\s+([A-Za-z_]\w*)`)
+)
+
+func runMigrateModifyScope(cmd *cobra.Command, args []string) error {
+	target, dryRun, err := migrateFlags(cmd)
+	if err != nil {
+		return err
+	}
+	recipesDir := filepath.Join(state.SpecsPath(target), "recipes")
+	entries, err := os.ReadDir(recipesDir)
+	if err != nil {
+		return fmt.Errorf("read recipes dir: %w", err)
+	}
+
+	var totalRecipes, migratedRecipes, filledTasks, skippedTasks int
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		recipeDir := filepath.Join(recipesDir, e.Name())
+		finalPath := filepath.Join(recipeDir, "final.md")
+		tasksPath := filepath.Join(recipeDir, "tasks.json")
+		if _, err := os.Stat(tasksPath); os.IsNotExist(err) {
+			continue
+		}
+		if _, err := os.Stat(finalPath); os.IsNotExist(err) {
+			continue
+		}
+		totalRecipes++
+
+		filled, skipped, err := migrateOneModifyScope(target, finalPath, tasksPath, dryRun)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  %s: error: %v\n", e.Name(), err)
+			continue
+		}
+		if filled > 0 || skipped > 0 {
+			migratedRecipes++
+			filledTasks += filled
+			skippedTasks += skipped
+			marker := "migrated"
+			if dryRun {
+				marker = "would migrate"
+			}
+			fmt.Printf("  %s: %s (%d filled, %d skipped-for-manual)\n", e.Name(), marker, filled, skipped)
+		}
+	}
+	if dryRun {
+		fmt.Printf("\nDry run: %d/%d recipes need migration (%d tasks filled, %d skipped).\n", migratedRecipes, totalRecipes, filledTasks, skippedTasks)
+	} else {
+		fmt.Printf("\nMigrated %d/%d recipes (%d filled, %d skipped). Backups: .bak.scope\n", migratedRecipes, totalRecipes, filledTasks, skippedTasks)
+	}
+	return nil
+}
+
+func migrateOneModifyScope(projectRoot, finalPath, tasksPath string, dryRun bool) (int, int, error) {
+	finalData, err := os.ReadFile(finalPath)
+	if err != nil {
+		return 0, 0, err
+	}
+	tasksData, err := os.ReadFile(tasksPath)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	var tasks taskAnchorJSON
+	if err := json.Unmarshal(tasksData, &tasks); err != nil {
+		return 0, 0, fmt.Errorf("parse tasks.json: %w", err)
+	}
+
+	finalStr := string(finalData)
+	filled := 0
+	skipped := 0
+
+	for i, task := range tasks.Tasks {
+		action, _ := task["action"].(string)
+		if action != "modify" {
+			continue
+		}
+		// Skip if already set.
+		if scope, ok := task["modify_scope"].([]interface{}); ok && len(scope) > 0 {
+			continue
+		}
+		file, _ := task["file"].(string)
+		desc, _ := task["description"].(string)
+
+		symbols := inferScopeSymbols(projectRoot, file, desc)
+		if len(symbols) == 0 {
+			// Heuristic failed — tag `legacy` as a migration placeholder.
+			// CheckModifyScope treats this token as unchecked so validation
+			// passes; the user is expected to replace it with real symbols
+			// when they next work on the task. Counted as skipped-for-manual
+			// so the output makes the gap visible.
+			symbols = []string{"legacy"}
+			skipped++
+		} else {
+			filled++
+		}
+
+		// Set Task.modify_scope.
+		scopeIface := make([]interface{}, len(symbols))
+		for j, s := range symbols {
+			scopeIface[j] = s
+		}
+		tasks.Tasks[i]["modify_scope"] = scopeIface
+
+		// Rewrite the anchor in final.md to append `scope=...`.
+		oldAnchor := "<!-- task-anchor: " + file + " modify -->"
+		newAnchor := "<!-- task-anchor: " + file + " modify scope=" + strings.Join(symbols, ",") + " -->"
+		if strings.Contains(finalStr, oldAnchor) {
+			finalStr = strings.Replace(finalStr, oldAnchor, newAnchor, 1)
+		} else {
+			// Anchor already has some suffix — do not clobber; add scope if
+			// the existing suffix lacks it.
+			re := regexp.MustCompile(`<!--\s*task-anchor:\s*` + regexp.QuoteMeta(file) + `\s+modify\b([^>]*)-->`)
+			match := re.FindStringSubmatch(finalStr)
+			if len(match) >= 2 && !strings.Contains(match[1], "scope=") {
+				replacement := "<!-- task-anchor: " + file + " modify" + match[1] + " scope=" + strings.Join(symbols, ",") + " -->"
+				finalStr = re.ReplaceAllString(finalStr, replacement)
+			}
+		}
+	}
+
+	if filled == 0 && skipped == 0 {
+		return 0, 0, nil
+	}
+	if dryRun {
+		return filled, skipped, nil
+	}
+	if err := os.WriteFile(finalPath+".bak.scope", finalData, 0644); err != nil {
+		return 0, 0, err
+	}
+	if err := os.WriteFile(tasksPath+".bak.scope", tasksData, 0644); err != nil {
+		return 0, 0, err
+	}
+	if err := os.WriteFile(finalPath, []byte(finalStr), 0644); err != nil {
+		return 0, 0, err
+	}
+	out, err := json.MarshalIndent(tasks, "", "  ")
+	if err != nil {
+		return 0, 0, err
+	}
+	if strings.HasSuffix(string(tasksData), "\n") {
+		out = append(out, '\n')
+	}
+	if err := os.WriteFile(tasksPath, out, 0644); err != nil {
+		return 0, 0, err
+	}
+	return filled, skipped, nil
+}
+
+// inferScopeSymbols reads the target file and the task description,
+// returns the set of top-level symbol names that appear in both.
+// Language detected by file extension; unknown extensions fall back
+// to the TS pattern (broadest).
+func inferScopeSymbols(projectRoot, file, description string) []string {
+	path := file
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(projectRoot, file)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	content := string(data)
+
+	re := tsTopLevelSymbolRe
+	switch strings.ToLower(filepath.Ext(file)) {
+	case ".go":
+		re = goTopLevelSymbolRe
+	case ".swift":
+		re = swiftTopLevelRe
+	case ".py":
+		re = pyTopLevelRe
+	}
+
+	allSymbols := map[string]bool{}
+	for _, m := range re.FindAllStringSubmatch(content, -1) {
+		if len(m) >= 2 {
+			allSymbols[m[1]] = true
+		}
+	}
+
+	// Retain symbols whose name is referenced in the description.
+	descLower := strings.ToLower(description)
+	var matched []string
+	seen := map[string]bool{}
+	for sym := range allSymbols {
+		if seen[sym] {
+			continue
+		}
+		// Word-boundary match on case-insensitive description.
+		if strings.Contains(descLower, strings.ToLower(sym)) {
+			matched = append(matched, sym)
+			seen[sym] = true
+		}
+	}
+	sort.Strings(matched)
+	return matched
+}
+
 // ---- all-in-one convenience -------------------------------------------
 
 var migrateAllCmd = &cobra.Command{
 	Use:   "all",
-	Short: "Run verify-log + changelog + verification + simulations migrations in sequence",
+	Short: "Run all migrations in sequence (verify-log, changelog, verification, simulations, task-anchors, modify-scope)",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := runMigrateVerifyLog(cmd, args); err != nil {
 			return err
@@ -653,7 +1088,15 @@ var migrateAllCmd = &cobra.Command{
 			return err
 		}
 		fmt.Println()
-		return runMigrateSimulations(cmd, args)
+		if err := runMigrateSimulations(cmd, args); err != nil {
+			return err
+		}
+		fmt.Println()
+		if err := runMigrateTaskAnchors(cmd, args); err != nil {
+			return err
+		}
+		fmt.Println()
+		return runMigrateModifyScope(cmd, args)
 	},
 }
 

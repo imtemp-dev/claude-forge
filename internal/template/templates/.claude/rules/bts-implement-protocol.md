@@ -110,8 +110,13 @@ Project-level status:
 
 ## Max Retry Limits
 
+Concrete values live in `.bts/config/settings.yaml` (`implement.max_build_retries`,
+`implement.max_test_iterations`). The engine reads them via
+`engine.LoadSettings`; skills and this protocol reference the keys, never
+a literal number.
+
 | Operation | Max Retries | On Failure |
 |-----------|-------------|------------|
-| Build per file | 5 (persisted) | Mark task `blocked` |
-| Test suite | 5 iterations | Report failures |
+| Build per file | `settings.implement.max_build_retries` (persisted) | Mark task `blocked` |
+| Test suite | `settings.implement.max_test_iterations` iterations | Report failures |
 | Sync validation | 1 | Report deviations |

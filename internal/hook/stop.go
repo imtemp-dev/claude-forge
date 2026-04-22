@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/imtemp-dev/claude-bts/internal/engine"
 	"github.com/imtemp-dev/claude-bts/internal/metrics"
 	"github.com/imtemp-dev/claude-bts/internal/state"
 )
@@ -169,6 +170,38 @@ func (h *stopHandler) handleImplementDone(root string, recipe *state.RecipeState
 	// deviation.md content is a REPORT, not a gate.
 	// Deviations and not-implemented items become follow-up work,
 	// not blockers for the current recipe's completion.
+
+	// 5. Known Uncertainties gate (Phase 8.2): every entry in final.md's
+	// "## Known Uncertainties" section must carry Resolved:/Diverged:/
+	// Still-unknown:. The skill promises this at Step 5.7; the hook
+	// now enforces it.
+	finalPath := filepath.Join(state.RecipeDir(root, recipe.ID), "final.md")
+	if _, unresolved, err := engine.CheckKnownUncertainties(finalPath); err == nil && len(unresolved) > 0 {
+		ids := make([]string, 0, len(unresolved))
+		for _, u := range unresolved {
+			ids = append(ids, u.ID)
+		}
+		return blockOutput(fmt.Sprintf(
+			"Known Uncertainties unresolved (%d entr(y|ies): %s). Re-run Step 5.7 of %s to classify each as Resolved:/Diverged:/Still-unknown:.",
+			len(unresolved), strings.Join(ids, ", "), implCmd,
+		)), nil
+	}
+
+	// 6. Modify scope gate (Phase 14): for Action=="modify" tasks,
+	// CheckModifyScope with the real project root runs the
+	// scope_symbol_missing check that the static validator cannot do
+	// (it needs filesystem access to the target file). critical
+	// findings block; lower severities are already caught by
+	// `bts validate`.
+	tasksPath := filepath.Join(state.RecipeDir(root, recipe.ID), "tasks.json")
+	for _, issue := range engine.CheckModifyScope(finalPath, tasksPath, root) {
+		if issue.Severity == "critical" {
+			return blockOutput(fmt.Sprintf(
+				"%s — %s. Resolve modify_scope violations before completing.",
+				issue.Claim, issue.Detail,
+			)), nil
+		}
+	}
 
 	// All clear — mark as complete
 	prevPhase := recipe.Phase
