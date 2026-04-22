@@ -204,14 +204,37 @@ Run the project's build command:
 # Python: python -m py_compile
 ```
 
-**If build fails:**
-1. Increment `retry_count` in tasks.json and save `last_error`
-2. **Stagnation check**: Compare current error with `last_error`.
-   If the error message is substantially the same as the previous attempt →
-   try a fundamentally different approach (different algorithm, different API, etc.)
-   Do NOT repeat the same fix.
-3. Rebuild (check `retry_count` < `settings.implement.max_build_retries` — authoritative source is `.bts/config/settings.yaml`; do NOT hardcode a default here)
-4. If retry_count reaches the limit → mark task as `blocked`, save error, move to next task
+**If build fails (Phase 15 retry ladder):**
+
+1. Save the error message to a temp file `last_error.txt`, increment
+   `retry_count` in tasks.json, and persist `last_error` onto the task.
+2. Ask the engine what to do next:
+   ```bash
+   bts retry next --recipe {id} --task {task-id} --json
+   ```
+   The response carries `{error_class, current_tier, next_tier, action, rationale}`.
+3. Execute the returned action:
+   - `retry_inplace`    — fix in place, rebuild.
+   - `strategy_switch`  — discard previous approach, try a different
+     algorithm/API/data-structure. This is the behavior that was
+     implicit in the pre-Phase-15 "stagnation check".
+   - `spec_escalate`    — re-read the final.md block for this file,
+     run `/bts-verify` focused on it. If the block needs additions,
+     edit final.md (and re-validate the anchor).
+   - `domain_escalate`  — run `/bts-verify domain.md` and confirm the
+     invariant ownership for this file has not drifted. If it has,
+     reconcile before continuing.
+   - `architect_escalate` — invoke `/bts-architect escalate {id} {task-id}`
+     to re-decompose the task. The architect may rewrite the anchor's
+     scope= list, split the task into two, or update final.md.
+   - `block`            — ladder exhausted: set status=blocked,
+     persist a `last_error: "retry_ladder_exhausted: {signature}"`
+     value, move to the next task.
+4. Persist the returned `next_tier` onto `task.retry_tier` and append a
+   one-line `task.escalation_notes` entry summarizing the transition
+   (`tier N→M: {action} because {error_class}`).
+5. Hard cap still applies: `retry_count >= settings.implement.max_build_retries`
+   forces the block action regardless of the ladder's preference.
 
 **If build passes:**
 - Update task status to `done`, clear `last_error`

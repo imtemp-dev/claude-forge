@@ -160,4 +160,10 @@ var InvariantGates = []HardGate{
 		Enforcement: "bts-implement/SKILL.md orchestrator (advisory — not hook-blocked)",
 		Summary:     "Implementations above the configured task threshold should produce at least one reviews/midrun-*.md; monitored in Phase 17",
 	},
+	{
+		ID:          "retry_ladder_respected",
+		Rule:        "bts-implement/SKILL.md §Step 3 VERIFY retry block (Phase 15)",
+		Enforcement: "engine.NextRetryDecision + `bts retry next` CLI (advisory — monitored in Phase 17)",
+		Summary:     "Blocked tasks should have escalated through the ladder; tasks ending at tier<5 are flagged in monitoring as skipped escalations",
+	},
 }

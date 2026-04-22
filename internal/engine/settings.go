@@ -22,9 +22,27 @@ type Settings struct {
 // places (settings.yaml prose, bts-implement SKILL.md, protocol table);
 // this struct is now the single source.
 type ImplementSettings struct {
-	MaxBuildRetries    int `yaml:"max_build_retries"`
-	MaxTestIterations  int `yaml:"max_test_iterations"`
-	MidrunReviewEvery  int `yaml:"midrun_review_every"`
+	MaxBuildRetries    int                 `yaml:"max_build_retries"`
+	MaxTestIterations  int                 `yaml:"max_test_iterations"`
+	MidrunReviewEvery  int                 `yaml:"midrun_review_every"`
+	RetryLadder        RetryLadderSettings `yaml:"retry_ladder"`
+}
+
+// RetryLadderSettings mirrors engine.LadderConfig with yaml tags.
+// Keeping them separate avoids leaking yaml struct tags into the pure-
+// Go ladder API.
+type RetryLadderSettings struct {
+	SyntacticMax      int  `yaml:"syntactic_max"`
+	SemanticMax       int  `yaml:"semantic_max"`
+	SpecEscalate      bool `yaml:"spec_escalate"`
+	DomainEscalate    bool `yaml:"domain_escalate"`
+	ArchitectEscalate bool `yaml:"architect_escalate"`
+}
+
+// LadderConfig projects RetryLadderSettings onto the engine's internal
+// config type. Used by the CLI when invoking NextRetryDecision.
+func (r RetryLadderSettings) LadderConfig() LadderConfig {
+	return LadderConfig(r)
 }
 
 // SimulateSettings captures the simulation checker thresholds.
@@ -49,6 +67,13 @@ func DefaultSettings() *Settings {
 			MaxBuildRetries:   5,
 			MaxTestIterations: 5,
 			MidrunReviewEvery: 5,
+			RetryLadder: RetryLadderSettings{
+				SyntacticMax:      3,
+				SemanticMax:       2,
+				SpecEscalate:      true,
+				DomainEscalate:    true,
+				ArchitectEscalate: true,
+			},
 		},
 		Simulate: SimulateSettings{
 			MinScenarios:       5,
@@ -100,6 +125,12 @@ func LoadSettings(root string) (*Settings, error) {
 	}
 	if s.Verify.MaxIterations <= 0 {
 		s.Verify.MaxIterations = def.Verify.MaxIterations
+	}
+	if s.Implement.RetryLadder.SyntacticMax <= 0 {
+		s.Implement.RetryLadder.SyntacticMax = def.Implement.RetryLadder.SyntacticMax
+	}
+	if s.Implement.RetryLadder.SemanticMax <= 0 {
+		s.Implement.RetryLadder.SemanticMax = def.Implement.RetryLadder.SemanticMax
 	}
 	return s, nil
 }

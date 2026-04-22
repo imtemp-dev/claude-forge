@@ -31,6 +31,31 @@ interface ChangelogEntry {
   result?: string;
 }
 
+interface RecipeIndicators {
+  // Phase 9 — task anchor coverage
+  task_anchor_orphans: number;
+  task_anchor_total: number;
+  // Phase 14 — modify scope
+  modify_scope_violations: number;
+  modify_scope_tasks: number;
+  legacy_modify_scope_tasks: number;
+  // Phase 10 — per-task structural findings
+  structure_findings_total: number;
+  completed_tasks: number;
+  // Phase 11 — mid-run review
+  midrun_invocations: number;
+  midrun_expected: number;
+  // Phase 16 — deviation driver diversity
+  deviation_rows_total: number;
+  deviation_rows_non_code_diff: number;
+  // Phase 13 — test scenario coverage
+  test_scenarios_total: number;
+  test_scenarios_linked: number;
+  test_scenarios_legacy: number;
+  // Phase 15 — retry ladder histogram (index 0 unused, 1..6 tiers)
+  retry_ladder_histogram: number[];
+}
+
 interface RecipeSnapshot {
   id: string;
   phase: string;
@@ -40,10 +65,11 @@ interface RecipeSnapshot {
   has_review_md: boolean;
   convergence_failures: number;
   refactor_signals: number;
-  // Derived from engine checkers (invoked via `bts validate`)
   invariant_violation_count: number;
   cross_boundary_ratio: number; // NaN if no simulations
   unauthorized_coupling_count: number;
+  // Phase 8-16 indicators populated from `bts stats --indicators`.
+  indicators?: RecipeIndicators;
 }
 
 interface MonitoringReport {
@@ -51,24 +77,26 @@ interface MonitoringReport {
   target: string;
   baseline_path?: string;
   indicators: {
-    // 1. Iteration-to-converge (lower is better)
+    // v0.4.0 indicators (7)
     mean_iteration_to_converge: number;
     median_iteration_to_converge: number;
-    // 2. Re-decomposition count (≤1 is target; 0 is best)
     mean_architect_invocations: number;
     recipes_with_multiple_architect_runs: number;
-    // 3. Invariant single-ownership rate (target: 100%)
     invariant_mono_owner_rate: number;
-    // 4. Cross-boundary simulation coverage (≥30% target)
     mean_cross_boundary_ratio: number;
     recipes_below_cross_boundary_threshold: number;
-    // 5. Spec-code structural match (target: 0 unauthorized couplings)
     unauthorized_coupling_total: number;
-    // 6. Refactor signal frequency (target: decreasing)
     refactor_signal_total: number;
     recipes_with_signals: number;
-    // 7. Convergence failure rate (target: 0)
     convergence_failure_rate: number;
+    // v0.5.0 indicators (7)
+    task_anchor_orphan_rate: number;               // #8  — P9
+    modify_scope_violation_rate: number;            // #9  — P14
+    structure_findings_per_task: number;            // #10 — P10
+    midrun_review_coverage: number;                 // #11 — P11
+    deviation_driver_diversity: number;             // #12 — P16
+    test_scenario_link_coverage: number;            // #13 — P13
+    retry_ladder_tier_distribution: number[];       // #14 — P15 aggregate
   };
   per_recipe: RecipeSnapshot[];
   delta?: Partial<Record<keyof MonitoringReport['indicators'], number>>;
@@ -188,6 +216,21 @@ function countArchitectInvocations(changelog: ChangelogEntry[]): number {
   return changelog.filter(e => e.action === 'architect').length;
 }
 
+// fetchRecipeIndicators delegates to `bts stats --indicators --recipe` so
+// the numbers stay consistent with what the engine's own checkers see.
+// Failures fall back to undefined so the TS aggregation skips fields that
+// didn't compute.
+function fetchRecipeIndicators(recipeID: string, target: string): RecipeIndicators | undefined {
+  try {
+    const raw = execFileSync(process.env.BTS_BIN || 'bts',
+      ['stats', '--indicators', '--recipe', recipeID],
+      { encoding: 'utf-8', cwd: target });
+    return JSON.parse(raw) as RecipeIndicators;
+  } catch {
+    return undefined;
+  }
+}
+
 function captureRecipe(target: string, recipeID: string): RecipeSnapshot {
   const recipeDir = join(target, '.bts', 'specs', 'recipes', recipeID);
   const recipeJson = (() => {
@@ -220,6 +263,7 @@ function captureRecipe(target: string, recipeID: string): RecipeSnapshot {
     invariant_violation_count: countInvariantViolations(recipeDir),
     cross_boundary_ratio: crossBoundaryRatio(recipeDir),
     unauthorized_coupling_count: 0, // populated when review.md parsing lands in Phase 6.3 follow-up
+    indicators: fetchRecipeIndicators(recipeID, target),
   };
 }
 
@@ -273,7 +317,34 @@ function main() {
   const signalTotal = recipes.reduce((s, r) => s + r.refactor_signals, 0);
   const signalRecipes = recipes.filter(r => r.refactor_signals > 0).length;
 
+  // Aggregate v0.5.0 indicators across recipes that reported data.
+  const present = recipes.map(r => r.indicators).filter((x): x is RecipeIndicators => !!x);
+  const sum = (get: (i: RecipeIndicators) => number) =>
+    present.reduce((acc, i) => acc + get(i), 0);
+
+  const anchorTotal = sum(i => i.task_anchor_total);
+  const anchorOrphans = sum(i => i.task_anchor_orphans);
+  const modifyTasks = sum(i => i.modify_scope_tasks);
+  const modifyViolations = sum(i => i.modify_scope_violations);
+  const completedTasks = sum(i => i.completed_tasks);
+  const structureFindings = sum(i => i.structure_findings_total);
+  const midrunActual = sum(i => i.midrun_invocations);
+  const midrunExpected = sum(i => i.midrun_expected);
+  const deviationTotal = sum(i => i.deviation_rows_total);
+  const deviationNonCodeDiff = sum(i => i.deviation_rows_non_code_diff);
+  const scenariosTotal = sum(i => i.test_scenarios_total);
+  const scenariosLinked = sum(i => i.test_scenarios_linked);
+
+  // Retry ladder tier distribution — element-wise sum across recipes.
+  const retryAgg = new Array(7).fill(0) as number[];
+  for (const i of present) {
+    for (let t = 0; t < retryAgg.length && t < i.retry_ladder_histogram.length; t++) {
+      retryAgg[t] += i.retry_ladder_histogram[t];
+    }
+  }
+
   const indicators = {
+    // v0.4.0 (7)
     mean_iteration_to_converge: Number(meanIter.toFixed(2)),
     median_iteration_to_converge: median(converges),
     mean_architect_invocations: Number(meanArch.toFixed(2)),
@@ -285,6 +356,14 @@ function main() {
     refactor_signal_total: signalTotal,
     recipes_with_signals: signalRecipes,
     convergence_failure_rate: Number(failureRate.toFixed(3)),
+    // v0.5.0 (7)
+    task_anchor_orphan_rate: anchorTotal > 0 ? Number((anchorOrphans / anchorTotal).toFixed(3)) : 0,
+    modify_scope_violation_rate: modifyTasks > 0 ? Number((modifyViolations / modifyTasks).toFixed(3)) : 0,
+    structure_findings_per_task: completedTasks > 0 ? Number((structureFindings / completedTasks).toFixed(3)) : 0,
+    midrun_review_coverage: midrunExpected > 0 ? Number((midrunActual / midrunExpected).toFixed(3)) : 1,
+    deviation_driver_diversity: deviationTotal > 0 ? Number((deviationNonCodeDiff / deviationTotal).toFixed(3)) : 0,
+    test_scenario_link_coverage: scenariosTotal > 0 ? Number((scenariosLinked / scenariosTotal).toFixed(3)) : 1,
+    retry_ladder_tier_distribution: retryAgg,
   };
 
   let delta: MonitoringReport['delta'] | undefined;
@@ -319,11 +398,18 @@ function main() {
   writeFileSync(out, JSON.stringify(report, null, 2));
   console.error(
     `Monitored ${recipes.length} recipes from ${target} → ${out}\n` +
-      `  mean iteration-to-converge: ${indicators.mean_iteration_to_converge}\n` +
-      `  invariant mono-owner rate: ${(indicators.invariant_mono_owner_rate * 100).toFixed(1)}%\n` +
-      `  mean cross-boundary ratio: ${(indicators.mean_cross_boundary_ratio * 100).toFixed(1)}%\n` +
-      `  refactor signals: ${indicators.refactor_signal_total} across ${indicators.recipes_with_signals} recipe(s)\n` +
-      `  convergence failure rate: ${(indicators.convergence_failure_rate * 100).toFixed(1)}%`,
+      `  mean iteration-to-converge:       ${indicators.mean_iteration_to_converge}\n` +
+      `  invariant mono-owner rate:        ${(indicators.invariant_mono_owner_rate * 100).toFixed(1)}%\n` +
+      `  mean cross-boundary ratio:        ${(indicators.mean_cross_boundary_ratio * 100).toFixed(1)}%\n` +
+      `  refactor signals:                 ${indicators.refactor_signal_total} across ${indicators.recipes_with_signals} recipe(s)\n` +
+      `  convergence failure rate:         ${(indicators.convergence_failure_rate * 100).toFixed(1)}%\n` +
+      `  task-anchor orphan rate:          ${(indicators.task_anchor_orphan_rate * 100).toFixed(1)}%\n` +
+      `  modify-scope violation rate:      ${(indicators.modify_scope_violation_rate * 100).toFixed(1)}%\n` +
+      `  structure findings per task:      ${indicators.structure_findings_per_task}\n` +
+      `  mid-run review coverage:          ${(indicators.midrun_review_coverage * 100).toFixed(1)}%\n` +
+      `  deviation driver diversity:       ${(indicators.deviation_driver_diversity * 100).toFixed(1)}%\n` +
+      `  test-scenario link coverage:      ${(indicators.test_scenario_link_coverage * 100).toFixed(1)}%\n` +
+      `  retry ladder distribution [t1..t6]: ${indicators.retry_ladder_tier_distribution.slice(1).join(', ')}`,
   );
 }
 

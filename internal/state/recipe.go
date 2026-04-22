@@ -58,6 +58,8 @@ type Task struct {
 	DependsOn         []string           `json:"depends_on,omitempty"`
 	RetryCount        int                `json:"retry_count,omitempty"` // persisted build retry count
 	LastError         string             `json:"last_error,omitempty"`  // last build error for stagnation detection
+	RetryTier         int                `json:"retry_tier,omitempty"`  // Phase 15 retry-ladder tier: 1..5
+	EscalationNotes   []string           `json:"escalation_notes,omitempty"` // one entry per tier transition
 }
 
 // StructureFinding records one per-task structural issue surfaced by

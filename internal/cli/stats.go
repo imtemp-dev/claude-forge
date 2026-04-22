@@ -9,6 +9,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/imtemp-dev/claude-bts/internal/engine"
 	"github.com/imtemp-dev/claude-bts/internal/metrics"
 	"github.com/imtemp-dev/claude-bts/internal/state"
 	"github.com/spf13/cobra"
@@ -18,6 +19,8 @@ func init() {
 	rootCmd.AddCommand(statsCmd)
 	statsCmd.Flags().Bool("json", false, "Output as JSON")
 	statsCmd.Flags().Bool("csv", false, "Output as CSV (one row per session)")
+	statsCmd.Flags().Bool("indicators", false, "Emit the Phase 17 14-indicator recipe snapshot as JSON")
+	statsCmd.Flags().String("recipe", "", "Recipe ID (with --indicators; defaults to active)")
 }
 
 var statsCmd = &cobra.Command{
@@ -33,6 +36,10 @@ func runStats(cmd *cobra.Command, args []string) error {
 	root, err := state.FindRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("not a bts project: %w", err)
+	}
+
+	if ok, _ := cmd.Flags().GetBool("indicators"); ok {
+		return runIndicators(cmd, root, args)
 	}
 
 	jsonOutput, _ := cmd.Flags().GetBool("json")
@@ -411,4 +418,36 @@ func sortTools(tools []metrics.ToolStat) {
 			tools[j], tools[j-1] = tools[j-1], tools[j]
 		}
 	}
+}
+
+
+// runIndicators emits the Phase 17 monitoring snapshot — the 14
+// numbers (plus derived counts) bts-monitor.ts consumes via JSON.
+func runIndicators(cmd *cobra.Command, root string, args []string) error {
+	recipeID, _ := cmd.Flags().GetString("recipe")
+	if recipeID == "" && len(args) > 0 {
+		recipeID = args[0]
+	}
+	if recipeID == "" {
+		active, _ := state.GetActiveRecipe(root)
+		if active == nil {
+			return fmt.Errorf("no --recipe given and no active recipe")
+		}
+		recipeID = active.ID
+	}
+	stats, err := engineComputeStats(root, recipeID)
+	if err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(stats, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(data))
+	return nil
+}
+
+// engineComputeStats forwards to engine.ComputeRecipeStats.
+func engineComputeStats(root, recipeID string) (interface{}, error) {
+	return engine.ComputeRecipeStats(root, state.RecipeDir(root, recipeID))
 }

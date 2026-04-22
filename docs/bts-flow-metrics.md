@@ -1,9 +1,10 @@
 # BTS Flow Metrics
 
-This document defines the seven indicators tracked by
+This document defines the **14 indicators** tracked by
 `scripts/bts-monitor.ts` against a baseline from `scripts/bts-baseline.ts`.
-Each indicator targets a specific failure mode the Sprint 1–3 changes
-were designed to catch.
+Indicators 1–7 target Blueprint-side failure modes (Sprints 1–3,
+v0.4.0). Indicators 8–14 target Implement-side failure modes (Sprints
+5–7, v0.5.0).
 
 The baseline of record (2026-04-22) is
 `data/baselines/snap-voca-2026-04-22.json`. Weekly runs land in
@@ -177,6 +178,100 @@ yet exercised":
 - Number of recipes with a `<!-- architect-decision -->` block
 - Number of scenarios tagged `[cross-boundary: ...]` or
   `[illegal-cell: ...]` (non-legacy)
+- Count of `modify_scope: ["legacy"]` tasks awaiting manual refinement
+- Count of `scenario_coverage["..."] = ["legacy"]` entries
 
 These live in `per_recipe.*` of the monitoring report; derived counts
 can be added to `indicators` when adoption becomes a tracked goal.
+
+---
+
+# v0.5.0 additions — Implement-side indicators
+
+Sprints 5–7 added seven more indicators targeting the implement-side
+failure modes (Q1 task decomposition, Q2 structural preservation, Q3
+deviation traceability). Each comes from
+`bts stats --indicators --recipe <id>` so the engine's checkers and
+the TS monitor agree on definitions.
+
+## 8. Task-anchor orphan rate (P9)
+
+**What**: `sum(orphan_anchor + missing_anchor) / sum(task_anchor_total)`
+across all recipes.
+
+**Signal it catches**: tasks.json ↔ final.md drift. An orphan anchor
+in final.md means the spec promised a file the task list does not
+cover (or vice versa).
+
+**Target**: 0. Any non-zero number indicates a recipe whose
+decomposition does not derive from the spec.
+
+## 9. Modify-scope violation rate (P14)
+
+**What**: `sum(scope_violation + scope_symbol_missing) / sum(modify_scope_tasks)`.
+
+**Signal**: `modify` tasks are touching code outside their declared
+scope, or the declared scope references symbols the source file
+doesn't actually have.
+
+**Target**: 0. Legacy placeholders are tracked separately in the
+uptake-metrics block.
+
+## 10. Structure findings per completed task (P10)
+
+**What**: `sum(structure_findings_total) / sum(completed_tasks)`.
+
+**Signal**: the per-task MINI-CHECK fires frequently. High values mean
+tasks are introducing import drift / owner drift / symbol regressions.
+
+**Target**: monotonically decreasing from the baseline. A jump
+suggests recipes are skipping the MINI-CHECK.
+
+## 11. Mid-run review coverage (P11)
+
+**What**: `sum(midrun_invocations) / sum(midrun_expected)` where
+`midrun_expected` is derived from `settings.implement.midrun_review_every`.
+
+**Signal**: implementations above the task threshold are skipping the
+mid-run review.
+
+**Target**: ≥ 1.0. Values below 1 indicate recipes bypassing the
+checkpoint entirely.
+
+## 12. Deviation driver diversity (P16)
+
+**What**: `sum(deviation_rows_non_code_diff) / sum(deviation_rows_total)`.
+
+**Signal**: how often deviation rows cite a driver other than
+`code-diff`. Higher diversity means the pipeline is catching deviations
+through multiple channels (simulate, review, test) rather than relying
+only on /sync's file-by-file diff.
+
+**Target**: rising. The v0.5.0 baseline is the starting number;
+healthy adoption of P12 (sync ingests simulate) and P13 (test ↔
+simulate links) should lift this.
+
+## 13. Test-scenario link coverage (P13)
+
+**What**: `sum(test_scenarios_linked) / sum(test_scenarios_total)`.
+
+**Signal**: the share of simulation scenarios that have a `bts:scenario`
+tag (direct linkage) or an explicit `scenario_coverage` entry.
+
+**Target**: ≥ 0.9. `scenario_coverage[id] = ["legacy"]` entries are
+counted as linked so the gate passes for migrated recipes, but the
+uptake metric tracks the legacy fraction separately.
+
+## 14. Retry-ladder tier distribution (P15)
+
+**What**: `sum over recipes of retry_ladder_histogram`, a 7-element
+array where index i is the count of tasks whose final `retry_tier`
+was i. index 0 is "no retry recorded"; indices 1–5 are the ladder
+tiers; index 6 is `block`.
+
+**Signal**: distribution shape. Tasks bunching at tier 5 (architect
+escalate) or 6 (block) indicate decomposition problems. Tasks that
+jump straight from tier 0 to 6 indicate callers are skipping the
+ladder entirely.
+
+**Target**: majority at 0–2, very few at 3–5, zero at 6.

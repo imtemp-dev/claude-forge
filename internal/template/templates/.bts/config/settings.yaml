@@ -25,6 +25,12 @@ implement:
   max_build_retries: 5           # 5 attempts: enough to try different approaches, not enough to spin
   max_test_iterations: 5         # Same rationale — if 5 fix cycles don't resolve it, human help needed
   midrun_review_every: 5         # Run a lightweight structural review every N tasks. 0 disables.
+  retry_ladder:
+    syntactic_max: 3             # In-place retries (tier 1) before moving to strategy switch
+    semantic_max: 2              # Strategy switches (tier 2) before spec escalation
+    spec_escalate: true          # Tier 3: re-read final.md block + /bts-verify
+    domain_escalate: true        # Tier 4: re-verify domain.md invariant ownership
+    architect_escalate: true     # Tier 5: re-enter /bts-architect
 
 # Fix recipe
 fix:
