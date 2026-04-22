@@ -115,12 +115,24 @@ func VerifyDocument(docPath string, projectRoot string) (*VerifyResult, error) {
 		appendIssues(result, CheckInvariantOwnership(docPath))
 	}
 
-	// 5. Wireframe anchor matching (Phase 3.3).
+	// 5. Wireframe anchor matching (Phase 3.3) + YAGNI gate (Phase 5.4).
 	// draft.md: every wireframe path-id must have a corresponding
 	// `<!-- path: wireframe.md#id -->` anchor, and every draft anchor
 	// must resolve to a wireframe id. Enforced 1:1.
+	// Separately, single-implementation interfaces without
+	// `// YAGNI-justified:` raise major.
 	if strings.EqualFold(base, "draft.md") {
 		appendIssues(result, WireframeAnchorsForDraft(docPath))
+		appendIssues(result, CheckInterfaceJustification(docPath))
+	}
+
+	// 6. wireframe.md: responsibility line conjunction check (Phase 5.1).
+	// Each node's responsibility must be a single-job sentence — "and",
+	// "&", "및" signal two jobs that should split into two nodes.
+	// Also check architect-decision header presence (Phase 5.3).
+	if strings.EqualFold(base, "wireframe.md") {
+		appendIssues(result, CheckWireframeResponsibilities(docPath))
+		appendIssues(result, CheckArchitectDecisionHeader(docPath))
 	}
 
 	return result, nil

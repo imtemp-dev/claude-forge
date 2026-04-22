@@ -65,9 +65,37 @@ diagrams (state machines, flowcharts), read them first:
 
 Design at least `simulate.min_scenarios` (default: 5) scenarios from the spec.
 Cover the full risk surface — think about what could go wrong, what could be
-misused, and what happens at boundaries. Typical concerns include normal flow,
-failure modes, edge cases, security, and cross-component interactions, but
-adapt the scenarios to what matters for this specific code.
+misused, and what happens at boundaries.
+
+**Cross-boundary requirement (Phase 6.1):** at least
+`simulate.cross_boundary_ratio` of scenarios (default: 0.30) MUST touch
+state axes from 2+ modules *simultaneously*. A cross-boundary scenario
+is one where the trigger lives in one module and the effect lives in
+another per the wireframe component diagram, AND the scenario's state
+change spans 2+ axes from `domain.md § 3 State Partitioning`.
+
+This catches the failure mode where each module's internal scenarios
+pass but their *interactions* break (the Duolingo "drag mid snap-back"
+case). Per-module-only scenarios cannot surface this.
+
+Tag EVERY scenario header with exactly one of:
+
+- `[cross-boundary: axes=A,B]` — the scenario crosses state axes A and B
+- `[single-axis: A]` — the scenario stays within one axis
+
+`bts validate` parses the simulation file and raises critical if the
+cross-boundary ratio falls below the threshold.
+
+**Illegal-cell coverage (Phase 6.2):** for EACH cell tagged `ILLEGAL` in
+`domain.md § 4 Combinatorial State Space`, include one scenario whose
+trigger sequence would reach that cell. Document the enforcement
+mechanism that prevents the transition, OR flag as `INV-GAP` (critical)
+if nothing prevents it. Tag each such scenario:
+
+- `[illegal-cell: <cell-label>]`
+
+Missing illegal-cell scenarios are critical — the spec promises the
+cell is unreachable but the simulation never checks that promise.
 
 ### Step 4: Walk Through Code
 

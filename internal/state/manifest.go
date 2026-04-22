@@ -6,10 +6,16 @@ import (
 )
 
 // Manifest tracks all documents and their relationships within a recipe.
+//
+// ArchitectDecision names the decomposition alternative selected by
+// /bts-architect (Phase 5). Empty for recipes authored before architect
+// existed, or for recipes in the skip-architect path (trivially small
+// scope). `bts validate` treats the field as optional.
 type Manifest struct {
-	CurrentDraft string                    `json:"current_draft"`
-	Level        float64                   `json:"level"`
-	Documents    map[string]DocumentEntry  `json:"documents"`
+	CurrentDraft      string                    `json:"current_draft"`
+	Level             float64                   `json:"level"`
+	ArchitectDecision string                    `json:"architect_decision,omitempty"`
+	Documents         map[string]DocumentEntry  `json:"documents"`
 }
 
 // DocumentEntry tracks one document's metadata and relationships.

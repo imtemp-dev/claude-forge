@@ -74,6 +74,30 @@ func ValidateRecipeDir(recipeDir string) ([]ValidationError, error) {
 		errors = append(errors, errs...)
 	}
 
+	// 8. simulations/*.md — cross-boundary ratio + illegal-cell coverage
+	// (Phase 6.1 and 6.2).
+	simsDir := filepath.Join(recipeDir, "simulations")
+	if entries, err := os.ReadDir(simsDir); err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+				continue
+			}
+			simPath := filepath.Join(simsDir, entry.Name())
+			for _, issue := range CheckSimulationScenarios(simPath, DefaultCrossBoundaryRatio) {
+				errors = append(errors, ValidationError{File: "simulations/" + entry.Name(), Field: issue.Category, Message: issue.Claim + " — " + issue.Detail})
+			}
+		}
+	}
+
+	// Illegal-cell coverage is per-recipe (compares domain.md to all
+	// simulation files together).
+	domainPath := filepath.Join(recipeDir, "domain.md")
+	if _, err := os.Stat(domainPath); err == nil {
+		for _, issue := range CheckIllegalCellCoverage(domainPath, recipeDir) {
+			errors = append(errors, ValidationError{File: "domain.md → simulations/", Field: issue.Category, Message: issue.Claim + " — " + issue.Detail})
+		}
+	}
+
 	return errors, nil
 }
 
@@ -254,6 +278,14 @@ func validateManifestJSON(path string) []ValidationError {
 	}
 	if _, ok := raw["level"]; !ok {
 		errs = append(errs, ValidationError{File: "manifest.json", Field: "level", Message: "missing required field"})
+	}
+
+	// architect_decision is optional, but if present must be a string.
+	// Empty string is not accepted — set it to omit via absence.
+	if v, ok := raw["architect_decision"]; ok {
+		if _, isString := v.(string); !isString {
+			errs = append(errs, ValidationError{File: "manifest.json", Field: "architect_decision", Message: "must be a string naming the selected decomposition"})
+		}
 	}
 
 	// documents must be a map of path → DocumentEntry (not categorized lists)

@@ -39,10 +39,24 @@ flowchart TD
 ```
 
 Rules:
-- Each node = one file or module with its primary responsibility
-- Each edge = a dependency or data flow
-- Include external dependencies (DB, API, filesystem) as distinct nodes
-- Show the direction of dependency (who imports whom)
+- Each node = one file or module with its primary responsibility.
+- Each edge = a dependency or data flow.
+- Include external dependencies (DB, API, filesystem) as distinct nodes.
+- Show the direction of dependency (who imports whom).
+
+**Responsibility rule (single-job gate):** Each node's responsibility
+line MUST be a single sentence that does NOT contain "and"/"&"/"및"
+as a conjunction. If you cannot express a module's job without a
+conjunction, it has two jobs — split it into two nodes.
+
+❌ `Card\n(renders view AND owns word placement)` → two jobs
+✓  `Card\n(renders view)` + `Arrangement\n(owns word placement)`
+
+The anti-pattern this rule catches is the one the Duolingo word-sort
+hit: a "Card" node that secretly owned both UI rendering AND position
+truth. Splitting earlier would have surfaced the invariant-ownership
+conflict before implementation. `bts verify wireframe.md` reports each
+violation as major (see engine/wireframe_responsibility_checker.go).
 
 ## Step 2: State Machine
 

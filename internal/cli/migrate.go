@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -25,6 +26,10 @@ func init() {
 	migrateCmd.AddCommand(migrateVerificationCmd)
 	migrateVerificationCmd.Flags().String("target", "", "Target directory (defaults to CWD project root)")
 	migrateVerificationCmd.Flags().Bool("dry-run", false, "Show what would change without writing")
+
+	migrateCmd.AddCommand(migrateSimulationsCmd)
+	migrateSimulationsCmd.Flags().String("target", "", "Target directory (defaults to CWD project root)")
+	migrateSimulationsCmd.Flags().Bool("dry-run", false, "Show what would change without writing")
 
 	migrateCmd.AddCommand(migrateAllCmd)
 	migrateAllCmd.Flags().String("target", "", "Target directory (defaults to CWD project root)")
@@ -524,11 +529,117 @@ func readLastVerifyLogEntry(path string) (*state.VerifyLogEntry, error) {
 	return &last, nil
 }
 
+// ---- simulations tagging migration ------------------------------------
+
+var migrateSimulationsCmd = &cobra.Command{
+	Use:   "simulations",
+	Short: "Tag legacy simulation scenarios with [single-axis: legacy]",
+	Long: `Scenario headers in pre-Phase-6 simulations carry no cross-boundary
+classification. This command adds [single-axis: legacy] to every header
+that lacks one of [cross-boundary|single-axis|illegal-cell: ...].
+
+Legacy is a conservative default — it keeps the validator happy without
+claiming cross-boundary coverage the author never verified. When the
+recipe is re-simulated later, authors re-tag by hand; the checker's
+cross-boundary ratio only applies to files whose scenarios are
+currently authored.`,
+	RunE: runMigrateSimulations,
+}
+
+func runMigrateSimulations(cmd *cobra.Command, args []string) error {
+	target, dryRun, err := migrateFlags(cmd)
+	if err != nil {
+		return err
+	}
+	recipesDir := filepath.Join(state.SpecsPath(target), "recipes")
+	entries, err := os.ReadDir(recipesDir)
+	if err != nil {
+		return fmt.Errorf("read recipes dir: %w", err)
+	}
+
+	totalTouched := 0
+	totalFiles := 0
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		simsDir := filepath.Join(recipesDir, e.Name(), "simulations")
+		sims, err := os.ReadDir(simsDir)
+		if err != nil {
+			continue
+		}
+		for _, sim := range sims {
+			if sim.IsDir() || !strings.HasSuffix(sim.Name(), ".md") {
+				continue
+			}
+			simPath := filepath.Join(simsDir, sim.Name())
+			touched, changed, err := tagLegacyScenarios(simPath, dryRun)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "  %s/%s: error: %v\n", e.Name(), sim.Name(), err)
+				continue
+			}
+			if changed {
+				totalFiles++
+				totalTouched += touched
+				marker := "tagged"
+				if dryRun {
+					marker = "would tag"
+				}
+				fmt.Printf("  %s/%s: %s %d header(s)\n", e.Name(), sim.Name(), marker, touched)
+			}
+		}
+	}
+
+	if dryRun {
+		fmt.Printf("\nDry run: %d files would get tags added (%d headers).\n", totalFiles, totalTouched)
+	} else {
+		fmt.Printf("\nTagged %d files (%d headers). Backups: *.md.bak\n", totalFiles, totalTouched)
+	}
+	return nil
+}
+
+// scenarioHeaderMigrateRe mirrors the one in simulation_checker.go but is
+// kept local to avoid exposing the checker's private regex across
+// packages. Match scenario header lines (leading `#`, `##`, or
+// `Scenario:` keyword) and look for an existing tag.
+var (
+	scenarioHeaderRe = regexp.MustCompile(`(?mi)^(#{1,6}\s+.*\bscenario\b[^\n]*|scenario:[^\n]*|-\s+scenario\s+\d+[^\n]*)$`)
+	existingTagRe    = regexp.MustCompile(`(?i)\[(cross-boundary|single-axis|illegal-cell)(?::[^\]]*)?\]`)
+)
+
+func tagLegacyScenarios(path string, dryRun bool) (int, bool, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0, false, err
+	}
+	content := string(data)
+
+	touched := 0
+	newContent := scenarioHeaderRe.ReplaceAllStringFunc(content, func(line string) string {
+		if existingTagRe.MatchString(line) {
+			return line // already tagged
+		}
+		touched++
+		return strings.TrimRight(line, " \t") + " [single-axis: legacy]"
+	})
+
+	if touched == 0 {
+		return 0, false, nil
+	}
+	if dryRun {
+		return touched, true, nil
+	}
+	if err := os.WriteFile(path+".bak", data, 0644); err != nil {
+		return 0, false, fmt.Errorf("backup: %w", err)
+	}
+	return touched, true, os.WriteFile(path, []byte(newContent), 0644)
+}
+
 // ---- all-in-one convenience -------------------------------------------
 
 var migrateAllCmd = &cobra.Command{
 	Use:   "all",
-	Short: "Run verify-log + changelog + verification migrations in sequence",
+	Short: "Run verify-log + changelog + verification + simulations migrations in sequence",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := runMigrateVerifyLog(cmd, args); err != nil {
 			return err
@@ -538,7 +649,11 @@ var migrateAllCmd = &cobra.Command{
 			return err
 		}
 		fmt.Println()
-		return runMigrateVerification(cmd, args)
+		if err := runMigrateVerification(cmd, args); err != nil {
+			return err
+		}
+		fmt.Println()
+		return runMigrateSimulations(cmd, args)
 	},
 }
 

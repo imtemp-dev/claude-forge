@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/imtemp-dev/claude-bts/internal/engine"
 	"github.com/imtemp-dev/claude-bts/internal/state"
 	"github.com/spf13/cobra"
 )
@@ -14,6 +15,8 @@ import (
 func init() {
 	rootCmd.AddCommand(graphCmd)
 	graphCmd.Flags().Bool("all", false, "Show project structure with all recipe internals")
+	graphCmd.Flags().Bool("import", false, "Render the import graph for the recipe's implemented files")
+	graphCmd.Flags().String("recipe", "", "Recipe ID (for --import; defaults to active recipe)")
 }
 
 var graphCmd = &cobra.Command{
@@ -31,6 +34,22 @@ func runGraph(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("not a bts project: %w", err)
 	}
 
+	importMode, _ := cmd.Flags().GetBool("import")
+	if importMode {
+		recipeID, _ := cmd.Flags().GetString("recipe")
+		if recipeID == "" && len(args) > 0 {
+			recipeID = args[0]
+		}
+		if recipeID == "" {
+			active, _ := state.GetActiveRecipe(root)
+			if active == nil {
+				return fmt.Errorf("no active recipe and no --recipe provided")
+			}
+			recipeID = active.ID
+		}
+		return renderImportGraph(root, recipeID)
+	}
+
 	if len(args) > 0 {
 		fmt.Println(renderRecipeGraph(root, args[0]))
 		return nil
@@ -42,6 +61,41 @@ func runGraph(cmd *cobra.Command, args []string) error {
 	} else {
 		fmt.Println(renderProjectGraph(root))
 	}
+	return nil
+}
+
+// renderImportGraph reads tasks.json to find the recipe's implemented
+// file list, extracts the import graph, and writes the mermaid rendering
+// to stdout. Used by /bts-review's architecture agent to compare actual
+// code structure against wireframe.md (see bts-review SKILL.md).
+func renderImportGraph(root, recipeID string) error {
+	tasks, err := state.LoadTaskState(root, recipeID)
+	if err != nil {
+		return fmt.Errorf("load tasks.json for %s: %w", recipeID, err)
+	}
+	if len(tasks.Tasks) == 0 {
+		return fmt.Errorf("tasks.json has no tasks — run /bts-implement first")
+	}
+
+	// tasks.json may store file paths relative to project root. Resolve
+	// each against root so the extractor reads the actual source.
+	files := make([]string, 0, len(tasks.Tasks))
+	for _, t := range tasks.Tasks {
+		if t.File == "" {
+			continue
+		}
+		resolved := t.File
+		if !filepath.IsAbs(resolved) {
+			resolved = filepath.Join(root, t.File)
+		}
+		files = append(files, resolved)
+	}
+
+	graph, err := engine.ExtractImportGraph(files)
+	if err != nil {
+		return fmt.Errorf("extract: %w", err)
+	}
+	fmt.Println(graph.RenderMermaid())
 	return nil
 }
 

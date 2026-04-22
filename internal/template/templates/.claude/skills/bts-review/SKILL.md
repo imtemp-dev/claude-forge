@@ -48,10 +48,28 @@ If standalone (no recipe):
   If no git or no changes, ask user which files to review.
 
 **Architecture context:**
-- Read `.bts/specs/project-map.md` for layer structure
-- Read `.bts/specs/layers/{name}.md` for the relevant layer's patterns
-- If inside a recipe, read final.md for design intent
-- Pass this context to the architecture agent
+- Read `.bts/specs/project-map.md` for layer structure.
+- Read `.bts/specs/layers/{name}.md` for the relevant layer's patterns.
+- If inside a recipe:
+  - Read `final.md` for design intent.
+  - Read `wireframe.md` for the planned component diagram and, if
+    present, the `<!-- architect-decision -->` block showing which
+    decomposition was selected and why.
+  - Read `domain.md` for invariant ownership — the architecture agent
+    verifies each invariant's owner module is the one actually holding
+    state in the implementation.
+  - Run `bts graph --import --recipe {id}` to extract the actual import
+    graph from the files listed in tasks.json. Compare against the
+    wireframe component diagram:
+      - Edges present in code but not in wireframe → flag as
+        `unauthorized_coupling` (critical). Module pair indicates
+        unplanned dependency.
+      - Edges present in wireframe but not in code → flag as
+        `unimplemented_dependency` (critical). Planned dependency was
+        omitted during implementation.
+- Pass ALL of this context to the architecture agent so it judges
+  alignment against the selected decomposition, not just "layer
+  separation is clean".
 
 ## Step 3: Multi-Perspective Review
 
