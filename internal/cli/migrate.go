@@ -53,6 +53,10 @@ func init() {
 	migrateTestScenariosCmd.Flags().String("target", "", "Target directory (defaults to CWD project root)")
 	migrateTestScenariosCmd.Flags().Bool("dry-run", false, "Show what would change without writing")
 
+	migrateCmd.AddCommand(migrateSettingsCmd)
+	migrateSettingsCmd.Flags().String("target", "", "Target directory (defaults to CWD project root)")
+	migrateSettingsCmd.Flags().Bool("dry-run", false, "Show what would change without writing")
+
 	migrateCmd.AddCommand(migrateAllCmd)
 	migrateAllCmd.Flags().String("target", "", "Target directory (defaults to CWD project root)")
 	migrateAllCmd.Flags().Bool("dry-run", false, "Show what would change without writing")
@@ -1741,8 +1745,202 @@ var migrateAllCmd = &cobra.Command{
 			return err
 		}
 		fmt.Println()
-		return runMigrateTestScenarios(cmd, args)
+		if err := runMigrateTestScenarios(cmd, args); err != nil {
+			return err
+		}
+		fmt.Println()
+		return runMigrateSettings(cmd, args)
 	},
+}
+
+// ---- settings migration (v0.5.0+ added keys) --------------------------
+
+var migrateSettingsCmd = &cobra.Command{
+	Use:   "settings",
+	Short: "Append missing default keys to .bts/config/settings.yaml",
+	Long: `Each BTS release may add new settings keys. Existing projects that
+init'd under an older release end up with a settings.yaml that lacks
+those keys — so LoadSettings quietly returns the default, and any
+derived logic (e.g. the midrun_review_every denominator in
+ComputeRecipeStats) reads 0 from the file while the code assumes the
+default. This command reconciles by appending every known-added key
+that is missing from the file, with a preceding comment naming the
+release it was introduced in. Existing keys are never overwritten.
+
+Backup: settings.yaml.bak.`,
+	RunE: runMigrateSettings,
+}
+
+// settingsInsertion records one default key that shipped after the
+// initial settings.yaml template. Adding a new key to a future release
+// means appending one entry here; the migrator handles the rest.
+type settingsInsertion struct {
+	Parent  string // second-level parent key, e.g. "implement"
+	Key     string // the key being added
+	Value   string // YAML-literal form (int, string, bool)
+	Comment string // one-line explanation
+	Since   string // release tag for the trailing "Added in vX.Y.Z" hint
+}
+
+var settingsInsertions = []settingsInsertion{
+	{
+		Parent:  "implement",
+		Key:     "midrun_review_every",
+		Value:   "5",
+		Comment: "Emit reviews/midrun-*.md every N completed tasks (0 disables).",
+		Since:   "v0.5.0",
+	},
+}
+
+func runMigrateSettings(cmd *cobra.Command, args []string) error {
+	target, dryRun, err := migrateFlags(cmd)
+	if err != nil {
+		return err
+	}
+	path := filepath.Join(target, ".bts", "config", "settings.yaml")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			fmt.Printf("No settings.yaml at %s — nothing to migrate.\n", path)
+			return nil
+		}
+		return err
+	}
+
+	updated := string(data)
+	var added []string
+	var skippedCommented []string
+	for _, ins := range settingsInsertions {
+		if hasNestedKey(updated, ins.Parent, ins.Key) {
+			continue
+		}
+		if hasCommentedKey(updated, ins.Key) {
+			skippedCommented = append(skippedCommented, ins.Parent+"."+ins.Key)
+			continue
+		}
+		next, ok := injectSettingKey(updated, ins)
+		if !ok {
+			fmt.Fprintf(os.Stderr, "  skipped %s.%s (could not locate a safe insertion point)\n", ins.Parent, ins.Key)
+			continue
+		}
+		updated = next
+		added = append(added, ins.Parent+"."+ins.Key)
+	}
+
+	for _, k := range skippedCommented {
+		fmt.Printf("  %s: skipped (appears commented-out in the file — treat as explicit opt-out)\n", k)
+	}
+
+	if len(added) == 0 {
+		fmt.Println("settings.yaml already has all known defaults.")
+		return nil
+	}
+
+	if dryRun {
+		fmt.Printf("Dry run: would add %d key(s): %s\n", len(added), strings.Join(added, ", "))
+		return nil
+	}
+
+	if err := os.WriteFile(path+".bak", data, 0644); err != nil {
+		return fmt.Errorf("backup: %w", err)
+	}
+	if err := os.WriteFile(path, []byte(updated), 0644); err != nil {
+		return err
+	}
+	fmt.Printf("Added %d key(s): %s. Backup: settings.yaml.bak\n", len(added), strings.Join(added, ", "))
+	return nil
+}
+
+// hasNestedKey returns true if `content` already has `key:` somewhere
+// inside the top-level `parent:` block. Comments and commented-out
+// forms do NOT count — see hasCommentedKey for that.
+func hasNestedKey(content, parent, key string) bool {
+	parentRe := regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(parent) + `:\s*$`)
+	loc := parentRe.FindStringIndex(content)
+	if loc == nil {
+		return false
+	}
+	after := content[loc[1]:]
+	end := nextTopLevelOrEOF(after)
+	keyRe := regexp.MustCompile(`(?m)^\s+` + regexp.QuoteMeta(key) + `:`)
+	return keyRe.MatchString(after[:end])
+}
+
+// hasCommentedKey detects `# key:` (optionally indented) anywhere in
+// the file. If present we leave the file alone — the user may have
+// deliberately disabled the key by commenting it out, and silently
+// adding it back would surprise them.
+func hasCommentedKey(content, key string) bool {
+	re := regexp.MustCompile(`(?m)^\s*#\s*` + regexp.QuoteMeta(key) + `:`)
+	return re.MatchString(content)
+}
+
+// nextTopLevelOrEOF scans `s` and returns the byte offset where the
+// next top-level (column-0, non-whitespace) line starts — i.e. where
+// the current nested block ends. Returns len(s) if no such line.
+func nextTopLevelOrEOF(s string) int {
+	lines := strings.Split(s, "\n")
+	offset := 0
+	for _, ln := range lines {
+		if len(ln) > 0 && ln[0] != ' ' && ln[0] != '\t' {
+			return offset
+		}
+		offset += len(ln) + 1
+	}
+	if offset > len(s) {
+		return len(s)
+	}
+	return offset
+}
+
+// injectSettingKey inserts a new key+comment into the parent block.
+// If the parent section is missing entirely, it appends a fresh
+// section at EOF.
+func injectSettingKey(content string, ins settingsInsertion) (string, bool) {
+	parentRe := regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(ins.Parent) + `:\s*$`)
+	loc := parentRe.FindStringIndex(content)
+	if loc == nil {
+		appended := fmt.Sprintf("\n%s:\n  # %s (added in %s)\n  %s: %s\n",
+			ins.Parent, ins.Comment, ins.Since, ins.Key, ins.Value)
+		return strings.TrimRight(content, "\n") + "\n" + appended, true
+	}
+
+	parentEnd := loc[1]
+	after := content[parentEnd:]
+	blockEnd := nextTopLevelOrEOF(after)
+	blockText := after[:blockEnd]
+	rest := after[blockEnd:]
+
+	indent := detectBlockIndent(blockText)
+	trimmed := strings.TrimRight(blockText, "\n ")
+	trailing := blockText[len(trimmed):]
+
+	insertion := fmt.Sprintf("\n%s# %s (added in %s)\n%s%s: %s",
+		indent, ins.Comment, ins.Since, indent, ins.Key, ins.Value)
+
+	return content[:parentEnd] + trimmed + insertion + trailing + rest, true
+}
+
+// detectBlockIndent picks the first non-empty line in `block` whose
+// first character is whitespace and returns the leading run of
+// whitespace. Falls back to two spaces when the block is empty.
+func detectBlockIndent(block string) string {
+	for _, ln := range strings.Split(block, "\n") {
+		if len(ln) == 0 {
+			continue
+		}
+		if ln[0] != ' ' && ln[0] != '\t' {
+			continue
+		}
+		i := 0
+		for i < len(ln) && (ln[i] == ' ' || ln[i] == '\t') {
+			i++
+		}
+		if i < len(ln) {
+			return ln[:i]
+		}
+	}
+	return "  "
 }
 
 func migrateFlags(cmd *cobra.Command) (string, bool, error) {

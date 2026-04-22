@@ -63,15 +63,39 @@ For each test scenario from final.md:
 2. Write test cases that verify the behavior described in the spec
 3. Use existing test utilities where available
 4. Include setup/teardown as needed
-5. **Tag every test with `bts:scenario {id}` (Phase 13)**. Place the
-   comment directly above the test declaration so the parser can pair
-   them. Supported comment forms:
+5. **Tag every test with `bts:scenario {id}` (Phase 13 — required).**
+   Use the `Edit` tool to insert the comment directly above the test
+   declaration the moment you write the test — do not defer it. The
+   parser pairs a tag with the very next test declaration; other
+   placements (inside function body, after decorator, blank line
+   between) are silently ignored.
+
+   Worked example (Swift XCTest):
+   ```swift
+   // bts:scenario sim-002.s1
+   func testAzureNeuralPronunciation_HappyPath() throws {
+       let result = try AzureNeuralClient.pronounce("hello")
+       XCTAssertEqual(result.phonemes.count, 5)
+   }
+   ```
+   Go equivalent uses the same comment form, directly above
+   `func TestXxx(t *testing.T)`. Python / pytest uses `# bts:scenario`
+   directly above `def test_xxx():`. JS / TS uses `// bts:scenario`
+   directly above the `it(...)` or `test(...)` call.
+
+   Supported comment forms:
      - `// bts:scenario sim-002.s1`
      - `# bts:scenario sim-002.s1`
      - `/* bts:scenario sim-002.s1 */`
-   Scenarios without a linked test surface as critical (cross-boundary
-   / illegal-cell) or major (single-axis) findings from
-   `bts validate`.
+
+   The tag must cite a scenario id that exists in `simulations/*.md`.
+   Orphan ids and missing tags both surface as findings from
+   `bts validate` (critical for cross-boundary / illegal-cell
+   scenarios, major for single-axis). A test-results.json
+   scenario_coverage entry of `["legacy"]` means migration was
+   applied but no real test has claimed the scenario yet — the goal
+   of this step is to REPLACE every `legacy` placeholder with a real
+   test name.
 
 Test files go in the project's test directory (not in `.bts/`).
 

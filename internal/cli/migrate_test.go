@@ -73,3 +73,97 @@ func TestUpgradeVerifyLogLine_BadJSON(t *testing.T) {
 		t.Errorf("bad json should pass through unchanged")
 	}
 }
+
+// ---- settings migration -----------------------------------------------
+
+func TestInjectSettingKey_IntoExistingBlock(t *testing.T) {
+	in := "implement:\n  max_build_retries: 5\n  max_test_iterations: 5\n\nsimulate:\n  min_scenarios: 5\n"
+	ins := settingsInsertion{
+		Parent:  "implement",
+		Key:     "midrun_review_every",
+		Value:   "5",
+		Comment: "Emit reviews every N tasks.",
+		Since:   "v0.5.0",
+	}
+	out, ok := injectSettingKey(in, ins)
+	if !ok {
+		t.Fatal("expected injection to succeed")
+	}
+	if !strings.Contains(out, "  midrun_review_every: 5") {
+		t.Errorf("inserted key missing: %s", out)
+	}
+	if !strings.Contains(out, "# Emit reviews every N tasks. (added in v0.5.0)") {
+		t.Errorf("comment missing: %s", out)
+	}
+	// Must preserve the simulate: section after the blank line.
+	if !strings.Contains(out, "\n\nsimulate:\n") {
+		t.Errorf("blank separator before simulate: lost: %q", out)
+	}
+	// Must place the new key inside implement, before simulate.
+	if strings.Index(out, "midrun_review_every") > strings.Index(out, "simulate:") {
+		t.Errorf("new key landed after sibling section: %s", out)
+	}
+}
+
+func TestInjectSettingKey_NoParentSection_Appends(t *testing.T) {
+	in := "simulate:\n  min_scenarios: 5\n"
+	ins := settingsInsertion{
+		Parent: "implement", Key: "midrun_review_every",
+		Value: "5", Comment: "X.", Since: "v0.5.0",
+	}
+	out, ok := injectSettingKey(in, ins)
+	if !ok {
+		t.Fatal("expected injection to succeed")
+	}
+	if !strings.Contains(out, "implement:\n  # X. (added in v0.5.0)\n  midrun_review_every: 5\n") {
+		t.Errorf("fresh section not appended: %s", out)
+	}
+}
+
+func TestInjectSettingKey_NestedBlock_ReturnsToParentIndent(t *testing.T) {
+	// When the block ends with a deeper-indented child (retry_ladder),
+	// the new key must land at the parent indent level, not under the child.
+	in := "implement:\n  max_build_retries: 5\n  retry_ladder:\n    syntactic_max: 3\n"
+	ins := settingsInsertion{
+		Parent: "implement", Key: "midrun_review_every",
+		Value: "5", Comment: "X.", Since: "v0.5.0",
+	}
+	out, _ := injectSettingKey(in, ins)
+	if !strings.Contains(out, "\n  midrun_review_every: 5") {
+		t.Errorf("key should land at 2-space indent, not nested: %q", out)
+	}
+}
+
+func TestHasNestedKey(t *testing.T) {
+	content := "implement:\n  max_build_retries: 5\n  midrun_review_every: 5\nsimulate:\n  max_build_retries: 9\n"
+	if !hasNestedKey(content, "implement", "midrun_review_every") {
+		t.Error("should detect midrun inside implement")
+	}
+	if hasNestedKey(content, "simulate", "midrun_review_every") {
+		t.Error("should NOT detect midrun inside simulate block")
+	}
+	if hasNestedKey(content, "verify", "max_iterations") {
+		t.Error("missing parent → false")
+	}
+}
+
+func TestHasCommentedKey(t *testing.T) {
+	if !hasCommentedKey("  # midrun_review_every: 5\n", "midrun_review_every") {
+		t.Error("should detect commented-out key")
+	}
+	if hasCommentedKey("  midrun_review_every: 5\n", "midrun_review_every") {
+		t.Error("active key is not a commented key")
+	}
+}
+
+func TestDetectBlockIndent(t *testing.T) {
+	if got := detectBlockIndent("\n  foo: 1\n"); got != "  " {
+		t.Errorf("two-space block → got %q", got)
+	}
+	if got := detectBlockIndent("\n    foo: 1\n"); got != "    " {
+		t.Errorf("four-space block → got %q", got)
+	}
+	if got := detectBlockIndent("\n\n"); got != "  " {
+		t.Errorf("empty block → default two spaces, got %q", got)
+	}
+}

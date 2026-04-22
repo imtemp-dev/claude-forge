@@ -86,13 +86,27 @@ func ComputeRecipeStats(projectRoot, recipeDir string) (*RecipeStats, error) {
 		}
 	}
 
-	// Mid-run review coverage (P11).
+	// Mid-run review coverage (P11). Invocations = count of
+	// `reviews/midrun-*.md`; expected = completed tasks ÷ configured
+	// cadence. The expected number was missing from v0.5.0/v0.5.1,
+	// which left midrun_review_coverage stuck at 1.0 in the monitor
+	// script regardless of reality. Load settings so the denominator
+	// respects per-project overrides.
 	reviewsDir := filepath.Join(recipeDir, "reviews")
 	if entries, err := os.ReadDir(reviewsDir); err == nil {
 		for _, e := range entries {
 			if !e.IsDir() && strings.HasPrefix(e.Name(), "midrun-") {
 				s.MidrunInvocations++
 			}
+		}
+	}
+	// projectRoot is the argument the CLI passes through; stats.go's
+	// caller resolves it to the BTS root, so LoadSettings works here.
+	// If settings.yaml is absent LoadSettings returns DefaultSettings.
+	if settings, err := LoadSettings(projectRoot); err == nil {
+		every := settings.Implement.MidrunReviewEvery
+		if every > 0 {
+			s.MidrunExpected = s.CompletedTasks / every
 		}
 	}
 
