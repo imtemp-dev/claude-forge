@@ -241,8 +241,22 @@ func collectSimulationScenarioIDs(recipeDir string) simScenarioSet {
 	if err != nil {
 		return set
 	}
-	idRe := regexp.MustCompile(`(?mi)^(?:#{1,6}\s+.*?\bscenario\b|scenario:|-\s+scenario\s+\d+)[^\n]*`)
-	explicitIDRe := regexp.MustCompile(`\b((?:sim|s)-[A-Za-z0-9_.\-]+)\b`)
+	// Scenario-header shapes observed in the wild:
+	//   "## Scenario sim-001.s1 [single-axis: A]"    — canonical
+	//   "### S01 — Happy path"                        — short-id style
+	//   "### Scenario 1: foo"                         — numbered
+	//   "Scenario: trigger X"                         — bare
+	//   "- Scenario 3 — ..."                          — bullet
+	// The first alternative catches headings that contain the literal
+	// "scenario" keyword. The second catches `### S01`-style headers
+	// whose id is the short label itself.
+	idRe := regexp.MustCompile(
+		`(?mi)^(?:#{1,6}\s+.*?\bscenario\b[^\n]*|scenario:[^\n]*|-\s+scenario\s+\d+[^\n]*|#{1,6}\s+S\d+[^\n]*)`,
+	)
+	// ID shapes: `sim-001.s1` (canonical), `sim-foo`, `S01`, `S-foo`.
+	// `S` alone or followed by a letter (e.g. "Scenario") must NOT
+	// match — require a digit or hyphen immediately after.
+	explicitIDRe := regexp.MustCompile(`\b(sim-[A-Za-z0-9_.\-]+|S[\d\-][A-Za-z0-9_.\-]*)\b`)
 
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
