@@ -98,6 +98,41 @@ func TestStopSpecDone_AllowsOnlyDeferredMinors(t *testing.T) {
 	}
 }
 
+// Sprint 9 P21: handleSpecDone must set level=3.0 AND iteration=last
+// verify entry's iteration on a successful <bts>DONE</bts>. Prevents
+// the r-018 pattern where recipe.json drifts to {level:0, iteration:0}
+// even after converged verify-log.
+func TestStopSpecDone_UpdatesLevelIteration(t *testing.T) {
+	root, recipeID := setupStopRoot(t)
+	writeVerifyLog(t, root, recipeID, []state.VerifyLogEntry{
+		{Iteration: 1, Critical: 1, Major: 0, Status: "continue"},
+		{Iteration: 4, Critical: 0, Major: 0, Status: "converged"},
+	})
+
+	h := NewStopHandler()
+	out, err := h.Handle(&HookInput{CWD: root, StopHookContent: "<bts>DONE</bts>"})
+	if err != nil {
+		t.Fatalf("handle: %v", err)
+	}
+	if out.Decision == "block" {
+		t.Fatalf("expected pass-through, got block: %s", out.Reason)
+	}
+
+	after, err := state.LoadRecipeState(root, recipeID)
+	if err != nil {
+		t.Fatalf("load after: %v", err)
+	}
+	if after.Phase != "finalize" {
+		t.Errorf("phase want finalize, got %s", after.Phase)
+	}
+	if after.Level != 3.0 {
+		t.Errorf("level want 3.0, got %v", after.Level)
+	}
+	if after.Iteration != 4 {
+		t.Errorf("iteration want 4 (from last verify entry), got %d", after.Iteration)
+	}
+}
+
 // TestStopSpecDone_LegacyMinorFieldBlocks — legacy log entries predate the
 // resolvable/deferred split. EffectiveResolvable() treats legacy Minor>0
 // as resolvable (conservative). Ensures existing recipes do not silently

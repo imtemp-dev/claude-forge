@@ -97,6 +97,55 @@ if nothing prevents it. Tag each such scenario:
 Missing illegal-cell scenarios are critical — the spec promises the
 cell is unreachable but the simulation never checks that promise.
 
+### Step 3.5: Canonical Scenario Format (required)
+
+Pick one of the three canonical shapes for every scenario. Mixing
+forms within one file is allowed, but each scenario MUST match one
+shape so `bts validate` can count tags consistently.
+
+**Form A — Prose heading** (preferred for walkthroughs):
+```
+### Scenario sim-001.s1: Happy path [single-axis: Auth]
+body prose here.
+
+### Scenario sim-001.s2: Key rotation [cross-boundary: axes=Auth,Cache]
+```
+The heading MUST pair the word "Scenario" with an id token
+(`sim-…`, `S\d+`, or a plain number). Meta headings like
+`## Scenario Index` or `## Scenarios Overview` are NOT counted — the
+parser requires an id immediately after "Scenario".
+
+**Form B — Short-id heading** (preferred when ids are system-defined):
+```
+### S01 — Happy path [single-axis: Auth]
+### S02 — Key rotation mid-flight [cross-boundary: axes=Auth,Cache]
+```
+
+**Form C — Scenario Index table** (when a file is a pure index):
+```markdown
+## Scenario Index
+
+| ID  | Title                 | Result | Tag                               |
+| --- | --------------------- | ------ | --------------------------------- |
+| S01 | Happy path            | PASS   | [single-axis: Auth]               |
+| S02 | Key rotation          | PASS   | [cross-boundary: axes=Auth,Cache] |
+```
+Constraints:
+- The first cell MUST be `S\d+` or `sim-<label>`. Alignment rows
+  (`| --- | --- |`) and header rows (`| ID | Title |`) are ignored.
+- Data tables with numeric first cells (`| 1 | Item | ... |`) are
+  not scenarios.
+
+**Tag placement** (applies to all three forms):
+- Tag MUST sit on the SAME LINE as the scenario header or inside the
+  table row. Tags placed in body prose below a heading are not parsed.
+- Tag vocabulary: `[cross-boundary: axes=A,B]`, `[single-axis: A]`,
+  or `[illegal-cell: <label>]`. Exactly one per scenario.
+
+If `bts validate` reports `no_scenarios_detected` despite the file
+having a markdown table, the Form-C structure is wrong — check
+first-cell ids.
+
 ### Step 4: Walk Through Code
 
 For each scenario, trace the actual code path:

@@ -14,23 +14,12 @@ import (
 // scenarios that authoring becomes busywork".
 const DefaultCrossBoundaryRatio = 0.30
 
-// simulationScenarioHeaderRe matches scenario header lines that carry
-// the required tag. Shapes accepted:
-//
-//   Scenario: foo [cross-boundary: axes=Drag,Arrangement]
-//   ### Scenario X [single-axis: Drag]
-//   ## 3. Race during snap-back [illegal-cell: drag×slot=dropping,filled]
-//
-// The tag presence is sufficient; we split counts by tag kind.
+// Tag-recognition regexes. Scenario-line recognition itself now lives
+// in simulation_patterns.go (single source shared with test_scenario_map).
 var (
 	simCrossBoundaryRe = regexp.MustCompile(`(?i)\[cross-boundary(?::\s*axes\s*=\s*[^\]]+)?\]`)
 	simSingleAxisRe    = regexp.MustCompile(`(?i)\[single-axis(?::\s*([^\]]+))?\]`)
 	simIllegalCellRe   = regexp.MustCompile(`(?i)\[illegal-cell(?::\s*[^\]]+)?\]`)
-	// simulationScenarioHeadingRe identifies scenario *headers* so we can
-	// distinguish them from body paragraphs that happen to mention the
-	// tag. Requires the line to start with a heading marker or
-	// "Scenario" keyword.
-	simulationScenarioHeadingRe = regexp.MustCompile(`(?mi)^(?:#+\s+.*\bscenario\b|scenario:|-\s+scenario\s+\d+)`)
 )
 
 // SimulationStats counts scenario tags in a simulation file. Legacy
@@ -70,6 +59,19 @@ func CheckSimulationScenarios(simPath string, ratio float64) []Issue {
 		// The skill's author-time rule handles "no scenarios" separately;
 		// we stay silent when there are zero headers to avoid duplicating
 		// that finding.
+		//
+		// Exception (Phase 19 P19): if the file contains a markdown
+		// table (alignment row `| --- | ---`) but IsSimulationScenarioLine
+		// matched zero rows, the author likely tried Form C but
+		// structured it incorrectly — emit a hint so they can self-correct.
+		if strings.Contains(content, "| ---") {
+			return []Issue{{
+				Category: "simulation",
+				Claim:    "no_scenarios_detected: " + fileName,
+				Severity: "major",
+				Detail:   "Simulation contains a markdown table but no row matched the Scenario Index form `| S\\d+ | ... |`. Ensure the first cell is an id like 'S01' or 'sim-foo'. See bts-simulate SKILL.md Step 3.5 Form C.",
+			}}
+		}
 		return nil
 	}
 	if stats.Untagged > 0 {
@@ -139,10 +141,13 @@ func countSimulationTags(content string) SimulationStats {
 	var stats SimulationStats
 
 	// Walk line by line so we can distinguish scenario headers from body
-	// prose that happens to repeat the tag text.
+	// prose that happens to repeat the tag text. IsSimulationScenarioLine
+	// (simulation_patterns.go) is the single source of truth for what
+	// qualifies as a scenario line — keep this delegate thin so any
+	// grammar change requires touching only simulation_patterns.go.
 	lines := strings.Split(content, "\n")
 	for _, line := range lines {
-		if !simulationScenarioHeadingRe.MatchString(line) {
+		if !IsSimulationScenarioLine(line) {
 			continue
 		}
 		stats.Total++

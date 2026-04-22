@@ -1,6 +1,8 @@
 package state
 
 import (
+	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -175,6 +177,49 @@ func AppendVerifyLog(root, recipeID string, entry *VerifyLogEntry) error {
 	entry.Timestamp = time.Now().UTC().Format(time.RFC3339)
 	path := filepath.Join(RecipeDir(root, recipeID), "verify-log.jsonl")
 	return AppendJSONL(path, entry)
+}
+
+// LastVerifyEntry returns the most recent verify-log entry for a recipe,
+// or an error when the log is absent, unreadable, or has no valid
+// entries. Shared by the stop hook (normalization on <bts>DONE</bts>)
+// and `bts recipe reconcile` (manual recovery when DONE was never
+// emitted). Previously the hook had its own private copy; centralising
+// the parse keeps behaviour in lockstep.
+func LastVerifyEntry(root, recipeID string) (*VerifyLogEntry, error) {
+	path := filepath.Join(RecipeDir(root, recipeID), "verify-log.jsonl")
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	var last VerifyLogEntry
+	found := false
+	sc := bufio.NewScanner(f)
+	// verify-log entries can grow with long citations/evidence notes;
+	// use a generous buffer so we never drop an entry silently.
+	sc.Buffer(make([]byte, 1<<20), 1<<20)
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if line == "" {
+			continue
+		}
+		var entry VerifyLogEntry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			// Skip malformed lines — they are diagnostic data and
+			// shouldn't abort reconcile.
+			continue
+		}
+		last = entry
+		found = true
+	}
+	if err := sc.Err(); err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, fmt.Errorf("empty verify log: %s", path)
+	}
+	return &last, nil
 }
 
 // GetActiveRecipe finds the currently active recipe, if any.

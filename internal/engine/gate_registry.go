@@ -136,6 +136,18 @@ var HardGates = []HardGate{
 		Enforcement: "internal/engine/test_scenario_map.go:CheckTestScenarioCoverage",
 		Summary:     "Every simulation scenario must be linked via `bts:scenario {id}` to at least one test; failing results must carry a `category`",
 	},
+	{
+		ID:          "recipe_state_normalized",
+		Rule:        "bts-recipe-protocol.md §Completion (Phase 21)",
+		Enforcement: "internal/hook/stop.go:handleSpecDone + internal/cli/recipe.go:recipeReconcileCmd",
+		Summary:     "On <bts>DONE</bts> recipe.json level→3.0 and iteration←max(curr, last_verify); `bts recipe reconcile` recovers missed DONE",
+	},
+	{
+		ID:          "verification_log_consistency",
+		Rule:        "bts-verify/SKILL.md §Output + Phase 22",
+		Enforcement: "internal/engine/validator.go:validateVerificationLogConsistency",
+		Summary:     "verification.md <bts-findings> counts must match the last verify-log.jsonl entry",
+	},
 }
 
 // InvariantGates lists domain-level checks enforced via `bts verify`.

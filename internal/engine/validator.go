@@ -74,6 +74,17 @@ func ValidateRecipeDir(recipeDir string) ([]ValidationError, error) {
 		errors = append(errors, errs...)
 	}
 
+	// 7a. Sprint 9 P22 — cross-check verification.md counts against
+	// verify-log.jsonl last entry. Runs only when both files exist;
+	// migrate-seeded blocks (source: migrated-from-verify-log) are
+	// labelled so operators can spot migration artefacts quickly.
+	verifyLogPath := filepath.Join(recipeDir, "verify-log.jsonl")
+	if _, err := os.Stat(verifyDocPath); err == nil {
+		if _, err := os.Stat(verifyLogPath); err == nil {
+			errors = append(errors, validateVerificationLogConsistency(verifyDocPath, verifyLogPath)...)
+		}
+	}
+
 	// 7b. deviation.md — Phase 16 machine-readable schema. Runs only
 	// when deviation.md exists so recipes still in blueprint/verify
 	// phase are not flagged.
@@ -205,6 +216,151 @@ func validateVerificationMd(path string) []ValidationError {
 		}
 	}
 	return errs
+}
+
+// validateVerificationLogConsistency cross-checks the counts embedded
+// in verification.md's <bts-findings> block against the last entry of
+// verify-log.jsonl. Sprint 9 P22 — r-018 showed the two sources can
+// drift when verify-log gets a new entry but verification.md isn't
+// re-generated, or when manual log edits occur.
+//
+// Compares four fields: critical, major, minor_resolvable,
+// minor_deferred. Each mismatch surfaces as a `major` ValidationError.
+// Runs only when BOTH files exist (checked at the caller); vacuously
+// returns no errors when the block is missing (validateVerificationMd
+// already flags that) or when last verify entry can't be parsed.
+//
+// Migrate-seeded blocks (`"source": "migrated-from-verify-log"`) get
+// a `[migrate-seeded]` prefix on the detail so operators can tell
+// migration artefacts from real drift. Severity stays major — the
+// artefact is still a real inconsistency that needs a re-verify.
+func validateVerificationLogConsistency(verificationPath, verifyLogPath string) []ValidationError {
+	vData, err := os.ReadFile(verificationPath)
+	if err != nil {
+		return nil
+	}
+	matches := findingsBlockRe.FindAllSubmatch(vData, -1)
+	if len(matches) != 1 {
+		// validateVerificationMd already emits the right error; avoid
+		// double-reporting and skip if the block is missing/duplicated.
+		return nil
+	}
+	var mdCounts map[string]interface{}
+	if err := json.Unmarshal(matches[0][1], &mdCounts); err != nil {
+		return nil // validateVerificationMd flags malformed JSON
+	}
+
+	lastEntry, err := readLastVerifyEntryFile(verifyLogPath)
+	if err != nil {
+		// No entries (empty log) or unreadable — treat the cross-check
+		// as vacuous. Other validators cover log-level issues.
+		return nil
+	}
+
+	migrateSeeded := false
+	if src, ok := mdCounts["source"].(string); ok {
+		if strings.Contains(src, "migrated-from-verify-log") {
+			migrateSeeded = true
+		}
+	}
+
+	type check struct {
+		key      string
+		expected int
+	}
+	checks := []check{
+		{"critical", lastEntry.Critical},
+		{"major", lastEntry.Major},
+		// Pre-split verify-log entries only have `minor`; map it to
+		// resolvable via the same conservative fallback the stop hook
+		// uses (stop.go EffectiveResolvable).
+		{"minor_resolvable", lastEntry.effectiveResolvable()},
+		{"minor_deferred", lastEntry.MinorDeferred},
+	}
+
+	var errs []ValidationError
+	for _, c := range checks {
+		raw, ok := mdCounts[c.key]
+		if !ok {
+			continue // missing keys are validateVerificationMd's responsibility
+		}
+		num, isNum := raw.(float64)
+		if !isNum {
+			continue
+		}
+		if int(num) == c.expected {
+			continue
+		}
+		prefix := ""
+		if migrateSeeded {
+			prefix = "[migrate-seeded] "
+		}
+		errs = append(errs, ValidationError{
+			File:  "verification.md ↔ verify-log.jsonl",
+			Field: "verification_log_mismatch." + c.key,
+			Message: fmt.Sprintf(
+				"%sverification.md says %s=%d but verify-log.jsonl last entry (iteration=%d) says %s=%d — re-run /bts-verify on draft.md to refresh.",
+				prefix, c.key, int(num), lastEntry.Iteration, c.key, c.expected,
+			),
+		})
+	}
+	return errs
+}
+
+// verifyLogLite is an engine-internal subset of state.VerifyLogEntry,
+// defined here so the validator can read verify-log.jsonl without
+// importing state (which would create an import cycle).
+type verifyLogLite struct {
+	Iteration       int `json:"iteration"`
+	Critical        int `json:"critical"`
+	Major           int `json:"major"`
+	Minor           int `json:"minor,omitempty"`
+	MinorResolvable int `json:"minor_resolvable,omitempty"`
+	MinorDeferred   int `json:"minor_deferred,omitempty"`
+}
+
+// effectiveResolvable mirrors state.VerifyLogEntry.EffectiveResolvable()
+// so pre-Phase-2.4 legacy entries (only `minor` set) still map to
+// resolvable for the cross-check.
+func (v *verifyLogLite) effectiveResolvable() int {
+	if v.MinorResolvable == 0 && v.MinorDeferred == 0 && v.Minor > 0 {
+		return v.Minor
+	}
+	return v.MinorResolvable
+}
+
+// readLastVerifyEntryFile scans verify-log.jsonl, returning the most
+// recent parseable entry. Used by the cross-check in this file; the
+// hook package has its own copy taking a different signature.
+func readLastVerifyEntryFile(path string) (*verifyLogLite, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 1<<20), 1<<20)
+	var last verifyLogLite
+	found := false
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if line == "" {
+			continue
+		}
+		var entry verifyLogLite
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			continue
+		}
+		last = entry
+		found = true
+	}
+	if err := sc.Err(); err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, fmt.Errorf("empty verify-log")
+	}
+	return &last, nil
 }
 
 // ValidateAssessDecisionBlock parses and validates a <bts-decision> block.

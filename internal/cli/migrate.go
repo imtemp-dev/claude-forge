@@ -620,30 +620,39 @@ func runMigrateSimulations(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// scenarioHeaderMigrateRe mirrors the one in simulation_checker.go but is
-// kept local to avoid exposing the checker's private regex across
-// packages. Match scenario header lines (leading `#`, `##`, or
-// `Scenario:` keyword) and look for an existing tag.
-var (
-	scenarioHeaderRe = regexp.MustCompile(`(?mi)^(#{1,6}\s+.*\bscenario\b[^\n]*|scenario:[^\n]*|-\s+scenario\s+\d+[^\n]*)$`)
-	existingTagRe    = regexp.MustCompile(`(?i)\[(cross-boundary|single-axis|illegal-cell)(?::[^\]]*)?\]`)
-)
+// existingTagRe detects whether a scenario line already carries one of
+// the three canonical tag shapes — used to avoid double-tagging on
+// idempotent re-runs of `bts migrate simulations`.
+var existingTagRe = regexp.MustCompile(`(?i)\[(cross-boundary|single-axis|illegal-cell)(?::[^\]]*)?\]`)
 
+// tagLegacyScenarios walks a simulation file and injects
+// `[single-axis: legacy]` onto any scenario line that lacks a tag.
+// Scenario recognition delegates to engine.IsSimulationScenarioLine
+// (single source of truth shared with simulation_checker.go), so the
+// set of lines this function touches matches exactly the set the
+// checker counts.
+//
+// Table rows receive the tag inside the last cell so markdown
+// structure stays valid (`| S01 | foo | bar [single-axis: legacy] |`).
+// Heading lines receive it appended at the end.
 func tagLegacyScenarios(path string, dryRun bool) (int, bool, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return 0, false, err
 	}
-	content := string(data)
 
+	lines := strings.Split(string(data), "\n")
 	touched := 0
-	newContent := scenarioHeaderRe.ReplaceAllStringFunc(content, func(line string) string {
-		if existingTagRe.MatchString(line) {
-			return line // already tagged
+	for i, line := range lines {
+		if !engine.IsSimulationScenarioLine(line) {
+			continue
 		}
+		if existingTagRe.MatchString(line) {
+			continue // already tagged — leave it alone
+		}
+		lines[i] = appendLegacyTag(line)
 		touched++
-		return strings.TrimRight(line, " \t") + " [single-axis: legacy]"
-	})
+	}
 
 	if touched == 0 {
 		return 0, false, nil
@@ -654,7 +663,27 @@ func tagLegacyScenarios(path string, dryRun bool) (int, bool, error) {
 	if err := os.WriteFile(path+".bak", data, 0644); err != nil {
 		return 0, false, fmt.Errorf("backup: %w", err)
 	}
-	return touched, true, os.WriteFile(path, []byte(newContent), 0644)
+	return touched, true, os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0644)
+}
+
+// appendLegacyTag inserts the legacy tag into a scenario line. The
+// placement depends on whether the line is a markdown table row or a
+// heading:
+//
+//   - Table row (`| S01 | foo |`)  → `| S01 | foo [single-axis: legacy] |`
+//   - Heading  (`### S01 — Happy`) → `### S01 — Happy [single-axis: legacy]`
+//
+// Keeping the tag inside the table row's final cell preserves pipe
+// balance so downstream markdown renderers still parse the row cleanly.
+func appendLegacyTag(line string) string {
+	const tag = "[single-axis: legacy]"
+	trimmedTrailing := strings.TrimRight(line, " \t")
+	leftTrim := strings.TrimLeft(trimmedTrailing, " \t")
+	if strings.HasPrefix(leftTrim, "|") && strings.HasSuffix(trimmedTrailing, "|") {
+		// Inject inside the last cell, before the closing `|`.
+		return trimmedTrailing[:len(trimmedTrailing)-1] + " " + tag + " |"
+	}
+	return trimmedTrailing + " " + tag
 }
 
 // ---- task-anchor migration (Phase 9) ---------------------------------

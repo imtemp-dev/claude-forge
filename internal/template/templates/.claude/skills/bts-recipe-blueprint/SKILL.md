@@ -498,3 +498,19 @@ The final document should contain, for every component:
 non-obvious logic — algorithms, tricky transformations, critical sequences.
 Do NOT write full function implementations. The spec describes WHAT and WHY,
 not the complete HOW. Implementation happens in `/bts-implement`.
+
+## Recovery: `recipe.json` stuck mid-phase
+
+If a session ended before `<bts>DONE</bts>` was emitted, the stop hook
+did not fire and `recipe.json` may still show a mid-blueprint phase
+(e.g. `phase=simulate, level=0, iteration=0`) even though
+`verify-log.jsonl` already shows `converged`. Recover with:
+
+```bash
+bts recipe reconcile <recipe-id>             # prompts dry-run first
+bts recipe reconcile <recipe-id> --dry-run   # preview plan
+```
+
+Reconcile is idempotent, blueprint-only (never touches implement-phase
+recipes), and writes `recipe.json.bak` before modifying anything. It
+promotes the recipe to `phase=finalize, level=3.0, iteration=max`.

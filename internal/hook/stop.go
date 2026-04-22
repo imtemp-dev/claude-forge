@@ -89,9 +89,19 @@ func (h *stopHandler) handleSpecDone(root string, recipe *state.RecipeState) (*H
 		)), nil
 	}
 
-	// All clear — allow completion
+	// All clear — allow completion. Sprint 9 P21: normalize level and
+	// iteration from the authoritative verify-log entry we just read.
+	// handleSpecDone is only reached when the last entry is converged
+	// (critical=0, major=0, minor_resolvable=0) — that IS Level 3.0 by
+	// definition, so we set it explicitly to prevent recipe.json from
+	// drifting (e.g. r-018 was phase=simulate, level=0 because finalize
+	// was never emitted). Iteration stays monotonic — only raises.
 	prevPhase := recipe.Phase
 	recipe.Phase = "finalize"
+	recipe.Level = 3.0
+	if lastEntry.Iteration > recipe.Iteration {
+		recipe.Iteration = lastEntry.Iteration
+	}
 	if err := state.SaveRecipeState(root, recipe); err != nil {
 		return nil, fmt.Errorf("save recipe state: %w", err)
 	}

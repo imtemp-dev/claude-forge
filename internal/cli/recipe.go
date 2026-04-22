@@ -16,10 +16,15 @@ import (
 
 func init() {
 	rootCmd.AddCommand(recipeCmd)
-	recipeCmd.AddCommand(recipeStatusCmd, recipeListCmd, recipeLogCmd, recipeCancelCmd, recipeCreateCmd)
+	recipeCmd.AddCommand(
+		recipeStatusCmd, recipeListCmd, recipeLogCmd,
+		recipeCancelCmd, recipeCreateCmd, recipeReconcileCmd,
+	)
 	recipeCreateCmd.Flags().String("type", "blueprint", "Recipe type (blueprint, design, analyze, fix, debug)")
 	recipeCreateCmd.Flags().String("topic", "", "Recipe topic description")
 	_ = recipeCreateCmd.MarkFlagRequired("topic")
+	recipeReconcileCmd.Flags().Bool("dry-run", false, "Print the plan without writing")
+	recipeReconcileCmd.Flags().Bool("force", false, "Bypass blueprint-phase whitelist (implement-phase still protected)")
 }
 
 var recipeCmd = &cobra.Command{
@@ -483,4 +488,232 @@ func truncate(s string, max int) string {
 		return s
 	}
 	return s[:max-3] + "..."
+}
+
+// ===== Sprint 9 P21 — `bts recipe reconcile` =========================
+
+// reconcileEligiblePhases lists the blueprint-side phases from which
+// reconcile may promote a recipe to `finalize`. Implementation-lifecycle
+// phases are NEVER eligible — they have their own completion gates via
+// handleImplementDone and reconciling past them would corrupt progress
+// tracking. Kept in a single var so tests and the --force path share
+// one source.
+var reconcileEligiblePhases = map[string]bool{
+	"discovery":     true,
+	"scoping":       true,
+	"domain-model":  true,
+	"wireframe":     true,
+	"architect":     true,
+	"research":      true,
+	"draft":         true,
+	"assess":        true,
+	"improve":       true,
+	"verify":        true,
+	"debate":        true,
+	"simulate":      true,
+	"audit":         true,
+	"sync-check":    true, // sync-check is still blueprint-side
+}
+
+// Sentinel errors callers (and tests) match on for specific remediation.
+var (
+	ErrNoVerifyLog    = fmt.Errorf("no verify-log entries")
+	ErrNotConverged   = fmt.Errorf("verify-log not converged")
+	ErrProtectedPhase = fmt.Errorf("phase protected from reconcile")
+	ErrAlreadyFinal   = fmt.Errorf("recipe already finalized")
+)
+
+// reconcileOpts carries CLI flags into the pure reconcile function so
+// the function stays testable without spinning a cobra command.
+type reconcileOpts struct {
+	dryRun bool
+	force  bool
+}
+
+// reconcilePlan is what the command prints (and, unless dryRun, writes).
+// Callers inspect it to show a before/after diff.
+type reconcilePlan struct {
+	FromPhase     string
+	FromLevel     float64
+	FromIteration int
+	ToPhase       string
+	ToLevel       float64
+	ToIteration   int
+	Reason        string
+}
+
+var recipeReconcileCmd = &cobra.Command{
+	Use:   "reconcile [recipe-id]",
+	Short: "Normalize recipe.json state from verify-log (recover from missed <bts>DONE</bts>)",
+	Long: `When a session ends without the <bts>DONE</bts> marker being emitted,
+the stop hook never runs and recipe.json stays in a mid-blueprint phase
+(e.g. phase=simulate, level=0, iteration=0) while verify-log.jsonl
+already shows 'converged'. Reconcile inspects verify-log and, when the
+last entry is converged with critical=0, major=0, resolvable=0,
+updates recipe.json to:
+
+  phase     = finalize
+  level     = 3.0
+  iteration = max(recipe.iteration, last_verify_entry.iteration)
+
+SAFETY:
+  - Only blueprint-lifecycle phases are eligible by default (discovery
+    through audit, plus sync-check). Implementation-lifecycle phases
+    (implement, test, review, sync, status, complete, finalize,
+    cancelled) are NEVER touched — even with --force.
+  - If verify-log.jsonl is missing or its last entry is not converged,
+    reconcile refuses.
+  - recipe.json.bak is written before any change.
+  - --dry-run prints the plan without writing.
+  - --force bypasses only the blueprint-phase whitelist. It does not
+    re-enable implement-phase reconciliation.`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: runRecipeReconcile,
+}
+
+func runRecipeReconcile(cmd *cobra.Command, args []string) error {
+	cwd, _ := os.Getwd()
+	root, err := state.FindRoot(cwd)
+	if err != nil {
+		return fmt.Errorf("not a bts project: %w", err)
+	}
+
+	recipeID := ""
+	if len(args) == 1 {
+		recipeID = args[0]
+	} else {
+		active, _ := state.GetActiveRecipe(root)
+		if active == nil {
+			return fmt.Errorf("no active recipe and no id given")
+		}
+		recipeID = active.ID
+	}
+
+	dryRun, _ := cmd.Flags().GetBool("dry-run")
+	force, _ := cmd.Flags().GetBool("force")
+
+	plan, err := reconcileRecipe(root, recipeID, reconcileOpts{dryRun: dryRun, force: force})
+	if err != nil {
+		return err
+	}
+
+	verb := "Reconciled"
+	if dryRun {
+		verb = "DRY RUN — would update"
+	}
+	fmt.Printf("%s %s:\n", verb, recipeID)
+	fmt.Printf("  phase:     %s → %s\n", plan.FromPhase, plan.ToPhase)
+	fmt.Printf("  level:     %.1f → %.1f\n", plan.FromLevel, plan.ToLevel)
+	fmt.Printf("  iteration: %d → %d\n", plan.FromIteration, plan.ToIteration)
+	fmt.Printf("  reason:    %s\n", plan.Reason)
+	if !dryRun {
+		fmt.Printf("  backup:    recipe.json.bak\n")
+	}
+	return nil
+}
+
+// reconcileRecipe is the pure function driving the CLI. Separated so
+// unit tests can drive it without setting up a cobra invocation.
+func reconcileRecipe(root, recipeID string, opts reconcileOpts) (*reconcilePlan, error) {
+	recipe, err := state.LoadRecipeState(root, recipeID)
+	if err != nil {
+		return nil, fmt.Errorf("load recipe: %w", err)
+	}
+
+	// Already-final short-circuit. Force cannot re-finalize (nothing
+	// would change) — this is a refusal even with --force because it
+	// signals operator confusion.
+	if recipe.Phase == "finalize" || recipe.Phase == "complete" {
+		return nil, fmt.Errorf("%w: recipe already in phase %q", ErrAlreadyFinal, recipe.Phase)
+	}
+
+	// Implement-lifecycle phases are NEVER reconciled. This is the
+	// hardcoded safety — --force does not bypass. handleImplementDone
+	// owns these phases; reconcile touching them would corrupt tasks/
+	// test/sync progress tracking.
+	if state.IsImplementPhase(recipe.Phase) {
+		return nil, fmt.Errorf("%w: recipe is in implement-lifecycle phase %q — reconcile is blueprint-only",
+			ErrProtectedPhase, recipe.Phase)
+	}
+
+	// Blueprint-phase whitelist. --force bypasses.
+	if !opts.force && !reconcileEligiblePhases[recipe.Phase] {
+		return nil, fmt.Errorf("%w: phase %q not in reconcile-eligible set; use --force to override",
+			ErrProtectedPhase, recipe.Phase)
+	}
+
+	lastEntry, err := state.LastVerifyEntry(root, recipeID)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrNoVerifyLog, err)
+	}
+
+	// Convergence pre-check mirrors handleSpecDone's gate. If any
+	// count is non-zero or status is not "converged", reconcile
+	// refuses.
+	resolvable := lastEntry.EffectiveResolvable()
+	if lastEntry.Critical > 0 || lastEntry.Major > 0 || resolvable > 0 ||
+		lastEntry.Status != "converged" {
+		return nil, fmt.Errorf("%w: last entry has critical=%d major=%d resolvable=%d status=%s",
+			ErrNotConverged, lastEntry.Critical, lastEntry.Major, resolvable, lastEntry.Status)
+	}
+
+	nextIter := recipe.Iteration
+	if lastEntry.Iteration > nextIter {
+		nextIter = lastEntry.Iteration
+	}
+	plan := &reconcilePlan{
+		FromPhase:     recipe.Phase,
+		FromLevel:     recipe.Level,
+		FromIteration: recipe.Iteration,
+		ToPhase:       "finalize",
+		ToLevel:       3.0,
+		ToIteration:   nextIter,
+		Reason:        fmt.Sprintf("verify-log last entry (iter=%d) is converged", lastEntry.Iteration),
+	}
+
+	if opts.dryRun {
+		return plan, nil
+	}
+
+	// Backup recipe.json before overwrite. Non-fatal if no existing
+	// file (brand-new recipes won't have one) but any IO error stops us.
+	recipePath := filepath.Join(state.RecipeDir(root, recipeID), "recipe.json")
+	if err := backupRecipeJSON(recipePath); err != nil {
+		return nil, fmt.Errorf("backup recipe.json: %w", err)
+	}
+
+	recipe.Phase = plan.ToPhase
+	recipe.Level = plan.ToLevel
+	recipe.Iteration = plan.ToIteration
+	if err := state.SaveRecipeState(root, recipe); err != nil {
+		return nil, fmt.Errorf("save: %w", err)
+	}
+
+	// Audit: emit a metrics event + a changelog entry so operators can
+	// trace post-hoc which reconciles fired and why.
+	_ = metrics.Append(root, &metrics.MetricsEvent{
+		Kind:          metrics.KindPhaseChange,
+		RecipeID:      recipeID,
+		Phase:         plan.ToPhase,
+		PreviousPhase: plan.FromPhase,
+	})
+	_ = state.AppendChangelog(root, recipeID, &state.ChangelogEntry{
+		Action: "finalize",
+		Result: fmt.Sprintf(
+			"reconciled from phase=%s level=%.1f iter=%d (force=%v)",
+			plan.FromPhase, plan.FromLevel, plan.FromIteration, opts.force,
+		),
+	})
+	return plan, nil
+}
+
+func backupRecipeJSON(path string) error {
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path+".bak", data, 0644)
 }

@@ -241,23 +241,10 @@ func collectSimulationScenarioIDs(recipeDir string) simScenarioSet {
 	if err != nil {
 		return set
 	}
-	// Scenario-header shapes observed in the wild:
-	//   "## Scenario sim-001.s1 [single-axis: A]"    — canonical
-	//   "### S01 — Happy path"                        — short-id style
-	//   "### Scenario 1: foo"                         — numbered
-	//   "Scenario: trigger X"                         — bare
-	//   "- Scenario 3 — ..."                          — bullet
-	// The first alternative catches headings that contain the literal
-	// "scenario" keyword. The second catches `### S01`-style headers
-	// whose id is the short label itself.
-	idRe := regexp.MustCompile(
-		`(?mi)^(?:#{1,6}\s+.*?\bscenario\b[^\n]*|scenario:[^\n]*|-\s+scenario\s+\d+[^\n]*|#{1,6}\s+S\d+[^\n]*)`,
-	)
-	// ID shapes: `sim-001.s1` (canonical), `sim-foo`, `S01`, `S-foo`.
-	// `S` alone or followed by a letter (e.g. "Scenario") must NOT
-	// match — require a digit or hyphen immediately after.
-	explicitIDRe := regexp.MustCompile(`\b(sim-[A-Za-z0-9_.\-]+|S[\d\-][A-Za-z0-9_.\-]*)\b`)
 
+	// Scenario-line recognition + id extraction live in
+	// simulation_patterns.go so this function, simulation_checker.go,
+	// and the migrate tool all agree on what "a scenario" is.
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
 			continue
@@ -267,19 +254,20 @@ func collectSimulationScenarioIDs(recipeDir string) simScenarioSet {
 			continue
 		}
 		content := string(data)
-		headerLines := idRe.FindAllString(content, -1)
-		autoCounter := 0
 		simBase := strings.TrimSuffix(e.Name(), ".md")
-		for _, hl := range headerLines {
-			id := ""
-			if m := explicitIDRe.FindStringSubmatch(hl); len(m) >= 2 {
-				id = m[1]
-			} else {
+		autoCounter := 0
+
+		for _, line := range strings.Split(content, "\n") {
+			if !IsSimulationScenarioLine(line) {
+				continue
+			}
+			id := ExtractScenarioID(line)
+			if id == "" {
 				autoCounter++
 				id = "sim-" + simBase + ".s" + itoa(autoCounter)
 			}
-			cross := simCrossBoundaryRe.MatchString(hl)
-			illegal := simIllegalCellRe.MatchString(hl)
+			cross := simCrossBoundaryRe.MatchString(line)
+			illegal := simIllegalCellRe.MatchString(line)
 			set.all = append(set.all, simScenarioRef{
 				id: id, sourceFile: e.Name(),
 				crossBoundary: cross, illegalCell: illegal,

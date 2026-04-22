@@ -126,3 +126,21 @@ If `agents.verifier` is explicitly set in `.bts/config/settings.yaml`, use that 
 
 3. Collect the verifier's findings
 4. Report results to the user with severity counts
+
+## Count consistency (Phase 22)
+
+The counts embedded in the `<bts-findings>` block MUST match the most
+recent `verify-log.jsonl` entry. `bts validate` cross-checks the two —
+drift between them surfaces as `verification_log_mismatch` (major)
+per-field.
+
+If you improve the draft and re-run verification, the skill writes a
+fresh verification.md with new counts AND a new verify-log entry
+(via `bts recipe log --iteration N --critical X --major Y ...`).
+Those two operations happen together so the counts stay in lockstep.
+Do not hand-edit verify-log.jsonl or verification.md — use the skill.
+
+Migrate-seeded blocks (produced by `bts migrate verification`) carry
+`"source": "migrated-from-verify-log"`. Cross-check mismatches on
+those are still flagged but labeled `[migrate-seeded]` so operators
+can distinguish migration artifacts from real drift.
