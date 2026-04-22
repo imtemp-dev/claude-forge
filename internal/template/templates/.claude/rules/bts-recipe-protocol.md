@@ -1,6 +1,10 @@
 ---
 paths:
   - ".bts/**"
+authoritative_for:
+  - phase_lifecycle
+  - completion_markers
+  - mandatory_rules
 ---
 
 # BTS Recipe Protocol

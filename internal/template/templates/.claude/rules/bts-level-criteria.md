@@ -1,6 +1,10 @@
 ---
 paths:
   - ".bts/**"
+authoritative_for:
+  - level_criteria_l1
+  - level_criteria_l2
+  - level_criteria_l3
 ---
 
 # BTS Level Criteria

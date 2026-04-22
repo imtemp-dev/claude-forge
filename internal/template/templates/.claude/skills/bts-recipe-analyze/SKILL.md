@@ -51,7 +51,7 @@ Write a structured analysis:
 
 Save to `.bts/specs/{id}/draft.md`.
 
-## Step 3: Verify Loop (max 3 iterations)
+## Step 3: Verify Loop (max `verify.max_iterations`, default 3)
 - Skill("bts-cross-check"): file/function references correct?
 - Skill("bts-verify"): logical consistency?
 - Skill("bts-audit"): anything missing?
@@ -61,8 +61,8 @@ After each skill completes, immediately proceed to the next check.
 When all checks pass (critical=0, major=0), continue directly to Step 4.
 If issues found, fix them and re-run the loop — do NOT stop to report.
 
-Max 3 iterations. If same issues persist → [CONVERGENCE FAILED],
-report findings and ask user for guidance.
+Max `verify.max_iterations` (default: 3). If same issues persist →
+[CONVERGENCE FAILED], report findings and ask user for guidance.
 
 Log each iteration:
 ```bash

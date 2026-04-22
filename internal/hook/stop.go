@@ -80,10 +80,11 @@ func (h *stopHandler) handleSpecDone(root string, recipe *state.RecipeState) (*H
 		return blockOutput("No verification log found. Run verification before completing."), nil
 	}
 
-	if lastEntry.Critical > 0 || lastEntry.Major > 0 {
+	resolvable := lastEntry.EffectiveResolvable()
+	if lastEntry.Critical > 0 || lastEntry.Major > 0 || resolvable > 0 {
 		return blockOutput(fmt.Sprintf(
-			"Verification not passed: %d critical, %d major errors remain. Fix and re-verify.",
-			lastEntry.Critical, lastEntry.Major,
+			"Verification not passed: %d critical, %d major, %d minor [resolvable] remain. Fix and re-verify. Deferred minors are runtime watch-items and do not block here.",
+			lastEntry.Critical, lastEntry.Major, resolvable,
 		)), nil
 	}
 

@@ -73,7 +73,38 @@ Assess the document and decide the next action.
    Run /bts-sync-check, then finalize. Deferred items will be validated
    during /bts-implement's test/simulate loop."
 
-5. Output your assessment:
+5. Output your assessment in TWO parts:
+
+   **Part A — Machine-readable decision block (REQUIRED, exact format):**
+
+   Emit this block verbatim, with valid JSON inside. The blueprint loop
+   and `bts validate` parse this block; anything outside the block is
+   ignored by the loop orchestrator.
+
+   ```
+   <bts-decision>
+   {
+     "level": 2.5,
+     "action": "IMPROVE",
+     "phase": "draft",
+     "reason": "Add function signatures for arrangement module",
+     "findings_ref": "verification.md#last-run"
+   }
+   </bts-decision>
+   ```
+
+   `action` MUST be one of (case-sensitive):
+   `RESEARCH`, `DEBATE`, `ADJUDICATE`, `SIMULATE`, `AUDIT`, `IMPROVE`,
+   `VERIFY`, `SYNC_CHECK`, `FINALIZE`, `SCOPE_REOPEN`, `WIREFRAME`,
+   `DOMAIN_MODEL`, `ARCHITECT`, `HALT_DECISION_REQUIRED`,
+   `HALT_CONVERGENCE_FAILED`, `HALT_DEBATE_DEADLOCK`.
+
+   `phase` MUST be a valid recipe phase from `bts-schema.md`.
+
+   `findings_ref` is optional — cite the verification.md / audit output
+   section that justifies this action.
+
+   **Part B — Human-readable rationale** (free text, for the user):
    ```
    ## Assessment
    Current Level: [X.Y]

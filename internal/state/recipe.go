@@ -87,13 +87,34 @@ func IsImplementPhase(phase string) bool {
 }
 
 // VerifyLogEntry records one iteration of the verification loop.
+//
+// Minor findings are split into [resolvable] (fixable in the spec, block
+// completion) and [deferred] (runtime-observable, do not block). CRITICAL
+// and MAJOR never block-split — they always block. INFO is tracked for
+// telemetry only.
+//
+// Legacy entries written before the split carry only the Minor field.
+// Readers should treat Minor as MinorResolvable when MinorResolvable and
+// MinorDeferred are both zero (see stop hook and CLI log handler).
 type VerifyLogEntry struct {
-	Iteration int    `json:"iteration"`
-	Critical  int    `json:"critical"`
-	Major     int    `json:"major"`
-	Minor     int    `json:"minor"`
-	Status    string `json:"status"` // continue, converged, failed
-	Timestamp string `json:"timestamp"`
+	Iteration       int    `json:"iteration"`
+	Critical        int    `json:"critical"`
+	Major           int    `json:"major"`
+	Minor           int    `json:"minor,omitempty"`             // legacy pre-split count
+	MinorResolvable int    `json:"minor_resolvable,omitempty"`
+	MinorDeferred   int    `json:"minor_deferred,omitempty"`
+	Info            int    `json:"info,omitempty"`
+	Status          string `json:"status"` // continue, converged, failed
+	Timestamp       string `json:"timestamp"`
+}
+
+// EffectiveResolvable returns the resolvable-minor count to use for gating,
+// falling back to legacy Minor when the split fields are absent.
+func (e *VerifyLogEntry) EffectiveResolvable() int {
+	if e.MinorResolvable == 0 && e.MinorDeferred == 0 && e.Minor > 0 {
+		return e.Minor
+	}
+	return e.MinorResolvable
 }
 
 // RecipeDir returns the directory for a recipe's state.

@@ -339,24 +339,22 @@ Also apply this checklist after every IMPROVE step, before /verify.
 
 ### ASSESS Decision Tree
 
-After each /assess, update phase and execute the recommended action:
+The decision tree is **single-sourced in `bts-assess/SKILL.md`**. After each
+`/assess`, read the `<bts-decision>` machine-readable block from the assess
+output and execute the named action. The block's `phase` field is the next
+phase to record:
 
-| Assessment | Phase | Action | Details |
-|------------|-------|--------|---------|
-| "Scope issue found" | scoping | Scope Re-opening | Research flagged infeasible/missing scope items |
-| "Information insufficient" | research | /research | Investigate docs, APIs, libraries |
-| "Technical decision needed" | debate | /debate → /adjudicate | 3 experts, then evaluate. Pass current draft path for expert reference |
-| "Gaps may exist" | simulate | /simulate | Design 5+ scenarios. Walk through spec |
-| "Content missing for next level" | draft | IMPROVE | Add specific items. Edit draft.md |
-| "Contradictions suspected" | verify | /verify | Check internal consistency |
-| "Completeness uncertain" | audit | /audit | Review for missing cases |
-| "Level 3 achieved" | verify | /sync-check | Final cross-document verification |
-
-Update phase before each action:
 ```bash
-bts recipe log {id} --phase [phase from table above]
+bts recipe log {id} --phase <phase from <bts-decision>>
 ```
-This keeps session-start hints accurate if session breaks mid-loop.
+
+Action enum (see bts-assess § Part A for authoritative list): RESEARCH,
+DEBATE, ADJUDICATE, SIMULATE, AUDIT, IMPROVE, VERIFY, SYNC_CHECK, FINALIZE,
+SCOPE_REOPEN, WIREFRAME, DOMAIN_MODEL, ARCHITECT, and three HALT_* codes.
+
+Do NOT maintain a parallel decision table here — keeping the tree in one
+place prevents the drift that historically produced conflicting blueprint
+and assess behavior.
 
 ### Quality Rules
 
@@ -382,18 +380,17 @@ This keeps session-start hints accurate if session breaks mid-loop.
    - Framework-silent finding downgraded to MINOR → one concise
      acknowledgment line, not extensive rationalization.
    - `[deferred]` minors are never IMPROVE targets (see rule 3b).
-3b. **Minor handling split.** /verify and /audit tag minors as either
-   [resolvable] or [deferred]:
-   - [resolvable] minors → fix directly in draft.md, then re-verify normally.
-   - [deferred] minors → append to a "## Known Uncertainties" section at the
+3b. **Minor handling split.** /verify and /audit tag minors as `[resolvable]`
+   or `[deferred]` per `bts-verification-protocol.md § Severity Classification`:
+   - `[resolvable]` minors → fix directly in draft.md, then re-verify normally.
+   - `[deferred]` minors → append to a "## Known Uncertainties" section at the
      end of draft.md. Each entry: finding description + the `Why-deferred:`
-     observation copied verbatim from the verifier output. Do NOT run IMPROVE
-     or another /verify cycle for [deferred] minors — they are implementation
-     watch-items, not spec defects.
-   - Loop exit: when /verify shows ONLY [deferred] minors (no critical, no
-     major, no [resolvable] minors), do NOT call IMPROVE again. Proceed to
-     /sync-check → finalize. The deferred items carry into /bts-implement
-     as a watch-list.
+     observation copied verbatim. Do NOT run IMPROVE or another /verify
+     cycle for `[deferred]` minors — they are implementation watch-items.
+   - Loop exit: when `/verify` shows ONLY `[deferred]` minors, `/bts-assess`
+     will emit `action: FINALIZE` (see its "only [deferred] minors remain"
+     branch). Follow that — do NOT call IMPROVE again. The deferred items
+     carry into `/bts-implement` as a watch-list.
 4. **/simulate early**: Run after the FIRST verify cycle that produces critical=0.
    Simulation catches scenario-level gaps (failure modes, race conditions, edge cases)
    that structural verification cannot find. Running it early prevents late-stage rework.

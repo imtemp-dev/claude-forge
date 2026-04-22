@@ -188,39 +188,56 @@ var recipeLogCmd = &cobra.Command{
 
 			fmt.Printf("Logged action: %s → %s\n", action, output)
 		} else if phase == "" {
-			// Verify-log mode: log an iteration result (backward compatible)
+			// Verify-log mode: log an iteration result.
+			// Prefer --minor-resolvable / --minor-deferred (split form).
+			// --minor is accepted for legacy callers and mapped to resolvable.
 			iteration, _ := cmd.Flags().GetInt("iteration")
 			critical, _ := cmd.Flags().GetInt("critical")
 			major, _ := cmd.Flags().GetInt("major")
 			minor, _ := cmd.Flags().GetInt("minor")
+			minorR, _ := cmd.Flags().GetInt("minor-resolvable")
+			minorD, _ := cmd.Flags().GetInt("minor-deferred")
+			infoCt, _ := cmd.Flags().GetInt("info")
 
+			// Legacy fallback: caller passed --minor but not the split flags.
+			// Treat as resolvable (the strict, conservative interpretation).
+			if minor > 0 && minorR == 0 && minorD == 0 {
+				minorR = minor
+			}
+
+			// Converged requires critical=0, major=0, and no resolvable minors.
+			// [deferred] minors do not block — they are runtime watch-items.
 			status := "continue"
-			if critical == 0 && major == 0 {
+			if critical == 0 && major == 0 && minorR == 0 {
 				status = "converged"
 			}
 
 			entry := &state.VerifyLogEntry{
-				Iteration: iteration,
-				Critical:  critical,
-				Major:     major,
-				Minor:     minor,
-				Status:    status,
+				Iteration:       iteration,
+				Critical:        critical,
+				Major:           major,
+				Minor:           minor,
+				MinorResolvable: minorR,
+				MinorDeferred:   minorD,
+				Info:            infoCt,
+				Status:          status,
 			}
 
 			if err := state.AppendVerifyLog(root, recipeID, entry); err != nil {
 				return fmt.Errorf("log: %w", err)
 			}
 
-			// Also log to changelog
+			// Also log to changelog with the split fields for downstream validators.
 			if err := state.AppendChangelog(root, recipeID, &state.ChangelogEntry{
 				Action: "verify",
-				Result: fmt.Sprintf("critical=%d major=%d minor=%d → %s", critical, major, minor, status),
+				Result: fmt.Sprintf("critical=%d major=%d minor_resolvable=%d minor_deferred=%d → %s",
+					critical, major, minorR, minorD, status),
 			}); err != nil {
 				fmt.Fprintf(os.Stderr, "warning: append changelog: %v\n", err)
 			}
 
-			fmt.Printf("Logged iteration %d: critical=%d major=%d minor=%d → %s\n",
-				iteration, critical, major, minor, status)
+			fmt.Printf("Logged iteration %d: critical=%d major=%d minor_resolvable=%d minor_deferred=%d → %s\n",
+				iteration, critical, major, minorR, minorD, status)
 		}
 
 		return nil
@@ -302,11 +319,14 @@ var recipeCancelCmd = &cobra.Command{
 }
 
 func init() {
-	// Verify-log flags (backward compatible)
+	// Verify-log flags
 	recipeLogCmd.Flags().Int("iteration", 0, "Iteration number")
-	recipeLogCmd.Flags().Int("critical", 0, "Critical error count")
-	recipeLogCmd.Flags().Int("major", 0, "Major error count")
-	recipeLogCmd.Flags().Int("minor", 0, "Minor error count")
+	recipeLogCmd.Flags().Int("critical", 0, "Critical finding count")
+	recipeLogCmd.Flags().Int("major", 0, "Major finding count")
+	recipeLogCmd.Flags().Int("minor", 0, "Legacy: undifferentiated minor count (maps to --minor-resolvable)")
+	recipeLogCmd.Flags().Int("minor-resolvable", 0, "Minor [resolvable] count — fixable in spec, blocks completion")
+	recipeLogCmd.Flags().Int("minor-deferred", 0, "Minor [deferred] count — runtime-observable, does not block")
+	recipeLogCmd.Flags().Int("info", 0, "Info suggestion count")
 	// Changelog flags
 	recipeLogCmd.Flags().String("action", "", "Action type (research, improve, verify, debate, simulate, audit, assess, implement, test, sync, status)")
 	recipeLogCmd.Flags().String("output", "", "Output file path")

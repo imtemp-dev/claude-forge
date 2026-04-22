@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -67,7 +68,115 @@ func ValidateRecipeDir(recipeDir string) ([]ValidationError, error) {
 		errors = append(errors, errs...)
 	}
 
+	// 7. verification.md — required <bts-findings> block when present.
+	verifyDocPath := filepath.Join(recipeDir, "verification.md")
+	if errs := validateVerificationMd(verifyDocPath); len(errs) > 0 {
+		errors = append(errors, errs...)
+	}
+
 	return errors, nil
+}
+
+// structuredVerifyResultRe matches the canonical "critical=N major=N ..."
+// shape emitted by the CLI. Free-form prose (narrative summaries, mixed
+// language commentary) does not match and is passed through.
+var structuredVerifyResultRe = regexp.MustCompile(`^\s*critical=\d+\s+major=\d+\b`)
+
+// isStructuredVerifyResult returns true when the result string begins with
+// the structured count format. This is intentionally strict — prose that
+// merely mentions "critical=N" mid-sentence should NOT be treated as the
+// split-required form.
+func isStructuredVerifyResult(result string) bool {
+	return structuredVerifyResultRe.MatchString(result)
+}
+
+// findingsBlockRe matches <bts-findings>...</bts-findings> with JSON inside.
+// Multi-line (dot matches newline) and non-greedy body.
+var findingsBlockRe = regexp.MustCompile(`(?s)<bts-findings>\s*(\{.*?\})\s*</bts-findings>`)
+
+// decisionBlockRe matches <bts-decision>...</bts-decision> similarly.
+var decisionBlockRe = regexp.MustCompile(`(?s)<bts-decision>\s*(\{.*?\})\s*</bts-decision>`)
+
+// validDecisionActions is the authoritative enum for <bts-decision>.action.
+// Source: bts-assess/SKILL.md § Part A. Changes require updating both files.
+var validDecisionActions = map[string]bool{
+	"RESEARCH": true, "DEBATE": true, "ADJUDICATE": true, "SIMULATE": true,
+	"AUDIT": true, "IMPROVE": true, "VERIFY": true, "SYNC_CHECK": true,
+	"FINALIZE": true, "SCOPE_REOPEN": true, "WIREFRAME": true,
+	"DOMAIN_MODEL": true, "ARCHITECT": true,
+	"HALT_DECISION_REQUIRED": true, "HALT_CONVERGENCE_FAILED": true,
+	"HALT_DEBATE_DEADLOCK": true,
+}
+
+// validateVerificationMd enforces that verification.md carries a structured
+// findings block. The stop hook and downstream tooling rely on the counts
+// embedded in this block.
+func validateVerificationMd(path string) []ValidationError {
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil // absence is handled by the stop hook, not by validator
+	}
+	if err != nil {
+		return []ValidationError{{File: "verification.md", Field: "(file)", Message: err.Error()}}
+	}
+
+	matches := findingsBlockRe.FindAllSubmatch(data, -1)
+	if len(matches) == 0 {
+		return []ValidationError{{File: "verification.md", Field: "<bts-findings>", Message: "missing structured findings block — add <bts-findings>{...}</bts-findings> per bts-verify skill spec"}}
+	}
+	if len(matches) > 1 {
+		return []ValidationError{{File: "verification.md", Field: "<bts-findings>", Message: fmt.Sprintf("expected exactly 1 block, found %d", len(matches))}}
+	}
+
+	var raw map[string]interface{}
+	if err := json.Unmarshal(matches[0][1], &raw); err != nil {
+		return []ValidationError{{File: "verification.md", Field: "<bts-findings>", Message: "invalid JSON in findings block: " + err.Error()}}
+	}
+
+	var errs []ValidationError
+	for _, field := range []string{"critical", "major", "minor_resolvable", "minor_deferred"} {
+		v, ok := raw[field]
+		if !ok {
+			errs = append(errs, ValidationError{File: "verification.md", Field: "<bts-findings>." + field, Message: "missing required count"})
+			continue
+		}
+		// JSON numbers arrive as float64
+		if _, isNum := v.(float64); !isNum {
+			errs = append(errs, ValidationError{File: "verification.md", Field: "<bts-findings>." + field, Message: "must be a number"})
+		}
+	}
+	return errs
+}
+
+// ValidateAssessDecisionBlock parses and validates a <bts-decision> block.
+// Returns the parsed action or an error if the block is malformed. Callers
+// that embed decisions in changelog or external outputs can use this to
+// verify conformance before writing.
+func ValidateAssessDecisionBlock(content string) (string, []ValidationError) {
+	matches := decisionBlockRe.FindAllStringSubmatch(content, -1)
+	if len(matches) == 0 {
+		return "", []ValidationError{{File: "(assess output)", Field: "<bts-decision>", Message: "missing decision block"}}
+	}
+	if len(matches) > 1 {
+		return "", []ValidationError{{File: "(assess output)", Field: "<bts-decision>", Message: fmt.Sprintf("expected 1 block, found %d", len(matches))}}
+	}
+
+	var raw map[string]interface{}
+	if err := json.Unmarshal([]byte(matches[0][1]), &raw); err != nil {
+		return "", []ValidationError{{File: "(assess output)", Field: "<bts-decision>", Message: "invalid JSON: " + err.Error()}}
+	}
+
+	var errs []ValidationError
+	for _, field := range []string{"level", "action", "phase", "reason"} {
+		if _, ok := raw[field]; !ok {
+			errs = append(errs, ValidationError{File: "(assess output)", Field: "<bts-decision>." + field, Message: "missing required field"})
+		}
+	}
+	action, _ := raw["action"].(string)
+	if action != "" && !validDecisionActions[action] {
+		errs = append(errs, ValidationError{File: "(assess output)", Field: "<bts-decision>.action", Message: fmt.Sprintf("invalid action '%s' — not in enum", action)})
+	}
+	return action, errs
 }
 
 func validateRecipeJSON(path string) []ValidationError {
@@ -107,7 +216,8 @@ func validateRecipeJSON(path string) []ValidationError {
 	// Validate phase enum
 	if p, ok := raw["phase"].(string); ok {
 		valid := map[string]bool{
-			"discovery": true, "scoping": true, "wireframe": true,
+			"discovery": true, "scoping": true,
+			"domain-model": true, "architect": true, "wireframe": true,
 			"research": true, "draft": true, "assess": true, "improve": true,
 			"verify": true, "debate": true, "simulate": true, "audit": true,
 			"finalize": true, "cancelled": true,
@@ -164,6 +274,12 @@ func validateManifestJSON(path string) []ValidationError {
 						"simulation": true, "verification": true,
 						"implementation": true, "test-result": true, "deviation": true,
 						"review": true,
+						// Lifecycle docs (intent/scope/final) carry their own doc type so
+						// manifests can distinguish them from drafts. "finalize" is an
+						// accepted alias kept for recipes created before the rename.
+						"discover": true, "scope": true,
+						"final": true, "finalize": true,
+						"domain": true, "wireframe": true, "architect-decision": true,
 					}
 					if !validTypes[t] {
 						errs = append(errs, ValidationError{File: "manifest.json", Field: "documents." + path + ".type", Message: fmt.Sprintf("invalid type '%s'", t)})
@@ -220,15 +336,31 @@ func validateChangelogJSONL(path string) []ValidationError {
 
 		if action, ok := raw["action"].(string); ok {
 			validActions := map[string]bool{
-				"discover": true, "wireframe": true,
+				"discover": true, "domain-model": true, "wireframe": true,
 				"research": true, "draft": true, "improve": true, "verify": true,
 				"debate": true, "simulate": true, "audit": true, "assess": true,
 				"sync-check": true, "finalize": true,
 				"implement": true, "test": true, "sync": true, "status": true,
-				"adjudicate": true, "review": true,
+				"adjudicate": true, "review": true, "architect": true,
+				"resolve-uncertainties": true,
 			}
 			if !validActions[action] {
 				errs = append(errs, ValidationError{File: "changelog.jsonl", Field: fmt.Sprintf("line %d.action", lineNum), Message: fmt.Sprintf("invalid action '%s'", action)})
+			}
+
+			// verify action result must carry split-minor counts when written
+			// in the structured "critical=X major=Y ..." form. Free-form prose
+			// results from older recipes (narrative summaries, multi-line
+			// commentary) pass through — the structured counts live in
+			// verify-log.jsonl, which is the authoritative gate input.
+			if action == "verify" {
+				if result, ok := raw["result"].(string); ok && result != "" {
+					if isStructuredVerifyResult(result) &&
+						!strings.Contains(result, "minor_resolvable=") &&
+						!strings.Contains(result, "minor_deferred=") {
+						errs = append(errs, ValidationError{File: "changelog.jsonl", Field: fmt.Sprintf("line %d.result", lineNum), Message: "structured verify result missing minor_resolvable=/minor_deferred= — use new split format"})
+					}
+				}
 			}
 		} else if _, exists := raw["action"]; !exists {
 			errs = append(errs, ValidationError{File: "changelog.jsonl", Field: fmt.Sprintf("line %d.action", lineNum), Message: "missing required field"})
@@ -320,7 +452,7 @@ func validateTasksJSON(path string) []ValidationError {
 	validStatuses := map[string]bool{
 		"pending": true, "in_progress": true, "done": true, "blocked": true, "skipped": true,
 	}
-	validActions := map[string]bool{"create": true, "modify": true}
+	validActions := map[string]bool{"create": true, "modify": true, "delete": true}
 
 	for i, task := range tasksList {
 		taskMap, isObj := task.(map[string]interface{})

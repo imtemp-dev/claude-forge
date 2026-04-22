@@ -1,6 +1,10 @@
 ---
 paths:
   - ".bts/**"
+authoritative_for:
+  - json_schema
+  - field_names
+  - file_paths
 ---
 
 # BTS File Schema Reference

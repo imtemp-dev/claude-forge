@@ -85,32 +85,40 @@ If `agents.auditor` is explicitly set in `.bts/config/settings.yaml`, use that m
    Budget: evidence-gather only CRITICAL/MAJOR candidates, cap at 5 findings
    per run to keep iteration time bounded. Minor findings need no evidence.
 
-   **Minor sub-classification:**
+   **Severity classification:**
 
-   Every MINOR finding must be tagged as either [resolvable] or [deferred]:
-   - MINOR [resolvable]: fixable in the spec itself — missing edge case
-     documentation, unspecified minor branches, incomplete error messages,
-     cross-reference gaps that do not block implementation.
-   - MINOR [deferred]: the missing information can only be produced at
-     implementation/runtime — device-specific behavior, actual measured
-     thresholds, empirical limits, framework-version-specific quirks.
+   See `bts-verification-protocol.md § Severity Classification` for the
+   authoritative definitions. In audit context:
+   - **critical**: Will cause runtime failure if not addressed
+   - **major**: Important gap that should be filled before implementation
+   - **minor [resolvable]**: Fixable in the spec (see protocol)
+   - **minor [deferred]**: Only confirmable at implementation/runtime (see protocol)
+   - **info**: Improvement suggestions
 
-   Rule: if filling the gap requires executing the code (or observing it
-   on a physical device) to resolve, it is [deferred], not an IMPROVE
-   target. Every [deferred] minor MUST include a `Why-deferred:` line
-   naming the specific runtime observation that would resolve it.
+   Every `[deferred]` minor MUST include a `Why-deferred:` line naming the
+   specific runtime observation that would resolve it.
 
-   CRITICAL and MAJOR are never [deferred] — if a gap would cause runtime
-   failure AND is unknowable pre-implementation, it stays MAJOR and the
-   spec must document the uncertainty as a defensive design decision.
+   **Structured findings block (REQUIRED, exact format):**
 
-   For each missing item, classify:
-   - critical: Will cause runtime failure if not addressed
-   - major: Important gap that should be filled before implementation
-   - minor [resolvable]: Nice to have, fixable in the spec
-   - minor [deferred]: Nice to have, only confirmable at implementation/runtime
+   Emit this block verbatim at the TOP of the audit output file, with
+   valid JSON inside. `bts validate` parses this block.
 
-   Output findings as a numbered list with severity tags.
+   ```
+   <bts-findings>
+   {
+     "critical": 0,
+     "major": 2,
+     "minor_resolvable": 1,
+     "minor_deferred": 3,
+     "info": 0,
+     "branches_total": 12,
+     "branches_unspecified": 2,
+     "evidence_resolved": {"removed": 0, "downgraded": 1}
+   }
+   </bts-findings>
+   ```
+
+   Output findings as a numbered list with severity tags AFTER the block.
    For each finding also include (when applicable):
      Source: <URL> | <URL>
      Gathered: <Context7|WebFetch|WebSearch summary>

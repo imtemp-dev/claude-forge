@@ -1,6 +1,10 @@
 ---
 paths:
   - ".bts/**"
+authoritative_for:
+  - execution_rules
+  - task_state_machine
+  - retry_limits
 ---
 
 # BTS Implementation Protocol

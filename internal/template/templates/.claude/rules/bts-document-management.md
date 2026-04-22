@@ -1,6 +1,11 @@
 ---
 paths:
   - ".bts/**"
+authoritative_for:
+  - draft_file
+  - manifest
+  - sync_rule
+  - naming_conventions
 ---
 
 # BTS Document Management
