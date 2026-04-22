@@ -74,6 +74,41 @@ func ValidateRecipeDir(recipeDir string) ([]ValidationError, error) {
 		errors = append(errors, errs...)
 	}
 
+	// 7b. deviation.md — Phase 16 machine-readable schema. Runs only
+	// when deviation.md exists so recipes still in blueprint/verify
+	// phase are not flagged.
+	deviationPath := filepath.Join(recipeDir, "deviation.md")
+	if _, err := os.Stat(deviationPath); err == nil {
+		for _, issue := range CheckDeviationSchema(deviationPath) {
+			errors = append(errors, ValidationError{
+				File:    "deviation.md",
+				Field:   issue.Category,
+				Message: issue.Claim + " — " + issue.Detail,
+			})
+		}
+		// 7c. Phase 12 — every simulation DEVIATION must land in
+		// deviation.md with a matching simulate:{id} Driver.
+		for _, issue := range CheckSimDeviationConsumption(recipeDir) {
+			errors = append(errors, ValidationError{
+				File:    "simulations/ → deviation.md",
+				Field:   issue.Category,
+				Message: issue.Claim + " — " + issue.Detail,
+			})
+		}
+	}
+
+	// 7d. Phase 13 — test ↔ simulate scenario coverage. Runs when
+	// test-results.json exists (tests have been executed).
+	if _, err := os.Stat(filepath.Join(recipeDir, "test-results.json")); err == nil {
+		for _, issue := range CheckTestScenarioCoverage(recipeDir) {
+			errors = append(errors, ValidationError{
+				File:    "simulations/ → tests",
+				Field:   issue.Category,
+				Message: issue.Claim + " — " + issue.Detail,
+			})
+		}
+	}
+
 	// 8. simulations/*.md — cross-boundary ratio + illegal-cell coverage
 	// (Phase 6.1 and 6.2).
 	simsDir := filepath.Join(recipeDir, "simulations")

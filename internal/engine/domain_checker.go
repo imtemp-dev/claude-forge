@@ -146,11 +146,23 @@ func parseInvariantsTable(path string) ([]Invariant, error) {
 	return invariants, scanner.Err()
 }
 
-// parseTableRow splits "| a | b | c |" into ["a", "b", "c"] without the
-// empty first/last cells that naive Split produces.
+// parseTableRow splits "| a | b | c |" into ["a", "b", "c"]. Leading
+// and trailing pipes produce empty segments that are dropped, but
+// INTERNAL empty cells (e.g. "| a |  | c |") must be preserved so
+// schema checkers can report "missing field" correctly.
 func parseTableRow(line string) []string {
-	trimmed := strings.Trim(line, "| \t")
-	return strings.Split(trimmed, "|")
+	line = strings.TrimSpace(line)
+	parts := strings.Split(line, "|")
+	// strings.Split on "|a|b|" yields ["", "a", "b", ""]. Drop the
+	// leading and trailing empty segments (from the outer pipes)
+	// without touching internal ones.
+	if len(parts) > 0 && strings.TrimSpace(parts[0]) == "" && strings.HasPrefix(line, "|") {
+		parts = parts[1:]
+	}
+	if len(parts) > 0 && strings.TrimSpace(parts[len(parts)-1]) == "" && strings.HasSuffix(line, "|") {
+		parts = parts[:len(parts)-1]
+	}
+	return parts
 }
 
 // normalizeStatement collapses whitespace and lowercases so minor

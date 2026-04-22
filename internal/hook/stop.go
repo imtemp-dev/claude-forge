@@ -187,6 +187,20 @@ func (h *stopHandler) handleImplementDone(root string, recipe *state.RecipeState
 		)), nil
 	}
 
+	// 5b. Deviation schema gate (Phase 16): every row in deviation.md
+	// must carry an ID, at least one Driver from the vocabulary, and a
+	// valid Severity. Critical-level findings (missing ID / missing
+	// driver) block completion; lower severities surface via
+	// `bts validate`.
+	for _, issue := range engine.CheckDeviationSchema(deviationPath) {
+		if issue.Severity == "critical" {
+			return blockOutput(fmt.Sprintf(
+				"deviation.md schema failure: %s — %s",
+				issue.Claim, issue.Detail,
+			)), nil
+		}
+	}
+
 	// 6. Modify scope gate (Phase 14): for Action=="modify" tasks,
 	// CheckModifyScope with the real project root runs the
 	// scope_symbol_missing check that the static validator cannot do

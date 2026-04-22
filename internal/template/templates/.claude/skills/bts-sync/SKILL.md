@@ -63,6 +63,34 @@ every single item within each file.
 Also scan for code files NOT mentioned in the spec that appear related
 (same directory, similar naming).
 
+## Step 2.5: Ingest Simulation DEVIATIONs (Phase 12)
+
+Before classifying Step 2's code-vs-spec results, fold in the DEVIATION
+entries that /bts-simulate already recorded during code mode. They are
+already validated (adversarially), so rediscovering them here is waste.
+
+```bash
+bts sim-deviations --recipe {id} --json
+```
+
+For each entry `{id, driver="simulate", severity, file, detail}`:
+
+- If Step 2 found a matching code-vs-spec difference → APPEND
+  `simulate:{id}` to that row's Driver column (comma-separated).
+- If Step 2 missed it → ADD a new row to the Deviations table with:
+    - ID: next D-NNN
+    - Item: short description derived from `detail`
+    - Spec Says / Code Has: extracted from `detail` if possible, else
+      leave the spec side from final.md and code side as "(see simulation)"
+    - Driver: `simulate:{id}`
+    - Severity: `severity` from the simulation (default major)
+    - Resolution: `pending` unless the code already reflects the
+      finding, in which case "spec updated" and update final.md.
+
+`bts validate` enforces that every sim DEVIATION id ends up with a
+matching `simulate:{id}` token in deviation.md. Missing consumption
+surfaces as `sim_deviation_unconsumed` (major).
+
 ## Step 3: Classify Results
 
 ### Cosmetic vs Functional
@@ -135,20 +163,37 @@ Recipe: {id}
 - Deviations: N
 
 ## Not Implemented
-| Item | File | Reason |
-|------|------|--------|
-| ... | ... | ... |
+| ID | Item | File | Driver | Severity | Reason |
+|----|------|------|--------|----------|--------|
+| D-001 | ... | ... | code-diff | major | ... |
 
 ## Spec Additions
-| Item | File | Description |
-|------|------|-------------|
-| ... | ... | ... |
+| ID | Item | File | Driver | Severity | Description |
+|----|------|------|--------|----------|-------------|
+| D-002 | ... | ... | code-diff | minor | ... |
 
 ## Deviations
-| Item | Spec Says | Code Has | Resolution |
-|------|-----------|----------|------------|
-| ... | ... | ... | ... |
+| ID | Item | Spec Says | Code Has | Driver | Severity | Resolution |
+|----|------|-----------|----------|--------|----------|------------|
+| D-003 | ... | ... | ... | code-diff,review:MAJ-005 | major | ... |
 ```
+
+**ID rule (Phase 16)**: every row MUST carry a unique D-NNN identifier.
+IDs are monotonic within the recipe and never reused even across
+sections.
+
+**Driver vocabulary (Phase 16)**: exactly these tokens, comma-separated
+when multiple apply:
+  - `code-diff`     — row surfaced by this sync step's file-by-file compare
+  - `sync-check`    — row surfaced by /bts-sync-check
+  - `simulate:<id>` — row forwarded from a simulations/*.md DEVIATION entry
+  - `review:<id>`   — row forwarded from a review.md finding (CRT-001 / MAJ-005 / ...)
+  - `test:<name>`   — row surfaced by a failing or category="spec" test
+  - `midrun:<win>`  — row surfaced by a mid-run review (reviews/midrun-*.md)
+
+**Severity**: critical / major / minor / info. `bts validate` enforces
+the vocabulary; missing or invalid Driver / Severity / ID blocks
+`<bts>IMPLEMENT DONE</bts>`.
 
 ## Step 6: Log and Validate
 

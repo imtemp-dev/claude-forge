@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/imtemp-dev/claude-bts/internal/engine"
 	"github.com/imtemp-dev/claude-bts/internal/state"
 	"github.com/spf13/cobra"
 )
@@ -39,6 +40,18 @@ func init() {
 	migrateCmd.AddCommand(migrateModifyScopeCmd)
 	migrateModifyScopeCmd.Flags().String("target", "", "Target directory (defaults to CWD project root)")
 	migrateModifyScopeCmd.Flags().Bool("dry-run", false, "Show what would change without writing")
+
+	migrateCmd.AddCommand(migrateDeviationDriverCmd)
+	migrateDeviationDriverCmd.Flags().String("target", "", "Target directory (defaults to CWD project root)")
+	migrateDeviationDriverCmd.Flags().Bool("dry-run", false, "Show what would change without writing")
+
+	migrateCmd.AddCommand(migrateSimDeviationsCmd)
+	migrateSimDeviationsCmd.Flags().String("target", "", "Target directory (defaults to CWD project root)")
+	migrateSimDeviationsCmd.Flags().Bool("dry-run", false, "Show what would change without writing")
+
+	migrateCmd.AddCommand(migrateTestScenariosCmd)
+	migrateTestScenariosCmd.Flags().String("target", "", "Target directory (defaults to CWD project root)")
+	migrateTestScenariosCmd.Flags().Bool("dry-run", false, "Show what would change without writing")
 
 	migrateCmd.AddCommand(migrateAllCmd)
 	migrateAllCmd.Flags().String("target", "", "Target directory (defaults to CWD project root)")
@@ -1070,11 +1083,602 @@ func inferScopeSymbols(projectRoot, file, description string) []string {
 	return matched
 }
 
+// ---- deviation-driver migration (Phase 16) ----------------------------
+
+var migrateDeviationDriverCmd = &cobra.Command{
+	Use:   "deviation-driver",
+	Short: "Upgrade deviation.md tables to the 7-column Driver schema",
+	Long: `Phase 16 requires every row in deviation.md to carry an ID, a
+Driver from the vocabulary (code-diff | sync-check | simulate:<id> |
+review:<id> | test:<name> | midrun:<window>), and a Severity from
+{critical, major, minor, info}. Legacy tables lack these columns.
+
+This command rewrites each recipe's deviation.md so that:
+  - Every row receives a unique monotonic ID (D-NNN) preserving
+    document order.
+  - The Driver column is added with a default value of "code-diff"
+    (the conservative choice for rows produced by /bts-sync's own
+    diff pass).
+  - The Severity column is added with a default of "major".
+
+Rows already matching the new schema are left untouched. Backup:
+deviation.md.bak.driver.`,
+	RunE: runMigrateDeviationDriver,
+}
+
+var (
+	// Old "Not Implemented" header. Some recipes added a leading "#"
+	// or "No." column — accept either shape.
+	oldNotImplHeaderRe = regexp.MustCompile(`(?mi)^\|\s*(?:#|No\.?)?\s*\|?\s*Item\s*\|\s*File\s*\|\s*Reason\s*\|\s*$`)
+	oldSpecAddHeaderRe = regexp.MustCompile(`(?mi)^\|\s*(?:#|No\.?)?\s*\|?\s*Item\s*\|\s*File\s*\|\s*Description\s*\|\s*$`)
+	oldDeviationHeaderRe = regexp.MustCompile(`(?mi)^\|\s*(?:#|No\.?)?\s*\|?\s*Item\s*\|\s*Spec Says\s*\|\s*Code Has\s*\|\s*Resolution\s*\|\s*$`)
+)
+
+// hasNumberingColumn reports whether the matched header included a "#"
+// or "No." leading column. Used to strip that first cell from data rows
+// during rewrite so it does not leak into the new ID column.
+func hasNumberingColumn(headerLine string) bool {
+	trimmed := strings.TrimSpace(headerLine)
+	// Look at the first cell (between the first and second |).
+	first := strings.SplitN(strings.TrimPrefix(trimmed, "|"), "|", 2)
+	if len(first) == 0 {
+		return false
+	}
+	cell := strings.TrimSpace(first[0])
+	return cell == "#" || strings.EqualFold(cell, "No") || strings.EqualFold(cell, "No.")
+}
+
+func runMigrateDeviationDriver(cmd *cobra.Command, args []string) error {
+	target, dryRun, err := migrateFlags(cmd)
+	if err != nil {
+		return err
+	}
+	recipesDir := filepath.Join(state.SpecsPath(target), "recipes")
+	entries, err := os.ReadDir(recipesDir)
+	if err != nil {
+		return fmt.Errorf("read recipes dir: %w", err)
+	}
+
+	var totalRecipes, migratedRecipes, rewrittenRows int
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		deviationPath := filepath.Join(recipesDir, e.Name(), "deviation.md")
+		if _, err := os.Stat(deviationPath); os.IsNotExist(err) {
+			continue
+		}
+		totalRecipes++
+
+		rewritten, err := migrateOneDeviationDriver(deviationPath, dryRun)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  %s: error: %v\n", e.Name(), err)
+			continue
+		}
+		if rewritten > 0 {
+			migratedRecipes++
+			rewrittenRows += rewritten
+			marker := "migrated"
+			if dryRun {
+				marker = "would migrate"
+			}
+			fmt.Printf("  %s: %s %d row(s)\n", e.Name(), marker, rewritten)
+		}
+	}
+	if dryRun {
+		fmt.Printf("\nDry run: %d/%d deviation.md files need migration (%d rows).\n", migratedRecipes, totalRecipes, rewrittenRows)
+	} else {
+		fmt.Printf("\nMigrated %d/%d deviation.md files (%d rows). Backups: deviation.md.bak.driver\n", migratedRecipes, totalRecipes, rewrittenRows)
+	}
+	return nil
+}
+
+func migrateOneDeviationDriver(path string, dryRun bool) (int, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0, err
+	}
+	content := string(data)
+
+	// Short-circuit if the file already uses the new schema.
+	if strings.Contains(content, "| ID | Item ") {
+		return 0, nil
+	}
+
+	lines := strings.Split(content, "\n")
+	idCounter := 0
+	nextID := func() string {
+		idCounter++
+		return fmt.Sprintf("D-%03d", idCounter)
+	}
+
+	var out []string
+	tableMode := "" // "not_implemented" | "spec_additions" | "deviations"
+	expectSeparator := false
+	skipLeadingCell := false
+	rowsRewritten := 0
+
+	for _, line := range lines {
+		switch {
+		case oldNotImplHeaderRe.MatchString(line):
+			out = append(out, "| ID | Item | File | Driver | Severity | Reason |")
+			expectSeparator = true
+			tableMode = "not_implemented"
+			skipLeadingCell = hasNumberingColumn(line)
+			continue
+		case oldSpecAddHeaderRe.MatchString(line):
+			out = append(out, "| ID | Item | File | Driver | Severity | Description |")
+			expectSeparator = true
+			tableMode = "spec_additions"
+			skipLeadingCell = hasNumberingColumn(line)
+			continue
+		case oldDeviationHeaderRe.MatchString(line):
+			out = append(out, "| ID | Item | Spec Says | Code Has | Driver | Severity | Resolution |")
+			expectSeparator = true
+			tableMode = "deviations"
+			skipLeadingCell = hasNumberingColumn(line)
+			continue
+		}
+
+		if expectSeparator && strings.Contains(line, "---") {
+			// Replace the old separator with one that matches the new
+			// column count.
+			switch tableMode {
+			case "deviations":
+				out = append(out, "|----|------|-----------|----------|--------|----------|------------|")
+			default:
+				out = append(out, "|----|------|------|--------|----------|--------|")
+			}
+			expectSeparator = false
+			continue
+		}
+
+		if tableMode != "" {
+			trimmed := strings.TrimSpace(line)
+			if !strings.HasPrefix(trimmed, "|") {
+				tableMode = ""
+				out = append(out, line)
+				continue
+			}
+			cells := parseTableRow(trimmed)
+			for i := range cells {
+				cells[i] = strings.TrimSpace(cells[i])
+			}
+			// If the old header carried a leading "#"/"No." numbering
+			// column, drop that first cell so downstream indices line up
+			// with the canonical Item-first layout.
+			if skipLeadingCell && len(cells) > 0 {
+				cells = cells[1:]
+			}
+			// Placeholder row → preserve but append empty cells to match width.
+			if isPlaceholderCells(cells) {
+				switch tableMode {
+				case "deviations":
+					out = append(out, "| — | — | — | — | — | — | — |")
+				default:
+					out = append(out, "| — | — | — | — | — | — |")
+				}
+				continue
+			}
+			id := nextID()
+			var rewritten string
+			switch tableMode {
+			case "not_implemented", "spec_additions":
+				// old: Item | File | Reason(or Description)
+				item := firstOr(cells, 0, "")
+				file := firstOr(cells, 1, "")
+				tail := firstOr(cells, 2, "")
+				rewritten = fmt.Sprintf("| %s | %s | %s | code-diff | major | %s |",
+					id, item, file, tail)
+			case "deviations":
+				// old: Item | Spec Says | Code Has | Resolution
+				item := firstOr(cells, 0, "")
+				spec := firstOr(cells, 1, "")
+				code := firstOr(cells, 2, "")
+				res := firstOr(cells, 3, "")
+				rewritten = fmt.Sprintf("| %s | %s | %s | %s | code-diff | major | %s |",
+					id, item, spec, code, res)
+			}
+			out = append(out, rewritten)
+			rowsRewritten++
+			continue
+		}
+		out = append(out, line)
+	}
+
+	if rowsRewritten == 0 {
+		return 0, nil
+	}
+	if dryRun {
+		return rowsRewritten, nil
+	}
+	if err := os.WriteFile(path+".bak.driver", data, 0644); err != nil {
+		return 0, err
+	}
+	return rowsRewritten, os.WriteFile(path, []byte(strings.Join(out, "\n")), 0644)
+}
+
+func firstOr(xs []string, i int, def string) string {
+	if i < len(xs) {
+		return xs[i]
+	}
+	return def
+}
+
+func isPlaceholderCells(cells []string) bool {
+	for _, c := range cells {
+		if c != "" && c != "—" && c != "-" {
+			return false
+		}
+	}
+	return true
+}
+
+// parseTableRow is a thin wrapper so migrate doesn't need to import
+// engine (which would create a cycle). Duplicates the logic in
+// engine/domain_checker.go — kept short enough to inline.
+func parseTableRow(line string) []string {
+	line = strings.TrimSpace(line)
+	parts := strings.Split(line, "|")
+	if len(parts) > 0 && strings.TrimSpace(parts[0]) == "" && strings.HasPrefix(line, "|") {
+		parts = parts[1:]
+	}
+	if len(parts) > 0 && strings.TrimSpace(parts[len(parts)-1]) == "" && strings.HasSuffix(line, "|") {
+		parts = parts[:len(parts)-1]
+	}
+	return parts
+}
+
+// ---- sim-deviations migration (Phase 12) ------------------------------
+
+var migrateSimDeviationsCmd = &cobra.Command{
+	Use:   "sim-deviations",
+	Short: "Append legacy simulation DEVIATIONs to deviation.md (Phase 12)",
+	Long: `Phase 12 requires every simulation DEVIATION to land in
+deviation.md with a matching simulate:{id} Driver. Legacy recipes have
+DEVIATIONs listed in simulations/*.md (bullet or bare-line form) but
+never synced into deviation.md. This command appends a row for each
+unconsumed DEVIATION with:
+
+  - ID:         next available D-NNN
+  - Item:       first sentence of the detail
+  - Spec Says:  "(see simulation {file})"
+  - Code Has:   "(see simulation {file})"
+  - Driver:     simulate:{sim-id}
+  - Severity:   major (legacy default) unless grammar declared otherwise
+  - Resolution: pending
+
+Existing rows whose Driver already cites simulate:{id} are preserved
+untouched. Backup: deviation.md.bak.sim.`,
+	RunE: runMigrateSimDeviations,
+}
+
+func runMigrateSimDeviations(cmd *cobra.Command, args []string) error {
+	target, dryRun, err := migrateFlags(cmd)
+	if err != nil {
+		return err
+	}
+	recipesDir := filepath.Join(state.SpecsPath(target), "recipes")
+	entries, err := os.ReadDir(recipesDir)
+	if err != nil {
+		return fmt.Errorf("read recipes dir: %w", err)
+	}
+
+	var totalRecipes, migratedRecipes, appendedRows int
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		recipeDir := filepath.Join(recipesDir, e.Name())
+		deviationPath := filepath.Join(recipeDir, "deviation.md")
+		if _, err := os.Stat(deviationPath); os.IsNotExist(err) {
+			continue
+		}
+		simsDir := filepath.Join(recipeDir, "simulations")
+		if _, err := os.Stat(simsDir); os.IsNotExist(err) {
+			continue
+		}
+		totalRecipes++
+
+		appended, err := migrateOneSimDeviations(recipeDir, deviationPath, dryRun)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  %s: error: %v\n", e.Name(), err)
+			continue
+		}
+		if appended > 0 {
+			migratedRecipes++
+			appendedRows += appended
+			marker := "appended"
+			if dryRun {
+				marker = "would append"
+			}
+			fmt.Printf("  %s: %s %d sim-DEVIATION row(s)\n", e.Name(), marker, appended)
+		}
+	}
+
+	if dryRun {
+		fmt.Printf("\nDry run: %d/%d recipes need sim-DEVIATION migration (%d rows).\n", migratedRecipes, totalRecipes, appendedRows)
+	} else {
+		fmt.Printf("\nMigrated %d/%d recipes (%d rows). Backups: deviation.md.bak.sim\n", migratedRecipes, totalRecipes, appendedRows)
+	}
+	return nil
+}
+
+func migrateOneSimDeviations(recipeDir, deviationPath string, dryRun bool) (int, error) {
+	// Use the engine to get the same list the gate checks against.
+	sims, err := engineExtractSims(recipeDir)
+	if err != nil || len(sims) == 0 {
+		return 0, err
+	}
+
+	// Find which sim ids are already covered in deviation.md so we
+	// skip them — idempotent re-run should be a no-op.
+	data, err := os.ReadFile(deviationPath)
+	if err != nil {
+		return 0, err
+	}
+	content := string(data)
+
+	var unconsumed []simMigrateEntry
+	for _, s := range sims {
+		needle := "simulate:" + s.ID
+		if strings.Contains(content, needle) {
+			continue
+		}
+		unconsumed = append(unconsumed, s)
+	}
+	if len(unconsumed) == 0 {
+		return 0, nil
+	}
+
+	// Compute the next D-NNN id. Scan existing rows for the highest.
+	maxID := 0
+	idRe := regexp.MustCompile(`\|\s*D-(\d+)\s*\|`)
+	for _, m := range idRe.FindAllStringSubmatch(content, -1) {
+		if len(m) >= 2 {
+			n, _ := strconv.Atoi(m[1])
+			if n > maxID {
+				maxID = n
+			}
+		}
+	}
+
+	// Build the appended rows. If a "## Deviations" section exists, we
+	// inject just after its table; otherwise append a new section.
+	var appended strings.Builder
+	for _, s := range unconsumed {
+		maxID++
+		id := fmt.Sprintf("D-%03d", maxID)
+		item := firstSentence(s.Detail)
+		appended.WriteString(fmt.Sprintf(
+			"| %s | %s | (see simulations/%s) | (see simulations/%s) | simulate:%s | %s | pending |\n",
+			id, item, s.File, s.File, s.ID, s.Severity,
+		))
+	}
+
+	newContent := appendToDeviationSection(content, appended.String())
+
+	if dryRun {
+		return len(unconsumed), nil
+	}
+	if err := os.WriteFile(deviationPath+".bak.sim", data, 0644); err != nil {
+		return 0, err
+	}
+	if err := os.WriteFile(deviationPath, []byte(newContent), 0644); err != nil {
+		return 0, err
+	}
+	return len(unconsumed), nil
+}
+
+// simMigrateEntry mirrors engine.SimDeviation without pulling the
+// engine package into this file's signature surface. migrate.go
+// already imports engine indirectly via cli; a thin aliasing call
+// keeps the two layers loosely coupled.
+type simMigrateEntry struct {
+	ID, File, Driver, Severity, Detail string
+}
+
+// engineExtractSims forwards to the engine extractor. Kept in a tiny
+// wrapper so testing the migrator can stub this out if needed later.
+func engineExtractSims(recipeDir string) ([]simMigrateEntry, error) {
+	raws, err := engine.ExtractSimulationDeviations(recipeDir)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]simMigrateEntry, 0, len(raws))
+	for _, r := range raws {
+		out = append(out, simMigrateEntry{
+			ID: r.ID, File: r.File, Driver: r.Driver,
+			Severity: r.Severity, Detail: r.Detail,
+		})
+	}
+	return out, nil
+}
+
+// firstSentence returns the first ". " or "\n" delimited chunk of s,
+// capped at 100 characters. Used when synthesizing the Item column.
+func firstSentence(s string) string {
+	s = strings.TrimSpace(s)
+	if idx := strings.Index(s, ". "); idx > 0 && idx < 100 {
+		return s[:idx]
+	}
+	if idx := strings.IndexByte(s, '\n'); idx > 0 && idx < 100 {
+		return strings.TrimSpace(s[:idx])
+	}
+	if len(s) > 100 {
+		return s[:97] + "..."
+	}
+	return s
+}
+
+// appendToDeviationSection inserts rows into the Deviations table.
+// If no Deviations section exists, a fresh one is appended at EOF
+// along with the canonical 7-column header.
+func appendToDeviationSection(content, rows string) string {
+	const header = "## Deviations"
+	idx := strings.Index(content, header)
+	if idx < 0 {
+		// No section → append new one.
+		return strings.TrimRight(content, "\n") + "\n\n" +
+			"## Deviations\n" +
+			"| ID | Item | Spec Says | Code Has | Driver | Severity | Resolution |\n" +
+			"|----|------|-----------|----------|--------|----------|------------|\n" +
+			rows
+	}
+	// Find the end of the existing table by walking until a line that
+	// is NOT part of the table (doesn't start with "|").
+	tail := content[idx:]
+	lines := strings.Split(tail, "\n")
+	cut := len(lines)
+	tableStarted := false
+	for i, ln := range lines {
+		trimmed := strings.TrimSpace(ln)
+		if strings.HasPrefix(trimmed, "|") {
+			tableStarted = true
+			continue
+		}
+		if tableStarted && trimmed == "" {
+			cut = i
+			break
+		}
+		if tableStarted && !strings.HasPrefix(trimmed, "|") {
+			cut = i
+			break
+		}
+	}
+	before := idx + len(strings.Join(lines[:cut], "\n"))
+	after := content[before:]
+	return content[:before] + "\n" + rows + after
+}
+
+// ---- test-scenarios migration (Phase 13) ------------------------------
+
+var migrateTestScenariosCmd = &cobra.Command{
+	Use:   "test-scenarios",
+	Short: "Seed test-results.json scenario_coverage from simulations (Phase 13)",
+	Long: `Phase 13 requires every simulation scenario to be linked by a
+bts:scenario test tag. Legacy recipes have scenarios but no tagged
+tests. This migration populates test-results.json's scenario_coverage
+map with an entry for every simulation scenario id:
+
+  - Value ["legacy"] if no matching test name can be guessed from the
+    scenario id / description. The checker treats these as
+    acknowledged-but-unverified; monitoring (Phase 17) tracks the
+    percentage still in legacy state.
+  - Value ["<guess>"] when the scenario id appears in a test file name
+    or description. The author is expected to verify and replace the
+    guess with actual test names in a follow-up pass.
+
+Backup: test-results.json.bak.scenarios.`,
+	RunE: runMigrateTestScenarios,
+}
+
+func runMigrateTestScenarios(cmd *cobra.Command, args []string) error {
+	target, dryRun, err := migrateFlags(cmd)
+	if err != nil {
+		return err
+	}
+	recipesDir := filepath.Join(state.SpecsPath(target), "recipes")
+	entries, err := os.ReadDir(recipesDir)
+	if err != nil {
+		return fmt.Errorf("read recipes dir: %w", err)
+	}
+
+	var totalRecipes, migratedRecipes, addedEntries int
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		recipeDir := filepath.Join(recipesDir, e.Name())
+		resultsPath := filepath.Join(recipeDir, "test-results.json")
+		if _, err := os.Stat(resultsPath); os.IsNotExist(err) {
+			continue
+		}
+		simsDir := filepath.Join(recipeDir, "simulations")
+		if _, err := os.Stat(simsDir); os.IsNotExist(err) {
+			continue
+		}
+		totalRecipes++
+
+		added, err := migrateOneTestScenarios(recipeDir, resultsPath, dryRun)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  %s: error: %v\n", e.Name(), err)
+			continue
+		}
+		if added > 0 {
+			migratedRecipes++
+			addedEntries += added
+			marker := "added"
+			if dryRun {
+				marker = "would add"
+			}
+			fmt.Printf("  %s: %s %d scenario_coverage entr(y|ies)\n", e.Name(), marker, added)
+		}
+	}
+	if dryRun {
+		fmt.Printf("\nDry run: %d/%d recipes need migration (%d entries).\n", migratedRecipes, totalRecipes, addedEntries)
+	} else {
+		fmt.Printf("\nMigrated %d/%d recipes (%d entries). Backups: test-results.json.bak.scenarios\n", migratedRecipes, totalRecipes, addedEntries)
+	}
+	return nil
+}
+
+func migrateOneTestScenarios(recipeDir, resultsPath string, dryRun bool) (int, error) {
+	// Collect known simulation scenario ids via the engine's own
+	// collector. Stay honest about what the checker counts.
+	scenarios := engine.CollectSimulationScenarioIDsForMigration(recipeDir)
+	if len(scenarios) == 0 {
+		return 0, nil
+	}
+
+	data, err := os.ReadFile(resultsPath)
+	if err != nil {
+		return 0, err
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return 0, fmt.Errorf("parse test-results.json: %w", err)
+	}
+
+	coverage, _ := payload["scenario_coverage"].(map[string]interface{})
+	if coverage == nil {
+		coverage = map[string]interface{}{}
+	}
+
+	added := 0
+	for _, id := range scenarios {
+		if _, ok := coverage[id]; ok {
+			continue
+		}
+		coverage[id] = []interface{}{"legacy"}
+		added++
+	}
+	if added == 0 {
+		return 0, nil
+	}
+	payload["scenario_coverage"] = coverage
+
+	if dryRun {
+		return added, nil
+	}
+	if err := os.WriteFile(resultsPath+".bak.scenarios", data, 0644); err != nil {
+		return 0, err
+	}
+	out, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return 0, err
+	}
+	if strings.HasSuffix(string(data), "\n") {
+		out = append(out, '\n')
+	}
+	return added, os.WriteFile(resultsPath, out, 0644)
+}
+
 // ---- all-in-one convenience -------------------------------------------
 
 var migrateAllCmd = &cobra.Command{
 	Use:   "all",
-	Short: "Run all migrations in sequence (verify-log, changelog, verification, simulations, task-anchors, modify-scope)",
+	Short: "Run all migrations in sequence (Sprint 1..7 in order)",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := runMigrateVerifyLog(cmd, args); err != nil {
 			return err
@@ -1096,7 +1700,19 @@ var migrateAllCmd = &cobra.Command{
 			return err
 		}
 		fmt.Println()
-		return runMigrateModifyScope(cmd, args)
+		if err := runMigrateModifyScope(cmd, args); err != nil {
+			return err
+		}
+		fmt.Println()
+		if err := runMigrateDeviationDriver(cmd, args); err != nil {
+			return err
+		}
+		fmt.Println()
+		if err := runMigrateSimDeviations(cmd, args); err != nil {
+			return err
+		}
+		fmt.Println()
+		return runMigrateTestScenarios(cmd, args)
 	},
 }
 

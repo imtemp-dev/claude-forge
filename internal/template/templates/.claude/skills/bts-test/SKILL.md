@@ -47,7 +47,11 @@ If test-results.json does not exist → start from Step 1
    - Error path scenarios
    - Edge cases
    - Integration scenarios
-3. Read existing test files in the project to understand:
+3. **Read simulations/*.md (Phase 13)**: collect every scenario id
+   referenced in simulation files. These are the ids that tests MUST
+   link via `bts:scenario` tags. `bts check test-coverage` enforces
+   this after Step 2.5 runs.
+4. Read existing test files in the project to understand:
    - Test framework (Jest, Go testing, pytest, etc.)
    - Test file naming convention
    - Test utilities and helpers already available
@@ -59,6 +63,15 @@ For each test scenario from final.md:
 2. Write test cases that verify the behavior described in the spec
 3. Use existing test utilities where available
 4. Include setup/teardown as needed
+5. **Tag every test with `bts:scenario {id}` (Phase 13)**. Place the
+   comment directly above the test declaration so the parser can pair
+   them. Supported comment forms:
+     - `// bts:scenario sim-002.s1`
+     - `# bts:scenario sim-002.s1`
+     - `/* bts:scenario sim-002.s1 */`
+   Scenarios without a linked test surface as critical (cross-boundary
+   / illegal-cell) or major (single-axis) findings from
+   `bts validate`.
 
 Test files go in the project's test directory (not in `.bts/`).
 
@@ -101,10 +114,15 @@ If all tests pass → proceed to Step 4.
 
 If tests fail:
 - Read the failure output carefully
-- Classify each failure:
-  - **Implementation bug**: the code doesn't match the spec → fix the implementation
-  - **Test bug**: the test itself is wrong (bad assertion, wrong setup) → fix the test
-  - **Spec ambiguity**: the spec doesn't clearly define expected behavior → note for sync
+- Classify each failure by setting its `category` field in
+  `test-results.json → failures[]` (Phase 13 — validator enforces
+  presence of `category` when `status=="fail"`):
+  - `implementation`: test tag matches a known scenario and the
+    scenario/test intent are consistent; the code fails. → fix impl.
+  - `test`: the test tags an orphan scenario id or asserts the wrong
+    thing. → fix test.
+  - `spec`: simulations/*.md scenarios contradict each other or the
+    spec is silent on the case. → note for sync.
 
 **Oscillation check**: Compare current failing tests with previous iterations.
 If a test that was fixed in iteration N is failing again in iteration N+2 →
@@ -146,10 +164,21 @@ If max iterations reached with failures:
        "src/__tests__/auth.test.ts",
        "src/__tests__/session.test.ts"
      ],
-     "failures": [],
+     "scenario_coverage": {
+       "sim-001.s1": ["src/__tests__/auth.test.ts::authenticates"],
+       "sim-001.s2": []
+     },
+     "failures": [
+       { "test": "x", "error": "...", "category": "implementation" }
+     ],
      "notes": []
    }
    ```
+   `scenario_coverage` is optional today but recommended — it lets the
+   gate avoid re-parsing test files on each run. When present, the
+   keys match simulation scenario ids; values are the test identifiers
+   that cover them. `failures[].category` is REQUIRED whenever
+   `status=="fail"`.
 
 2. Log to changelog and manifest:
    ```bash
